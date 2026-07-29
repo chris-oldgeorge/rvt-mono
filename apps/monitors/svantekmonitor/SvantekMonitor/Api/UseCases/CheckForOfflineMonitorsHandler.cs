@@ -50,9 +50,12 @@ public sealed class CheckForOfflineMonitorsHandler(
 
                     if (lastDataTime < cutOff && !monitor.Offline)
                     {
-                        RvtLogger.Logger.LogInformation(
+                        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation(
                             "Device serialId={SerialId} has not received data; marking offline",
                             monitor.SerialId);
+                        }
                         List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = _ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
                         _ruleProcessor.ProcessAlertForContacts(
                             monitor.FleetNr,

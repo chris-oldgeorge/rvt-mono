@@ -33,18 +33,21 @@ public class NotifyBatteryLevelsHandler(
             if (monitor.Sensor != null)
             {
                 int batteryLevel = monitor.Sensor!.BatteryCharge;
-                RvtLogger.Logger.LogDebug("NotifyBatteryLevels Battery level={Value1} for serialId={Value2} status={Value3}", batteryLevel, monitor.SerialId!, monitor.BatteryStatus!);
+                if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("NotifyBatteryLevels Battery level={Value1} for serialId={Value2} status={Value3}", batteryLevel, monitor.SerialId!, monitor.BatteryStatus!); }
 
                 if (batteryLevel < 0) // -1 means there is no valid value for battery level so ignore
                 {
-                    RvtLogger.Logger.LogInformation("NotifyBatteryLevels Battery data missing level={Value1} for serialId={Value2} ", batteryLevel, monitor.SerialId!);
+                    if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("NotifyBatteryLevels Battery data missing level={Value1} for serialId={Value2} ", batteryLevel, monitor.SerialId!); }
                 }
                 else if (batteryLevel <= _batteryLevelPercentAlert)
                 {
                     if (monitor.BatteryStatus == OmnidotsApi.BatteryAlertType.BatteryAlert)
                     {
-                        RvtLogger.Logger.LogInformation("NotifyBatteryLevels not notifing ALERT because monitor serialId={Value1} is already at BATTERY ALERT",
+                        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation("NotifyBatteryLevels not notifing ALERT because monitor serialId={Value1} is already at BATTERY ALERT",
                         monitor.SerialId!);
+                        }
                         continue;
                     }
 
@@ -57,8 +60,11 @@ public class NotifyBatteryLevelsHandler(
 
                     if (monitor.BatteryStatus == OmnidotsApi.BatteryAlertType.BatteryCaution)
                     {
-                        RvtLogger.Logger.LogInformation("NotifyBatteryLevels not notifing CAUTION because monitor serialId={Value1}  is already at BATTERY CAUTION",
+                        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation("NotifyBatteryLevels not notifing CAUTION because monitor serialId={Value1}  is already at BATTERY CAUTION",
                         monitor.SerialId!);
+                        }
                         continue;
                     }
 
@@ -69,8 +75,11 @@ public class NotifyBatteryLevelsHandler(
                 }
                 else
                 {
-                    RvtLogger.Logger.LogInformation("NotifyBatteryLevels Battery OK level={Value1} for serialId={Value2} is above caution level={Value3}",
+                    if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                    {
+                        RvtLogger.Logger.LogInformation("NotifyBatteryLevels Battery OK level={Value1} for serialId={Value2} is above caution level={Value3}",
                     batteryLevel, monitor.SerialId!, _batteryLevelPercentCaution);
+                    }
                     if (monitor.BatteryStatus != OmnidotsApi.BatteryAlertType.Off)
                     {
                         _monitorCommands.SetMonitorBatteryStatus(monitor.Id, 0);
@@ -79,7 +88,7 @@ public class NotifyBatteryLevelsHandler(
             }
             else
             {
-                RvtLogger.Logger.LogDebug("No sensor attached to measuring point serialId={Value1}", monitor.SerialId);
+                if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("No sensor attached to measuring point serialId={Value1}", monitor.SerialId); }
             }
 
         }

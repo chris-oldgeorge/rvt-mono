@@ -53,11 +53,14 @@ public sealed class NotifyBatteryLevelsHandler(
         CancellationToken cancellationToken)
     {
         int batteryLevel = monitor.BatteryCharge;
-        RvtLogger.Logger.LogDebug(
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug))
+        {
+            RvtLogger.Logger.LogDebug(
             "NotifyBatteryLevels battery level={BatteryLevel} for serialId={SerialId} status={BatteryStatus}",
             batteryLevel,
             monitor.SerialId,
             monitor.BatteryStatus);
+        }
 
         if (batteryLevel <= _batteryLevelPercentAlert)
         {

@@ -26,7 +26,7 @@ public class HttpWebClient<T> : IHttpClient
 
     public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
     {
-        RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path)); }
         using HttpRequestMessage request = new(HttpMethod.Get, path);
         using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         string reply = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
@@ -42,7 +42,7 @@ public class HttpWebClient<T> : IHttpClient
         HttpContent content,
         CancellationToken cancellationToken = default)
     {
-        RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path)); }
 
         using HttpRequestMessage request = new(HttpMethod.Post, path);
         request.Content = content;

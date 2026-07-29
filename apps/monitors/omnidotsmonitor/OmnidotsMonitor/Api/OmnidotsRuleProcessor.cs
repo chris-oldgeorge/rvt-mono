@@ -61,15 +61,21 @@ public class OmnidotsRuleProcessor(
                 {
                     if (contact.ShouldSendAtTime(notification.NotificationTime))
                     {
-                        RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
+                        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
                             SensitiveLogRedactor.Redact(contact.EmailAddress));
+                        }
                         _messageService.Sendmessage(messageToSend, LegacyMessageChannel.Email, contact, monitor.FleetNr!, notificationUrl);
                         _operationalCommands.WriteNotificationAudit(notification.Id, contact.EmailAddress, NotificationConstants.SENT_OK);
                     }
                     else
                     {
-                        RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
+                        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
                             SensitiveLogRedactor.Redact(contact.ToString()));
+                        }
                     }
                 }
                 catch (CommsException e)
@@ -83,15 +89,21 @@ public class OmnidotsRuleProcessor(
                 {
                     if (contact.ShouldSendAtTime(notification.NotificationTime))
                     {
-                        RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
+                        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
                             SensitiveLogRedactor.Redact(contact.PhoneNumber));
+                        }
                         _messageService.Sendmessage(messageToSend, LegacyMessageChannel.SMS, contact, monitor.FleetNr!, notificationUrl);
                         _operationalCommands.WriteNotificationAudit(notification.Id, contact.PhoneNumber!, NotificationConstants.SENT_OK);
                     }
                     else
                     {
-                        RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
+                        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
                             SensitiveLogRedactor.Redact(contact.ToString()));
+                        }
                     }
                 }
                 catch (CommsException e)

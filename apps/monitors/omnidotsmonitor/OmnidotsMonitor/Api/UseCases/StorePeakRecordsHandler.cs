@@ -100,8 +100,11 @@ public class StorePeakRecordsHandler(
 
     private async Task<int> StorePeakRecordsAsync(VibrationMonitorDto monitor, DateTime startTime, DateTime? endTime, string token, CancellationToken cancellationToken)
     {
-        RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} startTime={Value2} endTime={Value3}",
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+        {
+            RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} startTime={Value2} endTime={Value3}",
             monitor.SerialId, startTime, endTime);
+        }
 
         if ("OmniDots guest".Equals(monitor.CustomerDisplayName))
         {
@@ -173,14 +176,17 @@ public class StorePeakRecordsHandler(
             DateTime ps = DateTime.Now;
             _importCommands.ImportPeakRecords(monitor.SerialId, table, newestSampleAt);
             TimeSpan ts = DateTime.Now - ps;
-            RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
+            if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation("StorePeakRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
                  monitor.SerialId, table.Rows.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / table.Rows.Count));
+            }
             monitor.LastDataTime = newestSampleAt;
             await _eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
         }
         else
         {
-            RvtLogger.Logger.LogInformation("StorePeakRecords no samples for serialId={Value1}", monitor.SerialId);
+            if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("StorePeakRecords no samples for serialId={Value1}", monitor.SerialId); }
         }
         return table.Rows.Count;
     }

@@ -29,11 +29,14 @@ public static class MonitorJobTelemetry
         SetActivityTags(activity, tags);
 
         StartedCounter.Add(1, tags);
-        logger.LogInformation(
-            "Monitor job started {MonitorName} {JobName} {ExecutionMode}",
-            monitorName,
-            jobName,
-            executionMode);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Monitor job started {MonitorName} {JobName} {ExecutionMode}",
+                monitorName,
+                jobName,
+                executionMode);
+        }
 
         try
         {
@@ -45,13 +48,16 @@ public static class MonitorJobTelemetry
             {
                 CompletedCounter.Add(1, tags);
                 activity?.SetStatus(ActivityStatusCode.Ok);
-                logger.LogInformation(
-                    "Monitor job completed {MonitorName} {JobName} {ExecutionMode} {ExitCode} {DurationSeconds}",
-                    monitorName,
-                    jobName,
-                    executionMode,
-                    exitCode,
-                    durationSeconds);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation(
+                        "Monitor job completed {MonitorName} {JobName} {ExecutionMode} {ExitCode} {DurationSeconds}",
+                        monitorName,
+                        jobName,
+                        executionMode,
+                        exitCode,
+                        durationSeconds);
+                }
             }
             else
             {

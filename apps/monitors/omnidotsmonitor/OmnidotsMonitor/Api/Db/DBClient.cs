@@ -209,7 +209,7 @@ public class DBClient :
 
     public void WriteLatestTimestamp(string serialId, DateTime lastDataTime)
     {
-        RvtLogger.Logger.LogDebug("WriteLatestTimestamp for serialId={Value1} lastDataTime={Value2}", serialId, lastDataTime);
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("WriteLatestTimestamp for serialId={Value1} lastDataTime={Value2}", serialId, lastDataTime); }
 
         using OmnidotsMonitorContext context = CreateContext();
         MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
@@ -259,7 +259,7 @@ public class DBClient :
 
     public void InsertVeffRecords(string serialId, List<VeffRecordDto> dtos)
     {
-        RvtLogger.Logger.LogDebug("Inserting VEFF Records serialId={Value1} number of records={Value2}", serialId, dtos.Count);
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("Inserting VEFF Records serialId={Value1} number of records={Value2}", serialId, dtos.Count); }
 
         if (dtos.Count == 0)
         {
@@ -271,7 +271,7 @@ public class DBClient :
 
     public void InsertVdvRecords(string serialId, List<VdvRecordDto> dtos)
     {
-        RvtLogger.Logger.LogDebug("Inserting VDV Records serialId={Value1} number of records={Value2}", serialId, dtos.Count);
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("Inserting VDV Records serialId={Value1} number of records={Value2}", serialId, dtos.Count); }
 
         if (dtos.Count == 0)
         {

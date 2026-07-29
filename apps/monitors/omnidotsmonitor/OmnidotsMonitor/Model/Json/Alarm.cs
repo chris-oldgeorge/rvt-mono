@@ -117,8 +117,11 @@ public class AlarmData
                                   level: out double level,
                                   limit: out double limit);
 
-        RvtLogger.Logger.LogInformation("Creating notification alertType={Value1} level={Value2} limit={Value3}",
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+        {
+            RvtLogger.Logger.LogInformation("Creating notification alertType={Value1} level={Value2} limit={Value3}",
                                          alertType, level, limit);
+        }
 
         NotificationDto notification = new(id: Guid.NewGuid(),
              notificationTime: createdTime,

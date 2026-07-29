@@ -74,8 +74,12 @@ public sealed class RuleAlertNotificationDispatcher(
         {
             if (contact.ShouldSendAtTime(alertTime))
             {
-                RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
-                    SensitiveLogRedactor.Redact(contact.EmailAddress));
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
+                        SensitiveLogRedactor.Redact(contact.EmailAddress));
+                }
+
                 _messageService.Sendmessage(
                     messageToSend,
                     LegacyMessageChannel.Email,
@@ -86,8 +90,11 @@ public sealed class RuleAlertNotificationDispatcher(
             }
             else
             {
-                RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
-                    SensitiveLogRedactor.Redact(contact.ToString()));
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
+                        SensitiveLogRedactor.Redact(contact.ToString()));
+                }
             }
         }
         catch (CommsException e)
@@ -108,8 +115,12 @@ public sealed class RuleAlertNotificationDispatcher(
         {
             if (contact.ShouldSendAtTime(alertTime))
             {
-                RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
-                    SensitiveLogRedactor.Redact(contact.PhoneNumber));
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
+                        SensitiveLogRedactor.Redact(contact.PhoneNumber));
+                }
+
                 _messageService.Sendmessage(
                     messageToSend,
                     LegacyMessageChannel.SMS,
@@ -120,8 +131,11 @@ public sealed class RuleAlertNotificationDispatcher(
             }
             else
             {
-                RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
-                    SensitiveLogRedactor.Redact(contact.ToString()));
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
+                        SensitiveLogRedactor.Redact(contact.ToString()));
+                }
             }
         }
         catch (CommsException e)

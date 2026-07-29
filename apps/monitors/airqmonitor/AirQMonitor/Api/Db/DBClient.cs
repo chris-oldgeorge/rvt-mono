@@ -287,8 +287,11 @@ public class DBClient : IDBClient
 
     public void WriteNotificationAudit(Guid notificationId, string address, string message)
     {
-        RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+        {
+            RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
             SensitiveLogRedactor.Redact(address), message);
+        }
 
         using AirQMonitorContext context = CreateContext();
         context.NotificationAudits.Add(new NotificationSentEntity

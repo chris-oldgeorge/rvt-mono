@@ -20,17 +20,17 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
             "monitors",
             "myatmmonitor",
             "MyAtmMonitor",
-            "api",
+            "Api",
             "UseCases",
             fileName));
 
         Assert.Contains("IMyAtmAlertCommitCommands", source);
         CollectionAssert.AreEquivalent(
             _expected,
-            InvokedMethods(source, "alertCommitCommands"));
+            InvokedMethods(source, "_alertCommitCommands"));
         CollectionAssert.AreEquivalent(
             expectedCommitFactories.Split(',', StringSplitOptions.RemoveEmptyEntries),
-            InvokedMethods(source, "ruleProcessor"));
+            InvokedMethods(source, "_ruleProcessor"));
 
         AssertContainsNone(
             source,
@@ -87,7 +87,7 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
             "monitors",
             "myatmmonitor",
             "MyAtmMonitor",
-            "api",
+            "Api",
             "UseCases",
             "StoreDustLevelsHandler.cs"));
 
@@ -110,7 +110,7 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
             "monitors",
             "myatmmonitor",
             "MyAtmMonitor",
-            "api",
+            "Api",
             "MyAtmService.cs"));
 
         AssertContainsNone(source, "compatibility facades", ["MyAtmApi", "IDBClient"]);

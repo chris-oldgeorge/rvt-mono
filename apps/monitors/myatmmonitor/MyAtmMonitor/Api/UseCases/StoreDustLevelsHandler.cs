@@ -51,12 +51,15 @@ public sealed class StoreDustLevelsHandler(
                         period,
                         cancellationToken);
                     List<DustDto> dtos = [.. page.Measurements.Select(measurement => new DustDto(monitor.SerialId, measurement))];
-                    RvtLogger.Logger.LogInformation(
+                    if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                    {
+                        RvtLogger.Logger.LogInformation(
                         "StoreDustLevels page={PageNumber} count={Count} serialId={SerialId} cursor={Cursor}",
                         pageNumber + 1,
                         dtos.Count,
                         monitor.SerialId,
                         cursor);
+                    }
 
                     if (dtos.Count > 0)
                     {

@@ -56,7 +56,7 @@ public class StoreNoiseLevelsHandler(
                     LatestSamplesResult latest = await _gateway.GetLatestSamplesAsync(userId, userAuth, monitor.SerialId, lastDataTime, cancellationToken);
                     List<SampleResponse> samples = latest.Samples;
                     lastDataTime = latest.LatestDateTime;
-                    RvtLogger.Logger.LogInformation("GetLatestSamples SerialId={Value1} number of samples={Value2} lastDataTime={Value3}", monitor.SerialId, samples.Count, lastDataTime);
+                    if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("GetLatestSamples SerialId={Value1} number of samples={Value2} lastDataTime={Value3}", monitor.SerialId, samples.Count, lastDataTime); }
                     List<NoiseDto> dtos = [];
                     foreach (SampleResponse sample in samples)
                     {
@@ -79,7 +79,7 @@ public class StoreNoiseLevelsHandler(
                         DateTime endperiod = start.AddHours(8); //end time for the averaging period.
                         while (endperiod <= end) // end of a period exist within the samples.
                         {
-                            RvtLogger.Logger.LogInformation("Create average SerialId={Value1} number of endperiod={Value2}", monitor.SerialId, endperiod);
+                            if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("Create average SerialId={Value1} number of endperiod={Value2}", monitor.SerialId, endperiod); }
                             _measurementCommands.Create8hourAverage(monitor.SerialId, endperiod);
                             start = start.AddHours(8);
                             endperiod = start.AddHours(8);

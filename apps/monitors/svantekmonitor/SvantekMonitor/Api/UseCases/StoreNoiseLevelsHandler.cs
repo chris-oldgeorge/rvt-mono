@@ -71,7 +71,7 @@ public sealed class StoreNoiseLevelsHandler(
         DateTime utcNow,
         CancellationToken cancellationToken)
     {
-        RvtLogger.Logger.LogDebug("StoreNoiseLevels reading for project {ProjectId}", projectId);
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("StoreNoiseLevels reading for project {ProjectId}", projectId); }
         Dictionary<int, IReadOnlyList<NoiseRequestWindow>> windowsByMonitor = monitors.ToDictionary(
             monitor => monitor.PointId,
             monitor => _windowCalculator.Calculate(
@@ -92,11 +92,11 @@ public sealed class StoreNoiseLevelsHandler(
             List<MultiDataArgument> arguments = [.. requestedMonitors.Values.Select(monitor =>
             {
                 NoiseRequestWindow window = windowsByMonitor[monitor.PointId][requestIndex];
-                RvtLogger.Logger.LogDebug(
+                if(RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)){RvtLogger.Logger.LogDebug(
                     "StoreNoiseLevels request monitor {SerialId} from {Start} to {End}",
                     monitor.SerialId,
                     window.Start,
-                    window.End);
+                    window.End);}
                 return new MultiDataArgument
                 {
                     point = monitor.PointId,
@@ -127,9 +127,12 @@ public sealed class StoreNoiseLevelsHandler(
                 }
                 else if (monitorData.data.status == "no_data")
                 {
-                    RvtLogger.Logger.LogDebug(
+                    if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug))
+                    {
+                        RvtLogger.Logger.LogDebug(
                         "StoreNoiseLevels no data for {SerialId}",
                         monitor.SerialId);
+                    }
                 }
                 else
                 {
@@ -145,7 +148,7 @@ public sealed class StoreNoiseLevelsHandler(
         MultiData monitorData,
         CancellationToken cancellationToken)
     {
-        RvtLogger.Logger.LogDebug("StoreNoiseLevels data received for {SerialId}", monitor.SerialId);
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("StoreNoiseLevels data received for {SerialId}", monitor.SerialId); }
         DataTable table = CreateResultsTable();
         DateTime? firstDataTime = null;
         DateTime? lastDataTime = null;

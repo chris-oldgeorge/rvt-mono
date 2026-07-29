@@ -75,7 +75,7 @@ public sealed class SvantekHttpGatewayAsyncTests
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                It.IsAny<CancellationToken>()))
             .Returns(response.Task);
         SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
@@ -95,7 +95,7 @@ public sealed class SvantekHttpGatewayAsyncTests
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                It.IsAny<CancellationToken>()))
             .ThrowsAsync(adapterFailure);
         SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 

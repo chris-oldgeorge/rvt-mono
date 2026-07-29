@@ -55,12 +55,15 @@ public class StoreAccessoryInfoHandler(
                         .Select(group => group.First())
                         .OrderBy(dto => dto.SampleTime)];
 
-                    RvtLogger.Logger.LogInformation(
+                    if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                    {
+                        RvtLogger.Logger.LogInformation(
                         "StoreAccessoryInfo page={PageNumber} number of dtos to insert={Count} serialId={SerialId} cursor={Cursor}",
                         pageNumber + 1,
                         dtos.Count,
                         customerDto.SerialId,
                         cursor);
+                    }
 
                     if (dtos.Count > 0)
                     {

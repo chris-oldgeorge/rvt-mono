@@ -99,13 +99,19 @@ public class StoreTracesHandler(
 
         if (tracesList.Traces == null)
         {
-            RvtLogger.Logger.LogInformation("ReadTraces for serialId={Value1} tracelist is empty.",
+            if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation("ReadTraces for serialId={Value1} tracelist is empty.",
                 serialId);
+            }
             return new TraceReadResult(0, 0);
         }
 
-        RvtLogger.Logger.LogInformation("ReadTraces for serialId={Value1}  traceslist size={Value2}",
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+        {
+            RvtLogger.Logger.LogInformation("ReadTraces for serialId={Value1}  traceslist size={Value2}",
             serialId, tracesList.Traces.Count);
+        }
 
         int traceCount = 0;
         int sampleCount = 0;
@@ -116,7 +122,7 @@ public class StoreTracesHandler(
 
             TracesReponse tracesResponse = await _gateway.GetTracesAsync(token, serialId, tStart, tEnd, cancellationToken);
             List<TraceData> traces = tracesResponse.Traces ?? [];
-            RvtLogger.Logger.LogInformation("Number of traces={Value1}", traces.Count);
+            if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("Number of traces={Value1}", traces.Count); }
             _measurementCommands.WriteTraces(serialId, traces);
             traceCount += traces.Count;
             sampleCount += traces.Sum(trace => Math.Max(
@@ -153,7 +159,9 @@ public class StoreTracesHandler(
         int samplesStored,
         long startedAt)
     {
-        RvtLogger.Logger.LogInformation(
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+        {
+            RvtLogger.Logger.LogInformation(
             "StoreTraces completed eligible={Eligible} attempted={Attempted} succeeded={Succeeded} failed={Failed} tracesStored={TracesStored} samplesStored={SamplesStored} elapsedMs={ElapsedMs}",
             eligible,
             attempted,
@@ -162,6 +170,7 @@ public class StoreTracesHandler(
             tracesStored,
             samplesStored,
             _timeProvider.GetElapsedTime(startedAt).TotalMilliseconds);
+        }
     }
 
     private sealed record TraceReadResult(int TraceCount, int SampleCount);

@@ -56,15 +56,18 @@ public class StoreVeffRecordsHandler(
                     DateTime ps = DateTime.Now;
                     _importCommands.ImportVeffRecords(monitor.SerialId, dtos, newestSampleAt);
                     TimeSpan ts = DateTime.Now - ps;
-                    RvtLogger.Logger.LogInformation("InsertVeffRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
+                    if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information))
+                    {
+                        RvtLogger.Logger.LogInformation("InsertVeffRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
                          monitor.SerialId, dtos.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / dtos.Count));
+                    }
 
                     _monitorCommands.SetMonitorOffline(monitor.Id, false);
                     await _eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
                 }
                 else
                 {
-                    RvtLogger.Logger.LogDebug("StoreVeffRecords no samples for serialId={Value1}", monitor.SerialId);
+                    if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("StoreVeffRecords no samples for serialId={Value1}", monitor.SerialId); }
                 }
             }
             catch (Exception e)

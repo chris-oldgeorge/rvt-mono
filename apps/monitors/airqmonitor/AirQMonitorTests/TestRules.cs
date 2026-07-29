@@ -144,7 +144,7 @@ public class TestRules
         httpClient.VerifyNoOtherCalls();
 
         mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(2));
-        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1));
+        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         mqttClient.VerifyNoOtherCalls();
 
         dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(2));
@@ -228,7 +228,7 @@ public class TestRules
         httpClient.VerifyNoOtherCalls();
 
         mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(3));
-        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(2));
+        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         mqttClient.VerifyNoOtherCalls();
 
         dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(3));
@@ -305,7 +305,7 @@ public class TestRules
         httpClient.VerifyNoOtherCalls();
 
         mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(3));
-        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1));
+        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         mqttClient.VerifyNoOtherCalls();
 
         dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(3));
@@ -381,7 +381,7 @@ public class TestRules
         mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1));
 
 
-        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1));
+        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         mqttClient.VerifyNoOtherCalls();
 
         dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -479,7 +479,7 @@ public class TestRules
         httpClient.VerifyNoOtherCalls();
 
         mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1));
-        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1));
+        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         mqttClient.VerifyNoOtherCalls();
 
         dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -565,7 +565,7 @@ public class TestRules
         httpClient.VerifyNoOtherCalls();// checks that no other calls have been made by the httpClient
 
         mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1)); //Checks that the PublishAsync function has been ran with the RVTConfig.INSERT_TOPIC 1 time
-        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Exactly(1));
+        mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         mqttClient.VerifyNoOtherCalls();
 
         dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));

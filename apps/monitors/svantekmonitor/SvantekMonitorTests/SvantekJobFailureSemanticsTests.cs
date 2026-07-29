@@ -111,7 +111,7 @@ public sealed class SvantekJobFailureSemanticsTests
         http.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                It.IsAny<CancellationToken>()))
             .ThrowsAsync(authenticationFailure);
         Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
         StoreMonitorsHandler handler = new(

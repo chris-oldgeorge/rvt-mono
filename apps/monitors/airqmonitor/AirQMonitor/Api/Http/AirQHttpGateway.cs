@@ -43,7 +43,7 @@ public class AirQHttpGateway(IHttpClient httpClient) : IAirQVendorGateway
         string serialId,
         CancellationToken cancellationToken = default)
     {
-        RvtLogger.Logger.LogInformation("AirQAdapter GetMetadata userId={Value1}", SensitiveLogRedactor.Redact(userId));
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("AirQAdapter GetMetadata userId={Value1}", SensitiveLogRedactor.Redact(userId)); }
         string response = await DoGetMetaData(userId, userAuth, serialId, cancellationToken);
         return ParseResponse<List<MetaDataResponse>>(response);
     }
@@ -59,7 +59,7 @@ public class AirQHttpGateway(IHttpClient httpClient) : IAirQVendorGateway
         try
         {
             response = await DoGetLatestData(userId, userAuth, serialId, cancellationToken);
-            RvtLogger.Logger.LogDebug("GetLatestSamples response={Value1}", SensitiveLogRedactor.RedactJson(response));
+            if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("GetLatestSamples response={Value1}", SensitiveLogRedactor.RedactJson(response)); }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -86,7 +86,7 @@ public class AirQHttpGateway(IHttpClient httpClient) : IAirQVendorGateway
         string response;
         try
         {
-            RvtLogger.Logger.LogDebug("GetSamplesForDate for SerialId={Value1}", serialId);
+            if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("GetSamplesForDate for SerialId={Value1}", serialId); }
             response = await DoGetDataForDate(userId, userAuth, serialId, date, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -111,7 +111,7 @@ public class AirQHttpGateway(IHttpClient httpClient) : IAirQVendorGateway
     private async Task<string> DoGetMetaData(string userId, string token, string serialId, CancellationToken cancellationToken)
     {
         string path = BuildQueryPath("/latestMetaData", ("userID", userId), ("token", token), ("instrumentID", serialId));
-        RvtLogger.Logger.LogInformation("Path={Path}", SensitiveLogRedactor.RedactUrl(path));
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("Path={Path}", SensitiveLogRedactor.RedactUrl(path)); }
         return await _httpClient.GetAsync(path, cancellationToken);
     }
 

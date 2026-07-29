@@ -72,7 +72,7 @@ public class ConfigureMeasuringPointHandler(
             throw new OmnidotsVendorConfigurationException();
         }
 
-        RvtLogger.Logger.LogInformation("Configured measuring point serialId={SerialId}", serialId);
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("Configured measuring point serialId={SerialId}", serialId); }
         return new ConfigureMeasuringPointResult(Configured: true);
     }
 
@@ -151,7 +151,7 @@ public class ConfigureMeasuringPointHandler(
 
     private ConfigRequest CreateConfigRequest(string serialId, ConfigureMeasuringPointRequest request)
     {
-        RvtLogger.Logger.LogInformation("CreateConfigRequest for serialId={SerialId}", serialId);
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("CreateConfigRequest for serialId={SerialId}", serialId); }
         VibrationMonitorDto monitor = _monitorQueries.ReadMonitor(serialId);
         SiteTimes siteTimes = _monitorQueries.ReadSiteTimes(monitor.Id);
 

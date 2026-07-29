@@ -35,7 +35,7 @@ public class HttpWebClient : IHttpClient
 
     public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
     {
-        RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path)); }
         using HttpResponseMessage response = await _httpClient.GetAsync(path, cancellationToken);
         string reply = await response.Content.ReadAsStringAsync(cancellationToken);
         if (response.StatusCode != HttpStatusCode.OK)
@@ -48,7 +48,7 @@ public class HttpWebClient : IHttpClient
 
     public async Task<string> PostAsync(string path, HttpContent content, CancellationToken cancellationToken = default)
     {
-        RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path)); }
 
         if (RvtConfig.USE_TOKEN && path.StartsWith("/api/v1/user/authenticate"))
         {

@@ -87,7 +87,7 @@ public sealed class TestCheckForSoundRecordingStorage
         Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         Mock<IDBClient> dbClient = new(MockBehavior.Strict);
         RecordingObjectStorageClient storage = new();
-        dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
+        dbClient.Setup(client => client.ReadLatestNotificationAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
             [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
             ]);
@@ -97,7 +97,7 @@ public sealed class TestCheckForSoundRecordingStorage
         httpClient.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(filesResponse);
         CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
@@ -136,7 +136,7 @@ public sealed class TestCheckForSoundRecordingStorage
         Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         Mock<IDBClient> dbClient = new(MockBehavior.Strict);
         RecordingObjectStorageClient storage = new();
-        dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
+        dbClient.Setup(client => client.ReadLatestNotificationAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
             [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
             ]);
@@ -146,7 +146,7 @@ public sealed class TestCheckForSoundRecordingStorage
         httpClient.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(filesResponse);
         CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,
@@ -182,14 +182,14 @@ public sealed class TestCheckForSoundRecordingStorage
         Mock<IHttpClient> httpClient = new(MockBehavior.Strict);
         Mock<IDBClient> dbClient = new(MockBehavior.Strict);
         RecordingObjectStorageClient storage = new();
-        dbClient.Setup(client => client.ReadLatestNotificationAsync(CancellationToken.None)).ReturnsAsync(
+        dbClient.Setup(client => client.ReadLatestNotificationAsync(It.IsAny<CancellationToken>())).ReturnsAsync(
             [
                 new(notificationId, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900)
             ]);
         httpClient.Setup(client => client.PostAsync(
                 "projects-get-data.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(filesResponse);
         CheckForSoundRecordingsHandler handler = new(
             dbClient.Object,

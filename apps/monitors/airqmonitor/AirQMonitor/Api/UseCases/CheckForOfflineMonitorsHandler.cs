@@ -45,7 +45,7 @@ public class CheckForOfflineMonitorsHandler(
 
                         if (lastDataTime < cutOff)
                         {
-                            RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
+                            if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId); }
                             List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = _ruleQueries.ReadAlertContacts(monitor.Id, out Guid _);
                             _ruleProcessor.ProcessAlertForContactsV2(fleetNr: monitor.FleetNr,
                                                     serialId: monitor.SerialId!,
@@ -61,15 +61,18 @@ public class CheckForOfflineMonitorsHandler(
                         }
                         else
                         {
-                            RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data has been recieved marking as online", monitor.SerialId);
+                            if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data has been recieved marking as online", monitor.SerialId); }
                             monitor.Offline = false;
                         }
                         _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                     }
                     else
                     {
-                        RvtLogger.Logger.LogDebug("Monitor serialId = {Value1} is already offline lastDataTime={Value2}",
+                        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug))
+                        {
+                            RvtLogger.Logger.LogDebug("Monitor serialId = {Value1} is already offline lastDataTime={Value2}",
                             monitor.SerialId, monitor.LastDataTime);
+                        }
                     }
                 }
             }

@@ -49,13 +49,13 @@ public sealed class StoreNoiseLevelsParsingTests
                 SvantekApi.BatteryAlertType.Off,
                 100);
             Mock<ISvantekMonitorQueries> monitorQueries = new(MockBehavior.Strict);
-            monitorQueries.Setup(queries => queries.ReadMonitorListAsync(null, CancellationToken.None))
+            monitorQueries.Setup(queries => queries.ReadMonitorListAsync(null, It.IsAny<CancellationToken>()))
                 .ReturnsAsync([monitor]);
             Mock<IHttpClient> http = new(MockBehavior.Strict);
             http.Setup(client => client.PostAsync(
                     "projects-get-result-data-multi-point.php",
                     It.IsAny<HttpContent>(),
-                    CancellationToken.None))
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync("""
                     {
                       "status":"ok",
@@ -78,14 +78,14 @@ public sealed class StoreNoiseLevelsParsingTests
             Mock<ISvantekMeasurementCommands> measurementCommands = new(MockBehavior.Strict);
             measurementCommands.Setup(commands => commands.InsertNoiseRecordsTableAsync(
                     It.IsAny<DataTable>(),
-                    CancellationToken.None))
+                    It.IsAny<CancellationToken>()))
                 .Callback((DataTable table, CancellationToken _) => writtenTable = table)
                 .Returns(Task.CompletedTask);
             Mock<ISvantekMonitorCommands> monitorCommands = new(MockBehavior.Strict);
             monitorCommands.Setup(commands => commands.WriteLatestTimestampAsync(
                     "1001",
                     expectedSampleTime,
-                    CancellationToken.None))
+                    It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
             Mock<ISvantekRuleQueries> ruleQueries = new(MockBehavior.Strict);
             ruleQueries.Setup(queries => queries.ReadRules("1001")).Returns([]);

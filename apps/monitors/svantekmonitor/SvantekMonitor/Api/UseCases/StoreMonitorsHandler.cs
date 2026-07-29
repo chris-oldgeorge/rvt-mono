@@ -41,9 +41,12 @@ public class StoreMonitorsHandler(
                     Station? station = stations.FirstOrDefault(x => x.serial.ToString() == projectStation.serial);
                     if (station == null)
                     {
-                        RvtLogger.Logger.LogDebug(
+                        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug))
+                        {
+                            RvtLogger.Logger.LogDebug(
                             "StoreMonitors reading, no serial set for {ProjectStation}",
                             projectStation.name);
+                        }
                         continue;
                     }
 

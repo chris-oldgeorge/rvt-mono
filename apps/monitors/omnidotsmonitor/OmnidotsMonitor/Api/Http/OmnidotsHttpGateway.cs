@@ -35,7 +35,7 @@ public class OmnidotsHttpGateway(IHttpClient httpClient, string userId, string u
         // The token flows into the request itself rather than being awaited
         // around it, so a shutdown cancels the call instead of abandoning it.
         string response = await DoAuthenticate(content, cancellationToken);
-        RvtLogger.Logger.LogDebug("Authenticate response={Value1}", SensitiveLogRedactor.RedactJson(response));
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("Authenticate response={Value1}", SensitiveLogRedactor.RedactJson(response)); }
         return ParseJson<TokenResponse>(response);
     }
 
@@ -114,8 +114,11 @@ public class OmnidotsHttpGateway(IHttpClient httpClient, string userId, string u
                                      DateTime startTime, DateTime? endTime, string measuringPointId,
                                      CancellationToken cancellationToken)
     {
-        RvtLogger.Logger.LogDebug("DoGet path={Value1} startTime={Value2} endTime={Value3} measuringPointId={Value4}",
+        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug))
+        {
+            RvtLogger.Logger.LogDebug("DoGet path={Value1} startTime={Value2} endTime={Value3} measuringPointId={Value4}",
                               path, startTime, endTime, measuringPointId);
+        }
 
         StringBuilder sb = new StringBuilder(path)
           .Append("?token=")

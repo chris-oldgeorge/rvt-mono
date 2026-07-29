@@ -1066,7 +1066,10 @@ public class TestDBClient
         DateTime t0 = DateTime.UtcNow;
         _testObj!.WriteTraces(serialId, tracesResponse.Traces!);
         TimeSpan tt = DateTime.UtcNow - t0;
-        RvtLogger.Logger.LogInformation("WriteTraces took={} seconds", tt.TotalSeconds);
+        if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+        {
+            RvtLogger.Logger.LogInformation("WriteTraces took={} seconds", tt.TotalSeconds);
+        }
 
         await using (NpgsqlConnection connection = _database!.OpenConnection())
         {

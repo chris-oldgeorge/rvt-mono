@@ -85,7 +85,7 @@ public class CheckForOfflineMonitorsHandler(
                         {
                             if (!monitor.Offline)
                             {
-                                RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
+                                if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId); }
 
                                 NotificationDto notification = new(id: Guid.NewGuid(),
                                                                                notificationTime: DateTime.UtcNow,
@@ -105,7 +105,7 @@ public class CheckForOfflineMonitorsHandler(
                             }
                             else
                             {
-                                RvtLogger.Logger.LogInformation("Device serialId = {Value1} was already offline", monitor.SerialId);
+                                if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Information)) { RvtLogger.Logger.LogInformation("Device serialId = {Value1} was already offline", monitor.SerialId); }
                             }
                         }
                         else
@@ -115,7 +115,7 @@ public class CheckForOfflineMonitorsHandler(
                                 monitor.Offline = false;
                                 _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                             }
-                            RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data not offline (considering site hours) marking as online", monitor.SerialId);
+                            if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data not offline (considering site hours) marking as online", monitor.SerialId); }
                         }
                     }
                     else
@@ -125,7 +125,7 @@ public class CheckForOfflineMonitorsHandler(
                             monitor.Offline = false;
                             _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
                         }
-                        RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data not offline (less than 24 hours)  marking as online", monitor.SerialId);
+                        if (RvtLogger.Logger.IsEnabled(Microsoft.Extensions.Logging.LogLevel.Debug)) { RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data not offline (less than 24 hours)  marking as online", monitor.SerialId); }
                     }
                 }
             }

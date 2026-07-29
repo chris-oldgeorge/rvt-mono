@@ -10,67 +10,47 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
-- `main` is at merge `3f9f0fc` and includes PR #21's monotonic standards
-  baseline, plus PR #19's verifier fix for generated `.sonar/` tool inputs.
 - The active isolated branch is `codex/sonar-release-remediation` in
   `/private/tmp/rvt-sonar-remediation`. Do not modify or clean the unrelated
   dirty linked worktree at `/Users/oldgeorge/Documents/rvt-mono`.
-- The latest release Sonar workflow was run against `main`:
-  GitHub run `30405522709`, analysis
-  `d39ffb79-d732-40d1-a312-e3e81450c3cd`. Upload succeeded; the workflow
-  failed only because the quality gate failed.
-- The uploaded analysis has no open vulnerabilities and no unreviewed
-  security hotspots. It reported 1,589 maintainability-impact issues,
-  26 reliability-impact issues, and 18.9% new-code coverage against an
-  80% gate.
-- Local remediation is committed through `b7dfbdb` (`replace deprecated React
-  form events`). The complete local-only sequence after the original three
-  remediation commits is:
-  `8ad33a0`, `dcec0d7`, `56c141c`, `3e4a7a1`, `1b72bd6`, `ed7a301`,
-  `4ec01e6`, `649bc0f`, and `b7dfbdb`.
-- Completed waves remove the dominant MSTest, file-scoped namespace,
-  cancellation-token, unnecessary-allocation, React testing, inefficient
-  logging, sanitized catch-logging, and deprecated React event findings.
-  Repeated rules are guarded in `.editorconfig` or ESLint. S6667 uses four
-  narrow `SuppressMessage` attributes because passing raw exceptions failed
-  the endpoint's no-sensitive-log-leakage tests.
-- The committed-range standards verifier passes through `ed7a301`; the full
-  standards baseline was then reduced and committed in `4ec01e6`. Working-tree
-  verification passed after the S6667 and React event waves. Rerun the
-  definitive committed-range verifier before handoff.
-- Current verified evidence before the paused, uncommitted wave:
-  Release solution build succeeds with zero warnings/errors;
-  `Rvt.Monitor.CommonTests` passes 387/387; Omnidots endpoint tests pass 27/27;
-  frontend lint has zero errors and two pre-existing Fast Refresh warnings;
-  frontend production build passes; focused frontend tests pass 76/76.
+- The remediation branch is committed through `1a61acc`
+  (`guard repeated shell literals`). The latest checkpoints are:
+  `10fdfc1` (S3267, S2699, S1192, S101 and data-result mapping),
+  `5028177` (S107 refactors/suppressions and auth result mapping), and
+  `1a61acc` (S3776 and shell S1192 guardrails).
+- The C# Sonar rules S101, S107, S1192, S2699, S3267, and S3776 are promoted
+  to error severity in the root `.editorconfig`. Compatibility/framework
+  suppressions are symbol-scoped and justified.
+- Repeated shell literals in the verifier fixtures were extracted into named
+  values. Root `AGENTS.md` now requires this for any shell literal used three
+  or more times.
+- The current Release solution build succeeds with zero warnings and errors.
+  Focused verification passes: reporting 16/16, alert commit store 3/3,
+  portal auth/monitor/release-audit 27/27, and the formerly failing data-view
+  endpoint regression. The three modified shell harnesses all pass.
+- The working-tree engineering-standards verifier passes. Before handoff,
+  rerun the definitive committed-range verifier and the broad non-database
+  test suite.
+- A real pre-existing 500 response was fixed while verifying this wave:
+  auth workflow statuses now map to their intended 4xx responses instead of
+  `NotImplementedException`. A similar data-view `DeploymentNotFound` mapping
+  was corrected in the preceding checkpoint.
 - A full Omnidots test invocation cannot pass without
   `RVT__POSTGRES_INTEGRATION_CONNECTION`; its database-backed classes fail
   deliberately when the variable is absent. Do not treat those failures as a
   regression. The security-sensitive endpoint subset is green.
-- The working tree is intentionally paused with five uncommitted reliability
-  edits:
-  `.editorconfig`, `MyAtmHttpGateway.cs`, `BoundedJsonRequestReader.cs`,
-  `ApiInfrastructure.cs`, and `MqttAlertDeliveryAdapter.cs`.
-  They address Sonar S8949 (three cancellation paths, with an error-level
-  guardrail), S3903 (unnamespaced record), and S2583 (always-true loop
-  condition). Required secret scans and `git diff --check` passed; the MyAtm
-  file was converted to the enforced file-scoped namespace. Build, focused
-  tests, standards verification, and commit are still pending for this wave.
 - The branch has not been pushed. A prior push was blocked because the private
   `origin` destination was not authorized as verified source egress. Do not
   work around that safeguard; obtain explicit authorization for the exact
   remote or use a verified connector before pushing.
-- Remaining maintainability work must be driven from the stale Sonar analysis
-  until a new branch analysis can be uploaded. The last queried reliability
-  set contained only S8949 x3, S3903 x1, and S2583 x1; the paused wave targets
-  all five.
-- The repository-local `AGENTS.md` now permits two exact Omnidots test-fixture
-  false-positive patterns after their paths, rule IDs, and finding counts were
-  independently verified. Any deviation remains blocking.
-- `main` also carries the explicit-local-types pass (PR #17), critical-findings
-  remediation (PR #15), P1 dead-code and hygiene sweep (PR #18), and PR #21's
-  baseline reduction from 1,994 entries / 7,709 diagnostics to 1,112 entries /
-  2,072 diagnostics.
+- Sonar's `main` analysis is stale (`2026-07-28T22:45:10Z`) and still reports
+  findings already proven clean locally. Live CLI code analysis is unavailable
+  because the organization lacks the Vortex license (403). A fresh traditional
+  branch analysis is required to establish the true residual issue count.
+- The uploaded analysis has no open vulnerabilities or unreviewed security
+  hotspots. Traditional authenticated Sonar API access works through
+  `/Users/oldgeorge/.local/share/sonarqube-cli/bin/sonar`; never print or store
+  its token.
 
 ## Relevant structure
 
@@ -114,8 +94,13 @@ superseded narratives to the archive.
 
 - The original linked worktree contains a large unrelated formatting
   migration on `codex/monotonic-standards-baseline`; preserve it exactly.
+- The isolated remediation worktree should be clean except for the intentional
+  `project_state.md` handoff update.
 - Resume by reading this file, switching to
-  `/private/tmp/rvt-sonar-remediation`, verifying the five paused reliability
-  edits, committing them, and then continuing the Sonar remediation plan.
-  Apply the repository's pre-read secrets policy to every file before reading
-  it and after modifying it.
+  `/private/tmp/rvt-sonar-remediation`, checking `git status`, committing the
+  state update if needed, and then running the definitive committed-range
+  verifier. Apply the repository pre-read secrets policy to every file before
+  reading it and after modifying it.
+- Do not push until the exact private remote is explicitly authorized or a
+  verified connector is available. After upload, use the fresh Sonar analysis
+  rather than the stale `main` line numbers for any further remediation.

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -36,6 +37,10 @@ public static class MonitorApiEndpoints
 
     private static string LivenessText() => RvtConfig.SERVICE_NAME + RvtConfig.SERVICE_VERSION;
 
+    [SuppressMessage(
+        "Major Code Smell",
+        "S6667:Exception information should be passed to the logger",
+        Justification = "Exception payloads can contain untrusted request or vendor data; this endpoint logs sanitized context only.")]
     private static async Task<Results<Ok<ConfigureMeasuringPointResult>, ProblemHttpResult>> ConfigureMeasuringPoint(
         HttpRequest request,
         [FromServices] ConfigureMeasuringPointHandler handler,
@@ -98,6 +103,10 @@ public static class MonitorApiEndpoints
         }
     }
 
+    [SuppressMessage(
+        "Major Code Smell",
+        "S6667:Exception information should be passed to the logger",
+        Justification = "Exception payloads can contain untrusted request or vendor data; this endpoint logs sanitized context only.")]
     private static async Task<Results<Ok<ProcessWebhookResult>, ProblemHttpResult>> Webhook(
         HttpRequest request,
         [FromServices] ProcessWebhookHandler handler,

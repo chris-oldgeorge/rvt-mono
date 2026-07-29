@@ -44,6 +44,7 @@ import type {
   TraceDetailResponse,
   TraceListResponse,
 } from '../dtos';
+import { formatDateTime, fromDateToApi } from './dataViewDateTime';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
@@ -896,26 +897,6 @@ function toDateTimeInput(value: string | null) {
   }
 
   return value.slice(0, 16);
-}
-
-// Function summary: Handles the from date to API workflow for this module.
-export function fromDateToApi(value: string) {
-  if (!value) {
-    return null;
-  }
-
-  return new Date(value).toISOString();
-}
-
-// Function summary: Handles the format date time workflow for this module.
-export function formatDateTime(value?: string | null, timeZone?: string) {
-  if (!value) {
-    return '';
-  }
-
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(
-    new Date(value),
-  );
 }
 
 // Function summary: Handles the format duration workflow for this module.

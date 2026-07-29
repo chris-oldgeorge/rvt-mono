@@ -23,7 +23,7 @@ public sealed class TestRules
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         DateTime sampleTime = new(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(sampleTime.AddMinutes(-1), singleItem: true).Single();
         RvtAlertRuleDto rule = CreateRule(monitor, isActive: false);
@@ -48,11 +48,11 @@ public sealed class TestRules
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((MonitorDeliveryMessage?)null);
-        mqttClient.Setup(client => client.PublishAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+        mqttClient.Setup(client => client.PublishAsync(It.IsAny<string>(), It.IsAny<string>(), TestContext.CancellationToken)).Returns(Task.CompletedTask);
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
-        await api.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1);
+        await api.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1, TestContext.CancellationToken);
 
         Assert.IsNotNull(commit);
         Assert.AreEqual(monitor.Id, commit.Monitor.Id);
@@ -77,7 +77,7 @@ public sealed class TestRules
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         DateTime sampleTime = new(2026, 7, 14, 12, 0, 0, DateTimeKind.Utc);
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(sampleTime.AddMinutes(-1), singleItem: true).Single();
         RvtAlertRuleDto rule = CreateRule(monitor, isActive: true, isDeleted: true);
@@ -97,11 +97,11 @@ public sealed class TestRules
                 MonitorDeliveryProducers.MyAtm,
                 It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((MonitorDeliveryMessage?)null);
-        mqttClient.Setup(client => client.PublishAsync(It.IsAny<string>(), It.IsAny<string>())).Returns(Task.CompletedTask);
+        mqttClient.Setup(client => client.PublishAsync(It.IsAny<string>(), It.IsAny<string>(), TestContext.CancellationToken)).Returns(Task.CompletedTask);
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
-        await api.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1);
+        await api.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1, TestContext.CancellationToken);
 
         Assert.IsNotNull(commit);
         Assert.HasCount(1, commit.RuleStateMutations);
@@ -124,4 +124,6 @@ public sealed class TestRules
             isDeleted,
             DateTime.UnixEpoch,
             null);
+
+    public TestContext TestContext { get; set; } = null!;
 }

@@ -36,7 +36,7 @@ public class TestAirQCancellation
         using CancellationTokenSource cancellation = new();
         TokenCapturingHandler handler = new();
         using HttpClient inner = new(handler);
-        HttpWebClient<object> subject = new("https://airq.example.test/", inner);
+        HttpWebClient subject = new("https://airq.example.test/", inner);
 
         await subject.GetAsync("/latestData", cancellation.Token);
 
@@ -49,7 +49,7 @@ public class TestAirQCancellation
         using CancellationTokenSource cancellation = new();
         await cancellation.CancelAsync();
         using HttpClient inner = new(new TokenCapturingHandler());
-        HttpWebClient<object> subject = new("https://airq.example.test/", inner);
+        HttpWebClient subject = new("https://airq.example.test/", inner);
 
         await Assert.ThrowsAsync<TaskCanceledException>(
             () => subject.GetAsync("/latestData", cancellation.Token));
@@ -80,7 +80,7 @@ public class TestAirQCancellation
         AirQHttpGateway gateway = new(httpClient.Object);
         DateTime watermark = new(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        LatestSamplesResult result = await gateway.GetLatestSamplesAsync("user", "auth", "Device1", watermark);
+        LatestSamplesResult result = await gateway.GetLatestSamplesAsync("user", "auth", "Device1", watermark, TestContext.CancellationToken);
 
         Assert.IsNotNull(result.Samples);
         Assert.AreEqual(watermark, result.LatestDateTime);
@@ -208,7 +208,7 @@ public class TestAirQCancellation
             new FixedTimeProvider(now));
         DateTime expectedWatermark = now.UtcDateTime.AddYears(-1);
 
-        await subject.RunAsync("user", "auth");
+        await subject.RunAsync("user", "auth", TestContext.CancellationToken);
 
         Assert.IsTrue(observedWatermark.HasValue);
         Assert.AreEqual(DateTimeKind.Utc, observedWatermark.Value.Kind);
@@ -259,4 +259,6 @@ public class TestAirQCancellation
     {
         public override DateTimeOffset GetUtcNow() => now;
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

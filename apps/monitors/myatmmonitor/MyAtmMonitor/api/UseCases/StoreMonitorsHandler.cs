@@ -1,5 +1,5 @@
 using MyAtm.Api.Db;
-using MyAtm.Api.Http;
+using MyAtm.Api.Ports;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json.Customer;
 using MyAtm.Model.Json.DeviceInfo;
@@ -9,7 +9,7 @@ namespace MyAtm.Api.UseCases;
 // Imports the bounded MyAtmosphere customer device catalogue into the monitor list.
 public sealed class StoreMonitorsHandler
 {
-    private readonly MyAtmHttpGateway gateway;
+    private readonly IMyAtmVendorGateway _gateway;
     private readonly IMyAtmMonitorCommands monitorCommands;
     private readonly IMyAtmOperationalCommands operationalCommands;
     private readonly bool testLocal;
@@ -17,14 +17,14 @@ public sealed class StoreMonitorsHandler
     private readonly int maxDevicePagesPerRun;
 
     public StoreMonitorsHandler(
-        MyAtmHttpGateway gateway,
+        IMyAtmVendorGateway gateway,
         IMyAtmMonitorCommands monitorCommands,
         IMyAtmOperationalCommands operationalCommands,
         bool testLocal,
         int devicePageSize,
         int maxDevicePagesPerRun)
     {
-        this.gateway = gateway;
+        _gateway = gateway;
         this.monitorCommands = monitorCommands;
         this.operationalCommands = operationalCommands;
         this.testLocal = testLocal;
@@ -44,7 +44,7 @@ public sealed class StoreMonitorsHandler
             List<DustMonitor> devices;
             try
             {
-                devices = await gateway.HttpGetMonitorsAsync(customerId, skip, cancellationToken);
+                devices = await _gateway.HttpGetMonitorsAsync(customerId, skip, cancellationToken);
             }
             catch (Exception exception)
             {
@@ -78,7 +78,7 @@ public sealed class StoreMonitorsHandler
 
                 try
                 {
-                    DustMonitorInfo deviceInfo = await gateway.HttpGetDeviceInfoAsync(
+                    DustMonitorInfo deviceInfo = await _gateway.HttpGetDeviceInfoAsync(
                         customerId,
                         serialId,
                         cancellationToken);

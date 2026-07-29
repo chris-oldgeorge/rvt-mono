@@ -1,9 +1,6 @@
-using System.Net;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Omnidots.Model.Json;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
+using Rvt.Monitor.Common.Http;
 
 namespace Omnidots.Api.Http
 {
@@ -18,7 +15,7 @@ namespace Omnidots.Api.Http
         /// </summary>
         internal static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
-        private readonly HttpClient httpClient;
+        private readonly VendorHttpTransport _transport;
 
         public HttpWebClient(string baseUrl)
             : this(baseUrl, new HttpClient())
@@ -27,18 +24,18 @@ namespace Omnidots.Api.Http
 
         internal HttpWebClient(string baseUrl, HttpClient httpClient)
         {
-            this.httpClient = httpClient;
-            this.httpClient.BaseAddress = new Uri(baseUrl);
-            this.httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
-            this.httpClient.Timeout = RequestTimeout;
+            httpClient.BaseAddress = new Uri(baseUrl);
+            httpClient.DefaultRequestHeaders.Add("Cache-Control", "no-cache");
+            httpClient.Timeout = RequestTimeout;
+            _transport = new VendorHttpTransport(httpClient);
         }
 
         public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
-            using HttpResponseMessage response = await httpClient.GetAsync(path, cancellationToken);
-            string reply = await response.Content.ReadAsStringAsync(cancellationToken);
-            if (response.StatusCode != HttpStatusCode.OK)
+            using VendorHttpResponse response = await _transport.SendAsync(HttpMethod.Get, path, null, cancellationToken);
+            string reply = await response.ReadStringAsync(cancellationToken);
+            if (!response.IsOk)
             {
                 throw AdapterException.Of("HTTP ERROR response=", SensitiveLogRedactor.RedactJson(reply));
             }
@@ -50,33 +47,18 @@ namespace Omnidots.Api.Http
         {
             RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
 
-            if (RvtConfig.USE_TOKEN && path.StartsWith("/api/v1/user/authenticate"))
+            using VendorHttpResponse response = await _transport.SendAsync(HttpMethod.Post, path, content, cancellationToken);
+            if (!response.IsOk)
             {
-                TokenResponse resp = new()
-                {
-                    Ok = true,
-                    Token = RvtConfig.TOKEN
-                };
-                return JsonSerializer.Serialize(resp);
-            }
-
-            using HttpRequestMessage request = new(new HttpMethod("POST"), path);
-            request.Content = content;
-
-            using HttpResponseMessage response = await httpClient.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
+                // Deliberately never reads the vendor body on failure: it may
+                // carry credentials or tokens, and nothing here needs it.
                 RvtLogger.Logger.LogError(
                     "Omnidots POST request failed statusCode={StatusCode}",
                     (int)response.StatusCode);
                 throw AdapterException.Of("Omnidots API request failed.");
             }
 
-            string reply = await response.Content.ReadAsStringAsync(cancellationToken);
-            return reply;
+            return await response.ReadStringAsync(cancellationToken);
         }
     }
 }

@@ -42,6 +42,8 @@ public interface IMonitorDetailSummaryService
 
 public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
 {
+    private const string LatestReadingLabel = "Latest Reading";
+
     private readonly RVTSearchContext searchContext;
     private readonly IMonitorDataSource dataSource;
     private readonly ILogger<MonitorDetailSummaryService> _logger;
@@ -162,7 +164,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
             if (data.DustLevels?.Value.FirstOrDefault() is { } dust)
             {
                 return BuildMetric(
-                    averageMetric ? "Latest 15 Min Average" : "Latest Reading",
+                    averageMetric ? "Latest 15 Min Average" : LatestReadingLabel,
                     "pm10",
                     dust.Pm10,
                     "ug/m3",
@@ -173,7 +175,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
             if (data.NoiseLevels?.Value.FirstOrDefault() is { } noise)
             {
                 return BuildMetric(
-                    averageMetric ? "Latest 15 Min Average" : "Latest Reading",
+                    averageMetric ? "Latest 15 Min Average" : LatestReadingLabel,
                     "LAeq",
                     noise.Laeq,
                     "dB",
@@ -185,7 +187,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
             {
                 (string? field, double? value) = MaxAxis(vibration.Xvtop, vibration.Yvtop, vibration.Zvtop);
                 return BuildMetric(
-                    averageMetric ? "Latest Peak" : "Latest Reading",
+                    averageMetric ? "Latest Peak" : LatestReadingLabel,
                     field,
                     value,
                     "mm/s",
@@ -218,7 +220,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
 
         return new MonitorMetricSummary
         {
-            Label = notification.AlertType == AlertTypeEnum.Alert ? "Latest Breach" : "Latest Reading",
+            Label = notification.AlertType == AlertTypeEnum.Alert ? "Latest Breach" : LatestReadingLabel,
             Field = notification.AlertField,
             Value = notification.Level,
             Unit = UnitForMonitorType(monitorType),

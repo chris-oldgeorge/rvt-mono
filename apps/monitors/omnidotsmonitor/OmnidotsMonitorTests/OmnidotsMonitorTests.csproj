@@ -6,6 +6,9 @@
 		<Nullable>enable</Nullable>
 		<IsPackable>false</IsPackable>
 		<IsTestProject>true</IsTestProject>
+		<!-- RVT0001: this module still consumes the legacy IMessageService path;
+		     retired by legacy-retirement steps 4-5, which also delete this NoWarn. -->
+		<NoWarn>$(NoWarn);RVT0001</NoWarn>
 	</PropertyGroup>
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />

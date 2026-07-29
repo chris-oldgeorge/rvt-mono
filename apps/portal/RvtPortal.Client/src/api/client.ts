@@ -547,7 +547,20 @@ export function queryAdminHelp(
   request: { searchText?: string; status?: string; contentType?: string } = {},
   options: ApiRequestOptions = {},
 ) {
-  return getJson<HelpAdminOverviewResponse>(pathWithQuery('/api/help/admin', toSearchParams(request)), options);
+  // Built explicitly: toSearchParams whitelists the shared grid keys, which
+  // silently dropped status and contentType, so the admin filters never
+  // reached the server.
+  const params = new URLSearchParams();
+  if (request.searchText?.trim()) {
+    params.set('searchText', request.searchText.trim());
+  }
+  if (request.status?.trim()) {
+    params.set('status', request.status.trim());
+  }
+  if (request.contentType?.trim()) {
+    params.set('contentType', request.contentType.trim());
+  }
+  return getJson<HelpAdminOverviewResponse>(pathWithQuery('/api/help/admin', params), options);
 }
 // Function summary: Creates Help CMS article data for admin users.
 export function createHelpArticle(request: HelpArticleMutationRequest) {

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
+using MyAtm.Api.Ports;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
 using MyAtm.Model.Json;
@@ -8,7 +9,6 @@ using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Notifications;
 
 namespace MyAtm.Api
 {
@@ -33,8 +33,8 @@ namespace MyAtm.Api
         private readonly StoreAccessoryInfoHandler storeAccessoryInfo;
         private readonly MonitorDeliveryDispatcher outboxDispatcher;
 
-        public MyAtmApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient rvtMqttClient, IMessageService messageClient)
-            : this(httpClient, dbClient, rvtMqttClient, messageClient, RvtConfig.TESTLOCAL, new MyAtmMonitorOptions
+        public MyAtmApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient rvtMqttClient, INotificationDeliveryService notificationDelivery)
+            : this(httpClient, dbClient, rvtMqttClient, notificationDelivery, RvtConfig.TESTLOCAL, new MyAtmMonitorOptions
             {
                 PortalBaseUrl = string.IsNullOrWhiteSpace(RvtConfig.PORTAL_BASE_URL)
                     ? "https://www.rvtcloud.com/"
@@ -43,8 +43,8 @@ namespace MyAtm.Api
         {
         }
 
-        public MyAtmApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient rvtMqttClient, IMessageService messageClient, bool testLocal)
-            : this(httpClient, dbClient, rvtMqttClient, messageClient, testLocal, new MyAtmMonitorOptions
+        public MyAtmApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient rvtMqttClient, INotificationDeliveryService notificationDelivery, bool testLocal)
+            : this(httpClient, dbClient, rvtMqttClient, notificationDelivery, testLocal, new MyAtmMonitorOptions
             {
                 PortalBaseUrl = string.IsNullOrWhiteSpace(RvtConfig.PORTAL_BASE_URL)
                     ? "https://www.rvtcloud.com/"
@@ -57,7 +57,7 @@ namespace MyAtm.Api
             IHttpClient httpClient,
             IDBClient dbClient,
             IMqttClient rvtMqttClient,
-            IMessageService messageClient,
+            INotificationDeliveryService notificationDelivery,
             bool testLocal,
             MyAtmMonitorOptions options)
             : this(
@@ -65,7 +65,7 @@ namespace MyAtm.Api
                 dbClient,
                 testLocal,
                 options,
-                CreateDispatcher(dbClient, rvtMqttClient, messageClient, options))
+                CreateDispatcher(dbClient, rvtMqttClient, notificationDelivery, options))
         {
         }
 
@@ -77,7 +77,7 @@ namespace MyAtm.Api
             MonitorDeliveryDispatcher outboxDispatcher)
         {
             options.Validate();
-            MyAtmHttpGateway gateway = new(
+            IMyAtmVendorGateway gateway = new MyAtmHttpGateway(
                 httpClient,
                 options.DevicePageSize,
                 options.MeasurementPageSize,
@@ -173,50 +173,16 @@ namespace MyAtm.Api
         private static MonitorDeliveryDispatcher CreateDispatcher(
             IDBClient dbClient,
             IMqttClient mqttClient,
-            IMessageService messageService,
+            INotificationDeliveryService notificationDelivery,
             MyAtmMonitorOptions options) =>
             new(
                 dbClient,
                 dbClient,
                 new MyAtmDeliveryFailureSink(dbClient),
                 mqttClient,
-                new LegacyNotificationDeliveryService(messageService),
+                notificationDelivery,
                 NullLogger<MonitorDeliveryDispatcher>.Instance,
                 options.ToDeliveryOptions(RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC));
 
-        private sealed class LegacyNotificationDeliveryService(IMessageService messageService)
-            : INotificationDeliveryService
-        {
-            public Task SendAsync(
-                NotificationDeliveryRequest request,
-                CancellationToken cancellationToken = default)
-            {
-                LegacyMessageKind message = request.Kind switch
-                {
-                    NotificationMessageKind.Alert => LegacyMessageKind.Alert,
-                    NotificationMessageKind.Caution => LegacyMessageKind.Caution,
-                    NotificationMessageKind.Offline => LegacyMessageKind.Offline,
-                    NotificationMessageKind.BatteryCaution => LegacyMessageKind.Battery_Caution,
-                    NotificationMessageKind.BatteryAlert => LegacyMessageKind.Battery_Alert,
-                    _ => throw new ArgumentOutOfRangeException(nameof(request), request.Kind, "Unsupported notification kind.")
-                };
-                LegacyMessageChannel channel = request.Channel switch
-                {
-                    NotificationChannel.Email => LegacyMessageChannel.Email,
-                    NotificationChannel.Sms => LegacyMessageChannel.SMS,
-                    _ => throw new ArgumentOutOfRangeException(nameof(request), request.Channel, "Unsupported notification channel.")
-                };
-                RvtContactDto contact = request.Channel == NotificationChannel.Email
-                    ? new RvtContactDto(true, false, request.Destination, null, null, null)
-                    : new RvtContactDto(false, true, string.Empty, request.Destination, null, null);
-                return messageService.SendMessageAsync(
-                    message,
-                    channel,
-                    contact,
-                    request.MonitorName,
-                    request.CallbackUrl,
-                    cancellationToken);
-            }
-        }
     }
 }

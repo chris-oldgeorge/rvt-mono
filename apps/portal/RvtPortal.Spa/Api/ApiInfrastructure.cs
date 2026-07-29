@@ -92,6 +92,28 @@ public static class ApiProblems
         problem.Extensions["correlationId"] = context.GetCorrelationId();
         return problem;
     }
+
+    // Function summary: Creates the shared invalid-sort response used by every list endpoint.
+    // The nine controllers previously carried private copies in two diverged
+    // shapes (plain Problem text vs. this machine-readable form); this is the
+    // canonical one. The requested sort is echoed, the allowed fields travel in
+    // an ordered extension, and the subject names the collection being sorted.
+    public static BadRequestObjectResult InvalidSort(
+        HttpContext context,
+        string requestedSort,
+        IEnumerable<string> allowedSortFields,
+        string subject)
+    {
+        ProblemDetails problem = Create(
+            context,
+            StatusCodes.Status400BadRequest,
+            "Invalid sort field",
+            $"Sort field '{requestedSort}' is not supported for {subject}.");
+        problem.Extensions["allowedSortFields"] = allowedSortFields
+            .OrderBy(field => field, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        return new BadRequestObjectResult(problem);
+    }
 }
 
 public sealed class ApiCorrelationMiddleware

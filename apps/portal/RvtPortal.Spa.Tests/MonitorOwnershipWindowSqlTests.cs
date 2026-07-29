@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RvtPortal.Spa.Application.Monitors;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 /// <summary>
@@ -24,9 +25,7 @@ public sealed class MonitorOwnershipWindowSqlTests
     public void OwnsAt_TranslatesOnPostgres()
     {
         using RVTDbContext context = new(
-            new DbContextOptionsBuilder<RVTDbContext>()
-                .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-                .Options);
+            TestDbContexts.ModelOnlyNpgsql<RVTDbContext>());
 
         string sql = OwnershipQuerySql(context);
 

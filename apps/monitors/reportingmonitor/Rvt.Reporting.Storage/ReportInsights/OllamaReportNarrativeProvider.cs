@@ -9,16 +9,10 @@ namespace Rvt.Reporting.Storage.ReportInsights;
 /// Creates optional development report narratives through a local Ollama service with deterministic fallback.
 /// Major updates: 2026-06-25 added ID15 dev AI narrative support.
 /// </summary>
-public sealed class OllamaReportNarrativeProvider : IReportNarrativeProvider
+public sealed class OllamaReportNarrativeProvider(HttpClient httpClient, OllamaReportNarrativeOptions options) : IReportNarrativeProvider
 {
-    private readonly HttpClient _httpClient;
-    private readonly OllamaReportNarrativeOptions _options;
-
-    public OllamaReportNarrativeProvider(HttpClient httpClient, OllamaReportNarrativeOptions options)
-    {
-        _httpClient = httpClient;
-        _options = options;
-    }
+    private readonly HttpClient _httpClient = httpClient;
+    private readonly OllamaReportNarrativeOptions _options = options;
 
     public async Task<string> CreateNarrativeAsync(ReportNarrativeContext context, CancellationToken cancellationToken)
     {

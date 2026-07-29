@@ -12,7 +12,7 @@ using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
+using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQ.Api.Db
 {

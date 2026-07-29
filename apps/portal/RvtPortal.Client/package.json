@@ -16,7 +16,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage --coverage.reporter=lcov",
     "test:e2e": "playwright test",
-    "openapi": "npx openapi-typescript@latest http://localhost:5178/swagger/v1/swagger.json -o src/api/schema.d.ts"
+    "openapi": "npx openapi-typescript@7.13.0 http://localhost:5178/swagger/v1/swagger.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",
@@ -41,6 +41,7 @@
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
+    "eslint-plugin-testing-library": "^7.16.2",
     "jsdom": "^29.1.1",
     "prettier": "3.9.6",
     "typescript": "~5.7.2",

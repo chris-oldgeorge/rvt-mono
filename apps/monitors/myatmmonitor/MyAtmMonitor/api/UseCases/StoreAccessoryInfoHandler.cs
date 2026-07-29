@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using MyAtm.Api.Db;
-using MyAtm.Api.Http;
+using MyAtm.Api.Ports;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
@@ -13,7 +13,7 @@ namespace MyAtm.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiAccessoryInfo).
     public class StoreAccessoryInfoHandler
     {
-        private readonly MyAtmHttpGateway gateway;
+        private readonly IMyAtmVendorGateway _gateway;
         private readonly MyAtmMonitorReader monitorReader;
         private readonly IMyAtmAccessoryCommands accessoryCommands;
         private readonly IMyAtmMeasurementQueries measurementQueries;
@@ -21,14 +21,14 @@ namespace MyAtm.Api.UseCases
         private readonly int maxPagesPerMonitorPerRun;
 
         public StoreAccessoryInfoHandler(
-            MyAtmHttpGateway gateway,
+            IMyAtmVendorGateway gateway,
             MyAtmMonitorReader monitorReader,
             IMyAtmAccessoryCommands accessoryCommands,
             IMyAtmMeasurementQueries measurementQueries,
             IMyAtmOperationalCommands operationalCommands,
             int maxPagesPerMonitorPerRun)
         {
-            this.gateway = gateway;
+            _gateway = gateway;
             this.monitorReader = monitorReader;
             this.accessoryCommands = accessoryCommands;
             this.measurementQueries = measurementQueries;
@@ -54,7 +54,7 @@ namespace MyAtm.Api.UseCases
                         measurementQueries.ReadLatestAccessoryTimestamp(customerDto.SerialId) ?? MyAtmApi.JAN1_1970);
                     for (int pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
                     {
-                        MyAtmMeasurementPage<AccessoryInfo> page = await gateway.HttpGetAccessoryInfoPageAsync(
+                        MyAtmMeasurementPage<AccessoryInfo> page = await _gateway.HttpGetAccessoryInfoPageAsync(
                             customerId,
                             customerDto.SerialId,
                             cursor,

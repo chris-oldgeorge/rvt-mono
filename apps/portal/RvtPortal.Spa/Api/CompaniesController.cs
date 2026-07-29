@@ -141,16 +141,8 @@ public class CompaniesController : ControllerBase
     }
 
     // Function summary: Builds the invalid-sort problem response while preserving the existing company contract.
-    private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
-    {
-        ProblemDetails problem = ApiProblems.Create(
-            HttpContext,
-            StatusCodes.Status400BadRequest,
-            "Invalid sort field",
-            $"Sort field '{requestedSort}' is not supported for companies.");
-        problem.Extensions["allowedSortFields"] = allowedSortFields.ToArray();
-        return BadRequest(problem);
-    }
+    private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields) =>
+        ApiProblems.InvalidSort(HttpContext, requestedSort, allowedSortFields, "companies");
 
     // Function summary: Builds the company not-found response.
     private NotFoundObjectResult CompanyNotFound(Guid id)

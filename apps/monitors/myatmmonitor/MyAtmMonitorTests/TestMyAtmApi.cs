@@ -35,11 +35,11 @@ namespace MyAtmMonitorTests
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageClient);
+                                                     out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 656;
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
-                                 Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(Period.Minutes1)));
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken)).
+                                 Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(Period.Minutes1), TestContext.CancellationToken));
 
             List<DustMonitorDto> monitors = MyAtmFixture.CustomerDeviceDtos(null);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
@@ -48,10 +48,10 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns([]);
 
-            await testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1);
+            await testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1, TestContext.CancellationToken);
 
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "11111", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "22222", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "11111", "", TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "22222", "", TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.VerifyNoOtherCalls();
@@ -85,7 +85,7 @@ namespace MyAtmMonitorTests
             Mock<IHttpClient> httpClient = new();
             Mock<IDBClient> dbClient = new();
             Mock<IMqttClient> mqttClient = new();
-            Mock<IMessageService> messageClient = new();
+            Mock<INotificationDeliveryService> messageClient = new();
             MyAtmMonitorOptions options = new()
             {
                 MeasurementPageSize = 2,
@@ -101,7 +101,7 @@ namespace MyAtmMonitorTests
             string secondRequest = "/api/customers/656/devices/11111/measurements" + TestUtil.MEASUREMENT_SELECT +
                                 "&$filter=timestamp gt 2024-01-01T00:01:00.0000000Z&$orderby=timestamp asc&$top=2";
 
-            httpClient.SetupSequence(client => client.GetAsync(It.IsRegex("/api/customers/656/devices/11111/measurements")))
+            httpClient.SetupSequence(client => client.GetAsync(It.IsRegex("/api/customers/656/devices/11111/measurements"), TestContext.CancellationToken))
                 .ReturnsAsync(firstPage)
                 .ReturnsAsync(secondPage);
             dbClient.Setup(client => client.ReadMonitorList(customerId, null))
@@ -115,7 +115,7 @@ namespace MyAtmMonitorTests
                     It.IsAny<DateTime>(), It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync((MonitorDeliveryMessage?)null);
 
-            await testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1);
+            await testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1, TestContext.CancellationToken);
 
             httpClient.Verify(client => client.GetAsync(firstRequest, It.IsAny<CancellationToken>()), Times.Once);
             httpClient.Verify(client => client.GetAsync(secondRequest, It.IsAny<CancellationToken>()), Times.Once);
@@ -131,7 +131,7 @@ namespace MyAtmMonitorTests
             Mock<IHttpClient> httpClient = new();
             Mock<IDBClient> dbClient = new();
             Mock<IMqttClient> mqttClient = new();
-            Mock<IMessageService> messageClient = new();
+            Mock<INotificationDeliveryService> messageClient = new();
             MyAtmMonitorOptions options = new()
             {
                 OutboxBatchSize = 2
@@ -156,7 +156,7 @@ namespace MyAtmMonitorTests
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new DustImportCommitResult(Array.Empty<MonitorDeliveryRequest>()));
 
-            await testObj.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1);
+            await testObj.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1, TestContext.CancellationToken);
 
             dbClient.Verify(client => client.ClaimNextDueAsync(
                 It.IsAny<string>(),
@@ -179,7 +179,7 @@ namespace MyAtmMonitorTests
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
-                out Mock<IMessageService> messageClient);
+                out Mock<INotificationDeliveryService> messageClient);
             httpClient.Setup(client => client.GetAsync(
                     It.IsRegex("/api/customers/656/devices/11111/measurements"),
                     It.IsAny<CancellationToken>()))
@@ -194,7 +194,7 @@ namespace MyAtmMonitorTests
                 .ThrowsAsync(new InvalidOperationException("commit failed"));
 
             await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(
-                () => testObj.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1));
+                () => testObj.StoreDustLevelsAsync<DeviceMeasurement>(656, Period.Minutes1, TestContext.CancellationToken));
 
             dbClient.Verify(client => client.ClaimNextDueAsync(
                 It.IsAny<string>(),
@@ -214,17 +214,17 @@ namespace MyAtmMonitorTests
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageClient);
+                                                     out Mock<INotificationDeliveryService> messageClient);
             int customerId = 656;
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements"))).Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(period)));
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements"), TestContext.CancellationToken)).Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(period), TestContext.CancellationToken));
 
             List<DustMonitorDto> monitors = MyAtmFixture.CustomerDeviceDtos(null);
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).Returns(monitors);
             DateTime dt = DateTime.Parse("2023-09-25T10:29:00");
-            await testObj.StoreDustLevelsAsync<AvgDeviceMeasurement>(customerId, period);
+            await testObj.StoreDustLevelsAsync<AvgDeviceMeasurement>(customerId, period, TestContext.CancellationToken);
 
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "11111", urlSuffix))), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "22222", urlSuffix))), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "11111", urlSuffix)), TestContext.CancellationToken), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "22222", urlSuffix)), TestContext.CancellationToken), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.VerifyNoOtherCalls();
@@ -282,11 +282,11 @@ namespace MyAtmMonitorTests
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageClient);
+                                                     out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 656;
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
-                                 Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(Period.Minutes1)));
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken)).
+                                 Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(Period.Minutes1), TestContext.CancellationToken));
 
             DateTime expectedDateTime = DateTime.UtcNow;
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
@@ -294,10 +294,10 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                     Returns([]);
 
-            await testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1);
+            await testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1, TestContext.CancellationToken);
 
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "11111", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "22222", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "11111", "", TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(656, "22222", "", TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.VerifyNoOtherCalls();
@@ -316,7 +316,7 @@ namespace MyAtmMonitorTests
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                          out Mock<IDBClient> dbClient,
                                          out Mock<IMqttClient> mqttClient,
-                                         out Mock<IMessageService> messageClient);
+                                         out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 656;
             DateTime expectedDateTime = DateTime.UtcNow;
@@ -324,7 +324,7 @@ namespace MyAtmMonitorTests
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(monitors);
 
-            await testObj.ClearMonitorsOfflineFlagAsync(customerId);
+            await testObj.ClearMonitorsOfflineFlagAsync(customerId, TestContext.CancellationToken);
 
             httpClient.VerifyNoOtherCalls();
 
@@ -364,5 +364,7 @@ namespace MyAtmMonitorTests
                 1,
                 Guid.NewGuid());
         }
+
+        public TestContext TestContext { get; set; } = null!;
     }
 }

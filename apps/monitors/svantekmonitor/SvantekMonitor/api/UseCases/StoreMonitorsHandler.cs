@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Diagnostics;
 using Svantek.Api.Db;
-using Svantek.Api.Http;
+using Svantek.Api.Ports;
 using Svantek.Model.Dto;
 using Svantek.Model.Http;
 
@@ -12,18 +12,18 @@ namespace Svantek.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the SvantekApi partials (SvantekApiMonitors).
     public class StoreMonitorsHandler
     {
-        private readonly SvantekHttpGateway gateway;
+        private readonly ISvantekVendorGateway _gateway;
         private readonly ISvantekMonitorCommands monitorCommands;
         private readonly ISvantekOperationalCommands operationalCommands;
         private readonly bool testLocal;
 
         public StoreMonitorsHandler(
-            SvantekHttpGateway gateway,
+            ISvantekVendorGateway gateway,
             ISvantekMonitorCommands monitorCommands,
             ISvantekOperationalCommands operationalCommands,
             bool testLocal)
         {
-            this.gateway = gateway;
+            _gateway = gateway;
             this.monitorCommands = monitorCommands;
             this.operationalCommands = operationalCommands;
             this.testLocal = testLocal;
@@ -32,9 +32,9 @@ namespace Svantek.Api.UseCases
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             RvtLogger.Logger.LogDebug("StoreMonitors reading projects API");
-            List<Project> projects = await gateway.GetProjectsAsync(cancellationToken).ConfigureAwait(false);
+            List<Project> projects = await _gateway.GetProjectsAsync(cancellationToken).ConfigureAwait(false);
             RvtLogger.Logger.LogDebug("StoreMonitors reading stations API");
-            List<Station> stations = await gateway.GetStationsAsync(cancellationToken).ConfigureAwait(false);
+            List<Station> stations = await _gateway.GetStationsAsync(cancellationToken).ConfigureAwait(false);
             SvantekFailureCollector failures = new(operationalCommands);
 
             foreach (Project project in projects)

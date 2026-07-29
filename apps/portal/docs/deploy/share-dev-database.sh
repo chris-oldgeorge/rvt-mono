@@ -105,13 +105,13 @@ cmd_export() {
     # generally has none). A truncated or non-archive file fails here rather than at the far end, days later.
     local toc_entries
     toc_entries="$(docker exec "$CONTAINER" pg_restore -l "$remote" 2>/dev/null | grep -c ';' || true)"
-    [ "${toc_entries:-0}" -gt 0 ] || { docker exec "$CONTAINER" rm -f "$remote" || true; die "the produced archive is not readable by pg_restore."; }
+    [[ "${toc_entries:-0}" -gt 0 ]] || { docker exec "$CONTAINER" rm -f "$remote" || true; die "the produced archive is not readable by pg_restore."; }
 
     docker cp "${CONTAINER}:${remote}" "${OUT_DIR}/${base}.dump" >/dev/null
     docker exec "$CONTAINER" rm -f "$remote" || true
 
     local dump="${OUT_DIR}/${base}.dump"
-    [ -s "$dump" ] || die "the copied archive is empty: $dump"
+    [[ -s "$dump" ]] || die "the copied archive is empty: $dump"
 
     local size sha
     size="$(du -h "$dump" | cut -f1)"
@@ -156,8 +156,8 @@ EOF
 }
 
 cmd_restore() {
-    [ -n "$FILE" ] || die "restore needs --file <dump>."
-    [ -f "$FILE" ] || die "no such file: $FILE"
+    [[ -n "$FILE" ]] || die "restore needs --file <dump>."
+    [[ -f "$FILE" ]] || die "no such file: $FILE"
     require_container
 
     local target_vers target_ts
@@ -165,16 +165,16 @@ cmd_restore() {
     target_ts="${target_vers##*|}"
 
     local info="${FILE%.dump}.info" src_ts=""
-    if [ -f "$info" ]; then
+    if [[ -f "$info" ]]; then
         src_ts="$(awk -F': *' '/^timescaledb/{print $2; exit}' "$info" | tr -d '[:space:]')"
     fi
-    if [ -n "$src_ts" ] && [ "$src_ts" != "$target_ts" ]; then
+    if [[ -n "$src_ts" && "$src_ts" != "$target_ts" ]]; then
         die "TimescaleDB mismatch: dump is from ${src_ts}, target container has ${target_ts}. A Timescale dump does not restore across extension versions."
     fi
 
     if docker exec "$CONTAINER" psql -U "$PGUSER" -d postgres -tAc \
         "SELECT 1 FROM pg_database WHERE datname='${DB}'" | grep -q 1; then
-        [ "$FORCE" -eq 1 ] || die "database '${DB}' already exists in '${CONTAINER}'. Pass --force to drop and recreate it."
+        [[ "$FORCE" -eq 1 ]] || die "database '${DB}' already exists in '${CONTAINER}'. Pass --force to drop and recreate it."
         echo "Dropping existing database '${DB}'..."
         docker exec "$CONTAINER" psql -U "$PGUSER" -d postgres -c \
             "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${DB}' AND pid<>pg_backend_pid();" >/dev/null
@@ -191,7 +191,7 @@ cmd_restore() {
     note "timescaledb_pre_restore() done"
 
     local restore_args=(--no-owner --no-privileges)
-    [ "$KEEP_OWNERSHIP" -eq 1 ] && restore_args=()
+    [[ "$KEEP_OWNERSHIP" -eq 1 ]] && restore_args=()
 
     # Keep --exit-on-error off so pg_restore can report every archive issue, but never convert its aggregate
     # status into success. Capture it explicitly so strict mode cannot skip the diagnostic, then return the exact
@@ -199,12 +199,12 @@ cmd_restore() {
     local restore_status=0
     docker exec -i "$CONTAINER" pg_restore -U "$PGUSER" -d "$DB" "${restore_args[@]}" < "$FILE" \
         || restore_status=$?
-    if [ "$restore_status" -ne 0 ]; then
+    if [[ "$restore_status" -ne 0 ]]; then
         printf 'error: pg_restore failed with status %d; restore is incomplete.\n' "$restore_status" >&2
         local cleanup_status=0
         docker exec "$CONTAINER" psql -U "$PGUSER" -d "$DB" -tAc "SELECT timescaledb_post_restore();" >/dev/null \
             || cleanup_status=$?
-        if [ "$cleanup_status" -ne 0 ]; then
+        if [[ "$cleanup_status" -ne 0 ]]; then
             printf 'error: timescaledb post-restore cleanup failed with status %d; manual cleanup is required.\n' \
                 "$cleanup_status" >&2
         fi
@@ -226,8 +226,8 @@ cmd_restore() {
 
     [[ "$public_tables" =~ ^[0-9]+$ ]] || die "restore verification returned an invalid public table count: '${public_tables}'."
     [[ "$hypertables" =~ ^[0-9]+$ ]] || die "restore verification returned an invalid hypertable count: '${hypertables}'."
-    [ "$public_tables" -gt 0 ] || die "restore verification found no public tables."
-    [ "$hypertables" -gt 0 ] || die "restore verification found no TimescaleDB hypertables."
+    [[ "$public_tables" -gt 0 ]] || die "restore verification found no public tables."
+    [[ "$hypertables" -gt 0 ]] || die "restore verification found no TimescaleDB hypertables."
 
     echo
     echo "Restore complete. Sanity check:"
@@ -235,9 +235,9 @@ cmd_restore() {
     note "hypertables  : ${hypertables}"
 }
 
-[ $# -ge 1 ] || usage 1
+[[ $# -ge 1 ]] || usage 1
 MODE="$1"; shift
-while [ $# -gt 0 ]; do
+while [[ $# -gt 0 ]]; do
     case "$1" in
         --container) CONTAINER="$2"; shift 2 ;;
         --db)        DB="$2"; shift 2 ;;

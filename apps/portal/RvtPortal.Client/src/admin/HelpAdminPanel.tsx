@@ -9,7 +9,7 @@
 
 import { BookOpen, Edit3, EyeOff, Plus, Save, Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SubmitEvent } from 'react';
 import {
   createHelpArticle,
   deleteHelpArticle,
@@ -195,7 +195,7 @@ export function HelpAdminPanel({ onNavigate, onRequestError }: HelpAdminPanelPro
   }
 
   // Function summary: Saves a Help CMS article from the management form.
-  async function saveArticle(event: FormEvent) {
+  async function saveArticle(event: SubmitEvent) {
     event.preventDefault();
     setIsSaving(true);
     setError(null);

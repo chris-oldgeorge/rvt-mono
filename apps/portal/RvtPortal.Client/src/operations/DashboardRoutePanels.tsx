@@ -7,6 +7,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { getCalendarDay, getCalendarMonth, getDashboardSummary, isAbortError, queryMapMarkers } from '../api/client';
 import { Notice } from '../components/FormControls';
 import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
+import { formatDate, formatDateTime, formatMonthYear, formatNumber } from '../format';
+import { parsePositiveInt } from '../gridQuery';
 import type {
   CalendarDayResponse,
   CalendarMonthDayItem,
@@ -266,7 +268,7 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
         {monthData && (
           <>
             <div className="calendar-heading">
-              <strong>{monthName(monthData.year, monthData.month)}</strong>
+              <strong>{formatMonthYear(monthData.year, monthData.month)}</strong>
               <span>
                 {monthData.fleetNumber || monthData.serialId} / {monthData.typeOfMonitor}
               </span>
@@ -483,44 +485,6 @@ function initialCalendarDate(params: URLSearchParams) {
 function buildCalendarUrl(deploymentId: string, year: number, month: number) {
   const params = new URLSearchParams({ deploymentId, year: String(year), month: String(month) });
   return `/calendar?${params.toString()}`;
-}
-
-// Function summary: Handles the month name workflow for this module.
-function monthName(year: number, month: number) {
-  return new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(new Date(year, month - 1, 1));
-}
-
-// Function summary: Handles the format date workflow for this module.
-function formatDate(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date(value));
-}
-
-// Function summary: Handles the format date time workflow for this module.
-function formatDateTime(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-}
-
-// Function summary: Handles the format number workflow for this module.
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('en-GB', { maximumFractionDigits: 2 }).format(value);
-}
-
-// Function summary: Handles the parse positive int workflow for this module.
-function parsePositiveInt(value: string | null, fallback: number) {
-  const parsed = Number.parseInt(value ?? '', 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
-    return fallback;
-  }
-
-  return parsed;
 }
 
 const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

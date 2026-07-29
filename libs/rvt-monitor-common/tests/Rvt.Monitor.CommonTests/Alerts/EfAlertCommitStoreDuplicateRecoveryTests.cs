@@ -22,7 +22,7 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
                 "ERROR",
                 "ERROR",
                 "40001"))
-                .CommitAsync(CommitRequest()));
+                .CommitAsync(CommitRequest(), TestContext.CancellationToken));
 
         AssertSafe(exception);
     }
@@ -33,7 +33,7 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
         InvalidOperationException exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(
             () => CreateStore(new NpgsqlException(
                 "provider sentinel connection=secret destination=ops@example.test"))
-                .CommitAsync(CommitRequest()));
+                .CommitAsync(CommitRequest(), TestContext.CancellationToken));
 
         AssertSafe(exception);
     }
@@ -158,4 +158,6 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
             IReadOnlyCollection<AlertType> recentAlertTypes) =>
             throw OccurrenceConflict();
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

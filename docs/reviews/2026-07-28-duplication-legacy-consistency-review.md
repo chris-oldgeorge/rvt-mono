@@ -135,6 +135,12 @@ with the same severity as anything else:
 
 ### Cross-monitor (the dominant cluster)
 - `AddEmailProvider(...)` ×5 (four byte-identical, one drifted to `var`).
+  **Resolved as intentional (2026-07-29):** the provider split
+  (docs/architecture/rvt-monitor-common/communications.md) deliberately makes
+  each host own provider selection — no facade, no vendor names in the
+  neutral projects (guard-enforced down to the literal string `SendGrid` in
+  `Rvt.Communication` source). `HostCommunicationsCompositionParityTests`
+  now pins the five copies byte-identical so they cannot drift.
 - `GetJobName` ×5; the dispatcher "parameterless ctor throws at runtime" hack
   is now ×5 (grew); each monitor maintains the job-name list twice
   (dispatcher set + runner switch = 10 hand-maintained lists).
@@ -143,14 +149,35 @@ with the same severity as anything else:
   (Svantek)** / 15 s; only MyAtm has retry + bounded read; phantom `<T>` in 3
   of 4; Svantek's `GetByteArrayAsync` actually sends POST; the Omnidots
   fake-auth seam survived the rewrite verbatim.
+  **Resolved 2026-07-29:** one `VendorHttpTransport` engine in
+  `Rvt.Monitor.Common.Http` (send/dispose loop, optional pacing/retry via
+  `IVendorRequestPolicy` — MyAtm's policy generalized to
+  `VendorRequestPolicy` — and optional bounded reads); the four clients are
+  thin wrappers keeping their own pinned headers, timeouts, and error
+  contracts. Phantom `<T>` removed; Svantek's method renamed
+  `PostForBytesAsync`; the Omnidots seam moved to the
+  `OmnidotsStaticTokenClient` composition decorator (behaviour and the
+  `RVT__OMNIDOTS_USE_TOKEN` default preserved — whether the seam should exist
+  at all is still the open product question).
 - `ClearOlderErrorMessagesHandler` ×3 (same 7-day cutoff, now with sync/async
   signature drift, all reading the clock directly).
-- Test scaffolding: `TestDbClient.cs` ×4 (~6,400 lines; also 13% of ratchet
-  debt), `TestRuleActivity` ×4 (AirQ↔Svantek byte-identical after rename),
-  `CommunicationsCompositionTests` ×5 (4 diff lines), plus **new** duplication
-  from the July refactor: `TestAirQCancellation`/`TestOmnidotsCancellation`
-  twins with identical private handlers, timeout-test twins, and a copy-pasted
-  `#pragma warning disable IDE0130` block in both Ports files.
+- Test scaffolding: `TestDbClient.cs` ×4 (~6,400 lines; the "13% of ratchet
+  debt" figure was made stale by PR #21's baseline regeneration — it is now
+  1.4%), `TestRuleActivity` ×4, `CommunicationsCompositionTests` ×5 (4 diff
+  lines), plus **new** duplication from the July refactor: cancellation-test
+  twins, timeout-test twins, and a copy-pasted `#pragma warning disable
+  IDE0130` block in both Ports files.
+  **Resolved 2026-07-29 (partially):** `TestRuleActivity` ×4 deleted — the
+  copies tested only Common types, and their differences silently encoded each
+  monitor's ambient `RvtConfig.RulePolicy` (MyAtm asserting the opposite
+  result on the same window) plus unhardened timezone handling; one explicit
+  policy-parameterized copy now lives in `Rvt.Monitor.CommonTests`.
+  `CommunicationsCompositionTests` ×5 now delegate to the framework-neutral
+  `CommunicationsCompositionContract` in `Rvt.Monitor.IntegrationTesting`.
+  **`TestDbClient` unification is deferred**: its shared-looking members carry
+  2-4 real variants each (schema, DTO twins from `Rules` vs `Notifications`,
+  policy semantics); it unifies naturally after the §8 DTO retirement, and the
+  debt argument no longer applies.
 
 ### Portal backend
 - `InvalidSort` helper copy-pasted into **10 controllers in two diverged
@@ -185,8 +212,16 @@ with the same severity as anything else:
   contract for nothing.
 - Six near-identical startup-validation hosted services (two naming
   conventions); three options classes re-implementing the same config helpers;
-  registration naming drift across three conventions; the design spec's single
-  `AddMonitorCommunications` was never built — five hosts duplicate the block.
+  **(Validator consolidation withdrawn 2026-07-29: each service is ~15 trivial
+  lines, the six type names are pinned by four test layers, and the only shared
+  home — `Rvt.Communication.Abstractions` — is guarded to stay
+  dependency-free. A generic base plus six name-preserving stubs would not be
+  smaller than the six files.)**
+  registration naming drift across three conventions; the retired
+  `Rvt.Monitor.Common.Infrastructure` facade's `AddMonitorCommunications` was
+  deliberately dissolved into per-host composition (not "never built" as this
+  review first stated); the five-host block is a documented decision, now
+  drift-pinned by `HostCommunicationsCompositionParityTests`.
 
 ## 5. Hexagonal architecture
 
@@ -268,11 +303,19 @@ enforced dead. `[Obsolete]` still missing from `IMessageService` itself, so no
 caller sees a warning. Retirement order (each step unblocks the next):
 
 1. Deletable now: dead members/fields listed in §3; add `[Obsolete]` to the
-   interface; generic startup-validation service; library-level
-   `AddMonitorCommunications`.
+   interface; generic startup-validation service. (A library-level
+   `AddMonitorCommunications` is withdrawn — it contradicts the guard-enforced
+   provider split; see §4.)
+   **Done 2026-07-29: `IMessageService` carries `[Obsolete]` with diagnostic
+   `RVT0001`; the eight still-consuming monitor projects hold documented
+   NoWarns that steps 4-5 delete. The generic validation service is withdrawn
+   (see §4).**
 2. One-file compat kills: retarget Omnidots' `AlertActivityTimeDto` alias;
    retarget AirQ/Svantek `NotificationDto` aliases; replace MyAtm's inverted
    adapter with the DI-registered service.
+   **Done 2026-07-29: all three aliases retarget the base types; MyAtm's
+   `LegacyNotificationDeliveryService` round-trip is deleted — the facade
+   constructors take `INotificationDeliveryService` directly.**
 3. Omnidots offline/battery → durable alerts (cheapest retirement — the
    durable stack already runs in-process); delete the inline loop.
 4. AirQ + Svantek alerting → durable stack; retires
@@ -311,10 +354,21 @@ caller sees a warning. Retirement order (each step unblocks the next):
 **P2 — consolidation (the biggest debt payoff)**
 10. Shared `Rvt.Monitor.TestKit`: one `TestDbClient` harness (+13% of all
     ratchet debt), shared `TestRuleActivity`/`TestUtil`/composition tests.
+    **Done for `TestRuleActivity` (moved to CommonTests, policy-explicit) and
+    the composition tests (shared contract driver). `TestDbClient` deferred to
+    the §8 DTO retirement; the 13% debt figure is stale (now 1.4%). `TestUtil`
+    stays per-monitor: its factory binds each monitor's own API/DB types.**
 11. One vendor HTTP client in rvt-monitor-common (MyAtm's as the superset);
     move the Omnidots token seam to composition (needs the product decision).
-12. `AddRvtEmailProvider` + `GetJobName` + job-map base into the library
-    (kills the dual job lists and the ctor hack).
+    **Done: `VendorHttpTransport`/`VendorRequestPolicy` in Common; four thin
+    wrappers; seam relocated to a composition decorator with behaviour
+    preserved. Open: the product ruling on whether `RVT__OMNIDOTS_USE_TOKEN`
+    should exist/default-on.**
+12. ~~`AddRvtEmailProvider`~~ + `GetJobName` + job-map base into the library
+    (kills the dual job lists and the ctor hack). **Done for the job parts
+    (PR #22: `MonitorJobCatalog`, `MonitorJobArguments`). The email-provider
+    part is withdrawn: it contradicts the guard-enforced provider split —
+    hosts own provider selection; the ×5 block is pinned identical instead.**
 13. Frontend `gridQuery.ts` + `format.ts` (pick ONE locale policy) + one
     request-lifecycle idiom; fix the Help Admin whitelist bug and regenerate/
     pin the OpenAPI schema.
@@ -325,6 +379,13 @@ caller sees a warning. Retirement order (each step unblocks the next):
     sweep; fix the intra-class mixes first.
 16. Ports for Svantek/MyAtm; one job-service shape; reuse `RunFleetAsync` in
     Omnidots Veff/Vdv/Traces.
+    **Done: `ISvantekVendorGateway` and `IMyAtmVendorGateway` mirror the
+    AirQ/Omnidots ports; AirQ gained `IAirQMonitorJobs` so every monitor's job
+    catalog binds an interface (Omnidots' provider shape stays — its durable
+    jobs resolve scoped services); the four Omnidots fleet loops share
+    `OmnidotsFleetImport`, which also fixes Veff/Vdv/Traces recording a
+    mid-fleet cancellation as a monitor failure, and standardizes the traces
+    failure message onto the `{job} serialId={id}` pattern.**
 17. Execute the legacy-retirement map (§8).
 18. Batch ratchet paydown: repo-wide IDE0008 fix + `--update-baseline`
     (59% of debt, mechanical), CHARSET sweep, prettier one-shot, DOC-002

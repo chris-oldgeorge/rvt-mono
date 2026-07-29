@@ -10,8 +10,8 @@ using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.Tests.Support;
 using MonitorEntity = RVT.Entities.Monitor;
-
 namespace RvtPortal.Spa.Tests;
 
 public sealed class MonitorPictureCommandTests
@@ -44,9 +44,7 @@ public sealed class MonitorPictureCommandTests
     // Function summary: Creates a domain context containing one active monitor deployment.
     private static async Task<ThrowingSaveRVTDbContext> CreateCurrentDeploymentContextAsync(Guid monitorId)
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseInMemoryDatabase($"monitor-picture-command-{Guid.NewGuid():N}")
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.InMemory<RVTDbContext>($"monitor-picture-command-{Guid.NewGuid():N}");
         ThrowingSaveRVTDbContext context = new(options);
         Company company = new() { Id = Guid.NewGuid(), CompanyName = "Picture Company" };
         Site site = new() { Id = Guid.NewGuid(), SiteName = "Picture Site", CreateDate = DateTime.UtcNow };

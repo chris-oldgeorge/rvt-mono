@@ -16,7 +16,7 @@ using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Notifications.AlertActivityTimeDto;
+using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace Omnidots.Api.Db

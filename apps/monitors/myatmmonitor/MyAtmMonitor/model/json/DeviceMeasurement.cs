@@ -35,5 +35,4 @@ namespace MyAtm.Model.Json
         public Double? Weather_rh { get; set; }
 
     }
-
 }

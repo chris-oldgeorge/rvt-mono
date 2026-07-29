@@ -1,6 +1,6 @@
 using Rvt.Storage;
 using Svantek.Api.Db;
-using Svantek.Api.Http;
+using Svantek.Api.Ports;
 using Svantek.Api.Storage;
 using Svantek.Model.Http;
 using SvantekMonitor.model.dto;
@@ -12,18 +12,18 @@ public sealed class CheckForSoundRecordingsHandler
 {
     private readonly ISvantekNotificationQueries notificationQueries;
     private readonly ISvantekOperationalCommands operationalCommands;
-    private readonly SvantekHttpGateway gateway;
+    private readonly ISvantekVendorGateway _gateway;
     private readonly IObjectStorageClient storage;
 
     public CheckForSoundRecordingsHandler(
         ISvantekNotificationQueries notificationQueries,
         ISvantekOperationalCommands operationalCommands,
-        SvantekHttpGateway gateway,
+        ISvantekVendorGateway gateway,
         IObjectStorageClientFactory storageFactory)
     {
         this.notificationQueries = notificationQueries;
         this.operationalCommands = operationalCommands;
-        this.gateway = gateway;
+        _gateway = gateway;
         ArgumentNullException.ThrowIfNull(storageFactory);
         storage = storageFactory.GetRequiredClient(
             SvantekStorageComposition.SoundRecordingsResource);
@@ -59,7 +59,7 @@ public sealed class CheckForSoundRecordingsHandler
                 ProjectFile audioFile = audioFiles.Count == 1
                     ? audioFiles[0]
                     : audioFiles.MinBy(file => Math.Abs((file.triggerDate - alert.NotificationTime).TotalSeconds))!;
-                byte[] content = await gateway.GetSoundFileAsync(
+                byte[] content = await _gateway.GetSoundFileAsync(
                     alert.ProjectId,
                     alert.PointId,
                     audioFile.stationType,
@@ -124,7 +124,7 @@ public sealed class CheckForSoundRecordingsHandler
             return cached;
         }
 
-        List<ProjectFile> files = await gateway.GetProjectFilesAsync(
+        List<ProjectFile> files = await _gateway.GetProjectFilesAsync(
             projectId.ToString(),
             pointId.ToString(),
             dayCode,

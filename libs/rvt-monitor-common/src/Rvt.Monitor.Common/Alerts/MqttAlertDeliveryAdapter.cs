@@ -16,11 +16,11 @@ public sealed class MqttAlertDeliveryAdapter(IMonitorEventPublisher publisher) :
             Kind,
             destination => string.Equals(destination, "alert", StringComparison.Ordinal));
         await publisher.PublishAlertAsync(
-                envelope.Timestamp,
-                envelope.SerialId,
-                envelope.Message,
-                envelope.CustomerId)
-            .WaitAsync(cancellationToken);
+            envelope.Timestamp,
+            envelope.SerialId,
+            envelope.Message,
+            envelope.CustomerId,
+            cancellationToken);
         return null;
     }
 }

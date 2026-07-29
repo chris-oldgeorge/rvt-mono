@@ -31,14 +31,14 @@ namespace MyAtmMonitorTests
         public async Task TestStoreDevices_HandlesJsonExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                 out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
-            httpClient.Setup(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100")).
-                    Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah."));
+                                                 out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
+            httpClient.Setup(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100", TestContext.CancellationToken)).
+                    Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah.", TestContext.CancellationToken));
 
-            MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => testObj.StoreMonitorsAsync(987));
+            MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => testObj.StoreMonitorsAsync(987, TestContext.CancellationToken));
             Assert.IsInstanceOfType<AdapterException>(aggregate.Failures.Single().Exception);
 
-            httpClient.Verify(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100"), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100", TestContext.CancellationToken), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.HandleException("StoreMonitors page=1", It.Is<AdapterException>(
@@ -52,14 +52,14 @@ namespace MyAtmMonitorTests
         public async Task TestStoreDevices_HandlesExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                         out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
-            httpClient.Setup(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100")).
+            httpClient.Setup(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100", TestContext.CancellationToken)).
                     Throws(new IOException());
 
-            MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => testObj.StoreMonitorsAsync(987));
+            MyAtmJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(() => testObj.StoreMonitorsAsync(987, TestContext.CancellationToken));
             Assert.IsInstanceOfType<AdapterException>(aggregate.Failures.Single().Exception);
-            httpClient.Verify(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100"), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100", TestContext.CancellationToken), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.HandleException("StoreMonitors page=1",
@@ -73,13 +73,13 @@ namespace MyAtmMonitorTests
         public async Task ReadMonitorsList_HandlesExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                         out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 656;
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Throws(new IOException());
 
-            await Assert.ThrowsExactlyAsync<IOException>(() => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1));
+            await Assert.ThrowsExactlyAsync<IOException>(() => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1, TestContext.CancellationToken));
 
             httpClient.VerifyNoOtherCalls();
 
@@ -97,21 +97,21 @@ namespace MyAtmMonitorTests
         public async Task TestStoreDustLevels_HandlesJsonExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                         out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 987;
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
-                                 Returns(Task<string>.Factory.StartNew(() => "Blah !!!"));
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken)).
+                                 Returns(Task<string>.Factory.StartNew(() => "Blah !!!", TestContext.CancellationToken));
 
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow));
 
             MyAtmJobAggregateException exception = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(
-                () => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1));
+                () => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1, TestContext.CancellationToken));
             Assert.HasCount(2, exception.Failures);
 
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "11111", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "22222", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "11111", "", TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "22222", "", TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.VerifyNoOtherCalls();
@@ -126,21 +126,21 @@ namespace MyAtmMonitorTests
         public async Task TestStoreDustLevels_HandlesExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                         out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 987;
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
+            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken)).
                                  Throws(new IOException());
 
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
                     Returns(MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow));
 
             MyAtmJobAggregateException exception = await Assert.ThrowsExactlyAsync<MyAtmJobAggregateException>(
-                () => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1));
+                () => testObj.StoreDustLevelsAsync<DeviceMeasurement>(customerId, Period.Minutes1, TestContext.CancellationToken));
             Assert.HasCount(2, exception.Failures);
 
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "11111", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "22222", "", TestUtil.MEASUREMENT_SELECT))), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "11111", "", TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken), Times.Exactly(1));
+            httpClient.Verify(c => c.GetAsync(It.IsRegex(TestUtil.MeasurementPageRequestPattern(987, "22222", "", TestUtil.MEASUREMENT_SELECT)), TestContext.CancellationToken), Times.Exactly(1));
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(It.IsAny<int>(), null), Times.Exactly(1));
@@ -150,5 +150,7 @@ namespace MyAtmMonitorTests
             mqttClient.VerifyNoOtherCalls();
             messageClient.VerifyNoOtherCalls();
         }
+
+        public TestContext TestContext { get; set; } = null!;
     }
 }

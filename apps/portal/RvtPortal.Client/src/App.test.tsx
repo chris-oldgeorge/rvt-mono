@@ -58,7 +58,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /please sign in/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /please sign in/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
   });
@@ -69,7 +69,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /privacy policy/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /privacy policy/i })).toBeInTheDocument();
     expect(screen.getByText(/your privacy is important to rvt group/i)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /please sign in/i })).not.toBeInTheDocument();
   });
@@ -131,7 +131,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /operations dashboard/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /operations dashboard/i })).toBeInTheDocument();
     const navigation = within(screen.getByRole('navigation'));
     expect(navigation.getByRole('button', { name: /companies/i })).toBeInTheDocument();
     expect(navigation.getByRole('button', { name: /users/i })).toBeInTheDocument();
@@ -152,7 +152,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /operations dashboard/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /operations dashboard/i })).toBeInTheDocument();
     const navigation = within(screen.getByRole('navigation'));
     expect(navigation.getByRole('button', { name: /^home$/i })).toBeInTheDocument();
     expect(navigation.getByRole('button', { name: /^sites$/i })).toBeInTheDocument();
@@ -175,7 +175,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^reports$/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^reports$/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /skip to content/i })).toHaveAttribute('href', '#main-content');
     expect(document.querySelector('#main-content')).toHaveAttribute('tabindex', '-1');
     expect(within(screen.getByRole('navigation')).getByRole('button', { name: /reports/i })).toHaveAttribute(
@@ -190,7 +190,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /operations dashboard/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /operations dashboard/i })).toBeInTheDocument();
     const navigation = within(screen.getByRole('navigation'));
     expect(navigation.queryByRole('button', { name: /companies/i })).not.toBeInTheDocument();
     expect(navigation.queryByRole('button', { name: /users/i })).not.toBeInTheDocument();
@@ -210,7 +210,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /live monitor overview/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /live monitor overview/i })).toBeInTheDocument();
     expect(screen.getByText('Open Alerts')).toBeInTheDocument();
     expect(screen.getByText('P8-DUST')).toBeInTheDocument();
   });
@@ -221,14 +221,14 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /site search/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /site search/i })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/search sites/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^search$/i })).not.toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /contracts/i })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /site name/i })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /address/i })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /company name/i })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText('RVT Test Site')).toBeInTheDocument());
+    expect(await screen.findByText('RVT Test Site')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /view site/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /edit site/i })).toBeInTheDocument();
   });
@@ -249,7 +249,7 @@ describe('App', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /view site/i }));
     expect(globalThis.location.pathname).toBe('/sites/site-id');
-    await waitFor(() => expect(screen.getByRole('heading', { name: /^RVT Test Site$/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /^RVT Test Site$/i })).toBeInTheDocument();
   });
 
   it('renders the maps route for RVT admin users', async () => {
@@ -258,7 +258,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^maps$/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^maps$/i })).toBeInTheDocument();
     await waitFor(() => expect(screen.getAllByText('P8-DUST (Dust)')[0]).toBeInTheDocument());
   });
 
@@ -268,8 +268,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^calendar$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText(/P8-DUST \/ Dust/i)).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^calendar$/i })).toBeInTheDocument();
+    expect(await screen.findByText(/P8-DUST \/ Dust/i)).toBeInTheDocument();
   });
 
   it('renders the contracts operations route for RVT admin users', async () => {
@@ -278,8 +278,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^contracts$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('RVT-C-001')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^contracts$/i })).toBeInTheDocument();
+    expect(await screen.findByText('RVT-C-001')).toBeInTheDocument();
   });
 
   it('lets admins narrow company search from live suggestions', async () => {
@@ -321,17 +321,17 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^companies$/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^companies$/i })).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/search companies/i), { target: { value: 'acme' } });
     await screen.findByText('Acme Environmental');
     fireEvent.change(screen.getByPlaceholderText(/search companies/i), { target: { value: 'a' } });
     expect(screen.queryByText('Acme Environmental')).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText(/search companies/i), { target: { value: 'acme' } });
-    await waitFor(() => expect(screen.getByRole('button', { name: /^Acme Environmental$/i })).toBeInTheDocument());
+    expect(await screen.findByRole('button', { name: /^Acme Environmental$/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Acme Environmental$/i }));
 
-    await waitFor(() => expect(screen.getByText('Acme Environmental')).toBeInTheDocument());
+    expect(await screen.findByText('Acme Environmental')).toBeInTheDocument();
     expect(
       fetchedUrls().some(
         (url) => url.pathname === '/api/companies' && url.searchParams.get('searchText') === 'Acme Environmental',
@@ -407,11 +407,11 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^companies$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByRole('button', { name: /edit company/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^companies$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /edit company/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /edit company/i }));
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /edit company/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /edit company/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
 
     await waitFor(() => {
@@ -466,7 +466,7 @@ describe('App', () => {
     const companySelect = await screen.findByLabelText(/^company$/i);
     await waitFor(() => expect(screen.getByLabelText(/contract number/i)).toHaveValue('RVT-C-001'));
     fireEvent.change(companySelect, { target: { value: 'other-company-id' } });
-    await waitFor(() => expect(screen.getByText(/contract options unavailable/i)).toBeInTheDocument());
+    expect(await screen.findByText(/contract options unavailable/i)).toBeInTheDocument();
 
     fireEvent.change(companySelect, { target: { value: 'company-id' } });
 
@@ -479,8 +479,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^sites$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('RVT Test Site')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^sites$/i })).toBeInTheDocument();
+    expect(await screen.findByText('RVT Test Site')).toBeInTheDocument();
   });
 
   it('renders per-day site hours on Site Detail and Edit Site', async () => {
@@ -489,14 +489,14 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /^RVT Test Site$/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /^RVT Test Site$/i })).toBeInTheDocument();
     expect(screen.getByText('Monday Hours')).toBeInTheDocument();
     expect(screen.getByText('07:00 - 17:00')).toBeInTheDocument();
     expect(screen.getByText('Thursday Hours')).toBeInTheDocument();
     expect(screen.getAllByText('Closed')[0]).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
-    await waitFor(() => expect(screen.getByRole('heading', { name: /edit site/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /edit site/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/monday start/i)).toHaveValue('07:00');
     expect(screen.getByLabelText(/wednesday start/i)).toHaveValue('09:00');
     expect(screen.getByLabelText(/thursday closed/i)).toBeChecked();
@@ -521,7 +521,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /edit site/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /edit site/i })).toBeInTheDocument();
     expect(await screen.findByRole('img', { name: /customer logo/i })).toHaveAttribute(
       'src',
       '/api/sites/site-id/customer-logo',
@@ -531,12 +531,12 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText(/customer logo image/i), { target: { files: [logoFile] } });
     fireEvent.click(screen.getByRole('button', { name: /upload logo/i }));
 
-    await waitFor(() => expect(screen.getByText(/customer logo updated/i)).toBeInTheDocument());
+    expect(await screen.findByText(/customer logo updated/i)).toBeInTheDocument();
     expect(fetchedUrls().some((url) => url.pathname === '/api/sites/site-id/customer-logo')).toBe(true);
 
     fireEvent.click(screen.getByRole('button', { name: /delete logo/i }));
 
-    await waitFor(() => expect(screen.getByText(/customer logo removed/i)).toBeInTheDocument());
+    expect(await screen.findByText(/customer logo removed/i)).toBeInTheDocument();
     expect(screen.queryByRole('img', { name: /customer logo/i })).not.toBeInTheDocument();
   });
 
@@ -546,7 +546,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /^RVT Test Site$/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /^RVT Test Site$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /open map/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /open calendar/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /open notifications/i })).toBeInTheDocument();
@@ -557,8 +557,8 @@ describe('App', () => {
       expect(globalThis.location.pathname).toBe('/data');
       expect(globalThis.location.search).toContain('deploymentId=deployment-id');
     });
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^data views$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('Dust Monitor DATA-DUST')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^data views$/i })).toBeInTheDocument();
+    expect(await screen.findByText('Dust Monitor DATA-DUST')).toBeInTheDocument();
   });
 
   it('renders the Help page with FAQ articles and asset links', async () => {
@@ -567,15 +567,15 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^help$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByRole('heading', { name: /data readings/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^help$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /data readings/i })).toBeInTheDocument();
     expect(screen.getByText('Dust reading definitions')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open article/i })).toHaveAttribute(
       'href',
       '/help/dust-reading-definitions',
     );
     fireEvent.click(screen.getByRole('link', { name: /open article/i }));
-    await waitFor(() => expect(screen.getByRole('heading', { name: /dust reading definitions/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /dust reading definitions/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /dust monitoring guide/i })).toHaveAttribute(
       'href',
       '/help-assets/data-readings/dust-guide.pdf',
@@ -588,10 +588,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1, name: /help\/faq management/i })).toBeInTheDocument(),
-    );
-    await waitFor(() => expect(screen.getByText('Draft FAQ')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /help\/faq management/i })).toBeInTheDocument();
+    expect(await screen.findByText('Draft FAQ')).toBeInTheDocument();
     const typeFilter = screen.getAllByLabelText(/^type$/i)[0] as HTMLSelectElement;
     expect(Array.from(typeFilter.options).map((option) => option.value)).toEqual([
       'All',
@@ -607,7 +605,7 @@ describe('App', () => {
     fireEvent.click(screen.getByLabelText(/publish this content/i));
     fireEvent.click(screen.getByRole('button', { name: /save faq/i }));
 
-    await waitFor(() => expect(screen.getByText(/help article updated/i)).toBeInTheDocument());
+    expect(await screen.findByText(/help article updated/i)).toBeInTheDocument();
     expect(fetchedUrls().some((url) => url.pathname === '/api/help/admin')).toBe(true);
     expect(fetchedUrls().some((url) => url.pathname === '/api/help/admin/articles/help-article-id')).toBe(true);
   });
@@ -618,7 +616,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: /add site/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 2, name: /add site/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add company/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add contract/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/^contract$/i)).toBeDisabled();
@@ -631,8 +629,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^monitors$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('MON-ONLINE')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^monitors$/i })).toBeInTheDocument();
+    expect(await screen.findByText('MON-ONLINE')).toBeInTheDocument();
   });
 
   it('keeps newer monitor search results when an older request resolves later', async () => {
@@ -665,7 +663,7 @@ describe('App', () => {
     await waitFor(() => expect(heldInitialRequest).toBe(true));
     fireEvent.change(await screen.findByPlaceholderText(/search monitors/i), { target: { value: 'fresh' } });
 
-    await waitFor(() => expect(screen.getByText('MON-FRESH')).toBeInTheDocument());
+    expect(await screen.findByText('MON-FRESH')).toBeInTheDocument();
     staleRequest.resolve(jsonResponse(monitorPage(new URL('/api/monitors', 'http://localhost'), 'MON-STALE')));
 
     await waitFor(() => expect(screen.queryByText('MON-STALE')).not.toBeInTheDocument());
@@ -760,7 +758,7 @@ describe('App', () => {
 
     await waitFor(() => expect(heldInitialRequest).toBe(true));
     fireEvent.click(await screen.findByRole('button', { name: /parameter/i }));
-    await waitFor(() => expect(screen.getByText('Peak')).toBeInTheDocument());
+    expect(await screen.findByText('Peak')).toBeInTheDocument();
 
     await act(async () => staleRequest.reject(new Error('Stale alert-level failure')));
 
@@ -1196,11 +1194,11 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^monitors$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByRole('button', { name: /edit monitor/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^monitors$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /edit monitor/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /edit monitor/i }));
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /edit monitor/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /edit monitor/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
 
     await waitFor(() => {
@@ -1220,7 +1218,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /^MON-ONLINE$/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /^MON-ONLINE$/i })).toBeInTheDocument();
     expect(screen.getByText('Latest Reading')).toBeInTheDocument();
     expect(screen.getByText('Latest Breach')).toBeInTheDocument();
     expect(screen.getByText('Latest 15 Min Average')).toBeInTheDocument();
@@ -1236,7 +1234,7 @@ describe('App', () => {
     expect(screen.getAllByText('MON-CON-001').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /view notification/i }));
     await waitFor(() => expect(globalThis.location.pathname).toBe('/notifications/notification-id'));
-    await waitFor(() => expect(screen.getByRole('heading', { name: /PM10 > 50/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /PM10 > 50/i })).toBeInTheDocument();
   });
 
   it('hides the Average column for vibration alert levels', async () => {
@@ -1245,8 +1243,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /^alert levels$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('Peak')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /^alert levels$/i })).toBeInTheDocument();
+    expect(await screen.findByText('Peak')).toBeInTheDocument();
     expect(screen.queryByText(/^Average$/)).not.toBeInTheDocument();
   });
 
@@ -1256,14 +1254,14 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^monitors$/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^monitors$/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /unattached/i }));
-    await waitFor(() => expect(screen.getByRole('heading', { name: /unattached monitors/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('SER-OLD-001')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /unattached monitors/i })).toBeInTheDocument();
+    expect(await screen.findByText('SER-OLD-001')).toBeInTheDocument();
     expect(screen.getByText('Archive')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /remove monitor/i }));
-    await waitFor(() => expect(screen.getByRole('heading', { name: /archive monitor/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /archive monitor/i })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/removal reason/i), { target: { value: 'Retired from fleet' } });
     fireEvent.click(screen.getByRole('button', { name: /^archive$/i }));
 
@@ -1273,7 +1271,7 @@ describe('App', () => {
         fetchedUrls().some((url) => url.pathname === '/api/monitors/11111111-1111-1111-1111-111111111111/unattached'),
       ).toBe(true);
     });
-    await waitFor(() => expect(screen.getByText(/has been archived/i)).toBeInTheDocument());
+    expect(await screen.findByText(/has been archived/i)).toBeInTheDocument();
   });
 
   it('keeps a newer unattached-monitor search authoritative over an older removal refresh', async () => {
@@ -1365,10 +1363,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1, name: /^notifications$/i })).toBeInTheDocument(),
-    );
-    await waitFor(() => expect(screen.getByText('PM10 > 50')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^notifications$/i })).toBeInTheDocument();
+    expect(await screen.findByText('PM10 > 50')).toBeInTheDocument();
   });
 
   it('shows closed notification notes when the current notification rows include one', async () => {
@@ -1427,10 +1423,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1, name: /^notifications$/i })).toBeInTheDocument(),
-    );
-    await waitFor(() => expect(screen.getByRole('columnheader', { name: /closed note/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^notifications$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('columnheader', { name: /closed note/i })).toBeInTheDocument();
     expect(screen.getByText('Investigated from SPA')).toBeInTheDocument();
   });
 
@@ -1440,8 +1434,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^reports$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('Weekly Compliance')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^reports$/i })).toBeInTheDocument();
+    expect(await screen.findByText('Weekly Compliance')).toBeInTheDocument();
   });
 
   it('returns report-rule editing to the reports list that opened it', async () => {
@@ -1450,11 +1444,11 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^reports$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByRole('button', { name: /edit report rule/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^reports$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /edit report rule/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /edit report rule/i }));
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /edit rule/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /edit rule/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^back$/i }));
 
     await waitFor(() => {
@@ -1517,7 +1511,7 @@ describe('App', () => {
     await waitFor(() => expect(screen.getAllByText(/reports unavailable/i).length).toBeGreaterThan(0));
     fireEvent.change(screen.getByPlaceholderText(/search reports/i), { target: { value: 'retried' } });
 
-    await waitFor(() => expect(screen.getByText('Retried Compliance')).toBeInTheDocument());
+    expect(await screen.findByText('Retried Compliance')).toBeInTheDocument();
     expect(screen.queryByText(/reports unavailable/i)).not.toBeInTheDocument();
   });
 
@@ -1586,7 +1580,7 @@ describe('App', () => {
     expect(screen.getByText('Loading data...')).toBeInTheDocument();
     expect(screen.queryByText('Old Rule')).not.toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/search rules/i), { target: { value: 'current' } });
-    await waitFor(() => expect(screen.getByText('Loading data...')).toBeInTheDocument());
+    expect(await screen.findByText('Loading data...')).toBeInTheDocument();
 
     currentQuery.resolve(
       jsonResponse(reportRulePage(new URL('/api/report-rules?searchText=current', 'http://localhost'), 'Current Rule')),
@@ -1660,7 +1654,7 @@ describe('App', () => {
     await screen.findByText('Old Rule');
     fireEvent.click(screen.getByRole('button', { name: /delete report rule/i }));
     fireEvent.change(screen.getByPlaceholderText(/search rules/i), { target: { value: 'current' } });
-    await waitFor(() => expect(screen.getByText('Loading data...')).toBeInTheDocument());
+    expect(await screen.findByText('Loading data...')).toBeInTheDocument();
 
     deleteRequest.resolve(jsonResponse({ message: 'Deleted' }));
     currentQuery.resolve(
@@ -1747,7 +1741,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /add rule/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /add rule/i })).toBeInTheDocument();
     expect(screen.getByText(/step 1/i)).toBeInTheDocument();
     expect(screen.getByText(/schedule/i)).toBeInTheDocument();
     expect(screen.getByText(/recipients/i)).toBeInTheDocument();
@@ -1755,10 +1749,10 @@ describe('App', () => {
     globalThis.history.pushState(null, '', '/reports/rules/report-rule-id');
     fireEvent(window, new PopStateEvent('popstate'));
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /edit rule/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /edit rule/i })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /generate now/i }));
 
-    await waitFor(() => expect(screen.getByText(/manual generation queued/i)).toBeInTheDocument());
+    expect(await screen.findByText(/manual generation queued/i)).toBeInTheDocument();
     expect(fetchedUrls().some((url) => url.pathname === '/api/report-rules/report-rule-id/generation-requests')).toBe(
       true,
     );
@@ -1770,8 +1764,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /add rule/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByRole('option', { name: /daily/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /add rule/i })).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: /daily/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/frequency/i), { target: { value: '1' } });
 
@@ -1842,7 +1836,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /rvt test site/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /rvt test site/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /available users/i })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /assigned users/i })).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/search available users/i)).toBeInTheDocument();
@@ -2057,10 +2051,10 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /rvt test site/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /rvt test site/i })).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/search available users/i), { target: { value: 'filtered' } });
 
-    await waitFor(() => expect(screen.getByText('filtered.available@rvt.test')).toBeInTheDocument());
+    expect(await screen.findByText('filtered.available@rvt.test')).toBeInTheDocument();
     expect(screen.getByText('assigned@rvt.test')).toBeInTheDocument();
     expect(
       fetchedUrls().some(
@@ -2077,8 +2071,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^data views$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('Dust Monitor DATA-DUST')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^data views$/i })).toBeInTheDocument();
+    expect(await screen.findByText('Dust Monitor DATA-DUST')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: /pm10/i })).toBeInTheDocument();
     expect(screen.getByText('42.3')).toBeInTheDocument();
   });
@@ -2089,8 +2083,8 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^users$/i })).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText('company.user@rvt.test')).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { level: 1, name: /^users$/i })).toBeInTheDocument();
+    expect(await screen.findByText('company.user@rvt.test')).toBeInTheDocument();
   });
 
   it('blocks direct admin route access for installers without loading company data', async () => {
@@ -2100,7 +2094,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /access denied/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /access denied/i })).toBeInTheDocument();
     expect(companyRequestCount.value).toBe(0);
   });
 
@@ -2111,7 +2105,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /page not found/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /page not found/i })).toBeInTheDocument();
     expect(screen.getByText(/that portal route is not available/i)).toBeInTheDocument();
     expect(dashboardRequestCount.value).toBe(0);
   });
@@ -2138,7 +2132,7 @@ describe('App', () => {
 
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: /please sign in/i })).toBeInTheDocument());
+    expect(await screen.findByRole('heading', { name: /please sign in/i })).toBeInTheDocument();
   });
 });
 

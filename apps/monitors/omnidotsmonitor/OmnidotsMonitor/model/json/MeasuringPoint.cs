@@ -161,5 +161,5 @@ namespace Omnidots.Model.Json
         [JsonPropertyName("noise_measurement_duration")]
         public int? NoiseMeasurementDuration { get; set; }
     }
-}
 
+}

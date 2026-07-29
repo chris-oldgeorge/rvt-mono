@@ -9,6 +9,7 @@
 import { MapPin } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import type { MapMonitorMarker } from '../dtos';
+import { formatDateTime } from '../format';
 
 type MonitorMapProps = Readonly<{
   markers: ReadonlyArray<MapMonitorMarker>;
@@ -211,11 +212,4 @@ function rangePosition(value: number, min: number, max: number) {
   }
 
   return 8 + ((value - min) / (max - min)) * 84;
-}
-
-// Function summary: Formats date/time values for marker subtitles.
-function formatDateTime(value?: string | null) {
-  return value
-    ? new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-    : '';
 }

@@ -1,6 +1,6 @@
 using Rvt.Monitor.Common.Rules;
 
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
+using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 
 namespace AirQ.Api.Db;
 

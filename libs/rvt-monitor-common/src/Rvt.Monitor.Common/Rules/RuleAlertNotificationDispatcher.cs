@@ -6,21 +6,14 @@ using Rvt.Monitor.Common.Rules;
 
 namespace Rvt.Monitor.Common.Rules;
 
-public sealed class RuleAlertNotificationDispatcher
+public sealed class RuleAlertNotificationDispatcher(
+    IMessageService messageService,
+    Action<NotificationDto> writeNotification,
+    Action<Guid, string, string> writeNotificationAudit)
 {
-    private readonly IMessageService messageService;
-    private readonly Action<NotificationDto> writeNotification;
-    private readonly Action<Guid, string, string> writeNotificationAudit;
-
-    public RuleAlertNotificationDispatcher(
-        IMessageService messageService,
-        Action<NotificationDto> writeNotification,
-        Action<Guid, string, string> writeNotificationAudit)
-    {
-        this.messageService = messageService;
-        this.writeNotification = writeNotification;
-        this.writeNotificationAudit = writeNotificationAudit;
-    }
+    private readonly IMessageService _messageService = messageService;
+    private readonly Action<NotificationDto> _writeNotification = writeNotification;
+    private readonly Action<Guid, string, string> _writeNotificationAudit = writeNotificationAudit;
 
     public void ProcessAlertForContacts(RuleNotificationRequest request, List<RvtContactDto> contacts)
     {
@@ -36,7 +29,7 @@ public sealed class RuleAlertNotificationDispatcher
             alertField: request.Field,
             monitorId: request.MonitorId);
 
-        writeNotification(notification);
+        _writeNotification(notification);
 
         if (contacts == null || contacts.Count == 0)
         {
@@ -81,25 +74,32 @@ public sealed class RuleAlertNotificationDispatcher
         {
             if (contact.ShouldSendAtTime(alertTime))
             {
-                RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
-                    SensitiveLogRedactor.Redact(contact.EmailAddress));
-                messageService.Sendmessage(
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
+                        SensitiveLogRedactor.Redact(contact.EmailAddress));
+                }
+
+                _messageService.Sendmessage(
                     messageToSend,
                     LegacyMessageChannel.Email,
                     contact.ToNotificationDto(),
                     fleetNr,
                     notificationUrl);
-                writeNotificationAudit(notificationId, contact.EmailAddress, Rvt.Monitor.Common.Notifications.NotificationConstants.SENT_OK);
+                _writeNotificationAudit(notificationId, contact.EmailAddress, Rvt.Monitor.Common.Notifications.NotificationConstants.SENT_OK);
             }
             else
             {
-                RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
-                    SensitiveLogRedactor.Redact(contact.ToString()));
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
+                        SensitiveLogRedactor.Redact(contact.ToString()));
+                }
             }
         }
         catch (CommsException e)
         {
-            writeNotificationAudit(notificationId, e.Address, e.Message);
+            _writeNotificationAudit(notificationId, e.Address, e.Message);
         }
     }
 
@@ -115,25 +115,32 @@ public sealed class RuleAlertNotificationDispatcher
         {
             if (contact.ShouldSendAtTime(alertTime))
             {
-                RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
-                    SensitiveLogRedactor.Redact(contact.PhoneNumber));
-                messageService.Sendmessage(
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
+                        SensitiveLogRedactor.Redact(contact.PhoneNumber));
+                }
+
+                _messageService.Sendmessage(
                     messageToSend,
                     LegacyMessageChannel.SMS,
                     contact.ToNotificationDto(),
                     fleetNr,
                     notificationUrl);
-                writeNotificationAudit(notificationId, contact.PhoneNumber!, Rvt.Monitor.Common.Notifications.NotificationConstants.SENT_OK);
+                _writeNotificationAudit(notificationId, contact.PhoneNumber!, Rvt.Monitor.Common.Notifications.NotificationConstants.SENT_OK);
             }
             else
             {
-                RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
-                    SensitiveLogRedactor.Redact(contact.ToString()));
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
+                        SensitiveLogRedactor.Redact(contact.ToString()));
+                }
             }
         }
         catch (CommsException e)
         {
-            writeNotificationAudit(notificationId, e.Address, e.Message);
+            _writeNotificationAudit(notificationId, e.Address, e.Message);
         }
     }
 }

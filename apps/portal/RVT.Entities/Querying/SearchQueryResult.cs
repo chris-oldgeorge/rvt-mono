@@ -1,4 +1,4 @@
-﻿// File summary: Defines reusable query, filter, ordering, and result models for searchable grids.
+// File summary: Defines reusable query, filter, ordering, and result models for searchable grids.
 // Major updates:
 // - 2026-06-10 pending Moved IOperationResult into its own source file for Sonar maintainability.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
@@ -20,7 +20,7 @@ public class SearchQueryResult<T> : IOperationResult
     {
         WasSuccessful = wasSuccessful;
         ErrorMessage = errorMessage;
-        Value = value.ToList();
+        Value = [.. value];
         RecordCount = recordCount;
         AdditionalInfo = additionalInfo;
     }

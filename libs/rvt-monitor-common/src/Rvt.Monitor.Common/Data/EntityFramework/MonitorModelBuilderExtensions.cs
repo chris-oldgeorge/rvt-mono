@@ -7,6 +7,9 @@ namespace Rvt.Monitor.Common.Data.EntityFramework;
 
 public static class MonitorModelBuilderExtensions
 {
+    private const string _levelColumn = "level";
+    private const string _monitorIdColumn = "monitor_id";
+
     public static ModelBuilder ApplySharedMonitorMappings(
         this ModelBuilder modelBuilder,
         MonitorDbOptions options)
@@ -53,7 +56,7 @@ public static class MonitorModelBuilderExtensions
             MapProperty(entity, row => row.What3Words, "what3words");
             MapProperty(entity, row => row.PictureLink, "picture_link");
             MapProperty(entity, row => row.ContractId, "contract_id");
-            MapProperty(entity, row => row.MonitorId, "monitor_id");
+            MapProperty(entity, row => row.MonitorId, _monitorIdColumn);
         });
 
         modelBuilder.Entity<ContractEntity>(entity =>
@@ -93,7 +96,7 @@ public static class MonitorModelBuilderExtensions
             entity.ToTable(TableName(options, "RvtAlertRules", "rvt_alert_rule"));
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
-            MapProperty(entity, row => row.MonitorId, "monitor_id");
+            MapProperty(entity, row => row.MonitorId, _monitorIdColumn);
             MapProperty(entity, row => row.SerialId, "serial_id");
             MapProperty(entity, row => row.AlertField, "alert_field");
             MapProperty(entity, row => row.LimitOn, "limit_on");
@@ -119,11 +122,11 @@ public static class MonitorModelBuilderExtensions
             MapProperty(entity, row => row.NotificationTime, "notification_time");
             MapProperty(entity, row => row.LimitOn, "limit_on");
             MapProperty(entity, row => row.AveragingPeriod, "averaging_period");
-            MapProperty(entity, row => row.Level, "level");
+            MapProperty(entity, row => row.Level, _levelColumn);
             MapProperty(entity, row => row.ClosedTime, "closed_time");
             MapProperty(entity, row => row.ClosedByUser, "closed_by_user");
             MapProperty(entity, row => row.ClosedByNote, "closed_by_note");
-            MapProperty(entity, row => row.MonitorId, "monitor_id");
+            MapProperty(entity, row => row.MonitorId, _monitorIdColumn);
             MapProperty(entity, row => row.AlertField, "alert_field");
             MapProperty(entity, row => row.AlertType, "alert_type");
         });
@@ -239,9 +242,9 @@ public static class MonitorModelBuilderExtensions
             entity.HasKey(row => row.Id);
             MapProperty(entity, row => row.Id, "id");
             MapProperty(entity, row => row.SiteId, "site_id");
-            MapProperty(entity, row => row.MonitorId, "monitor_id");
+            MapProperty(entity, row => row.MonitorId, _monitorIdColumn);
             MapProperty(entity, row => row.Field, "field");
-            MapProperty(entity, row => row.Level, "level");
+            MapProperty(entity, row => row.Level, _levelColumn);
             MapProperty(entity, row => row.CollectionTime, "collection_time");
         });
 
@@ -252,7 +255,7 @@ public static class MonitorModelBuilderExtensions
             MapProperty(entity, row => row.Host, "host");
             MapProperty(entity, row => row.Source, "source");
             MapProperty(entity, row => row.Message, "message");
-            MapProperty(entity, row => row.Level, "level");
+            MapProperty(entity, row => row.Level, _levelColumn);
             MapProperty(entity, row => row.StackTrace, "stack_trace");
             MapProperty(entity, row => row.Variables, "variables");
             MapProperty(entity, row => row.LogTime, "logged_at");
@@ -283,12 +286,12 @@ public static class MonitorModelBuilderExtensions
                 .HasColumnType("bytea")
                 .HasMaxLength(32);
             ConfigureGuid(entity.Property(row => row.NotificationId), "notification_id");
-            ConfigureGuid(entity.Property(row => row.MonitorId), "monitor_id");
+            ConfigureGuid(entity.Property(row => row.MonitorId), _monitorIdColumn);
             ConfigureString(entity.Property(row => row.SerialId), "serial_id", 128);
             ConfigureInstant(entity.Property(row => row.EventTime), "event_time");
             ConfigureInt(entity.Property(row => row.AlertType), "alert_type");
             ConfigureString(entity.Property(row => row.AlertField), "alert_field", 128);
-            ConfigureDouble(entity.Property(row => row.Level), "level");
+            ConfigureDouble(entity.Property(row => row.Level), _levelColumn);
             ConfigureDouble(entity.Property(row => row.LimitOn), "limit_on");
             ConfigureInt(entity.Property(row => row.AveragingPeriod), "averaging_period");
             ConfigureString(entity.Property(row => row.Outcome), "outcome", 32);

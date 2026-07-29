@@ -27,7 +27,7 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
         string result = await subject.PostAsync("stations-get-list.php", requestContent, cancellation.Token);
 
@@ -37,7 +37,7 @@ public sealed class HttpWebClientCancellationTests
     }
 
     [TestMethod]
-    public async Task GetByteArrayAsync_DisposesRequestAndResponse()
+    public async Task PostForBytesAsync_DisposesRequestAndResponse()
     {
         using CancellationTokenSource cancellation = new();
         TrackingMultipartFormDataContent requestContent = new();
@@ -46,9 +46,9 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
-        byte[] result = await subject.GetByteArrayAsync(
+        byte[] result = await subject.PostForBytesAsync(
             "projects-get-data.php",
             requestContent,
             cancellation.Token);
@@ -67,14 +67,14 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
         Task<string> operation = subject.GetAsync("projects-get-data.php", cancellation.Token);
         await responseContent.ReadStarted.Task;
         cancellation.Cancel();
 
         await Assert.ThrowsAsync<OperationCanceledException>(
-            () => operation.WaitAsync(TimeSpan.FromSeconds(2)));
+            () => operation.WaitAsync(TimeSpan.FromSeconds(2), TestContext.CancellationToken));
         Assert.IsTrue(responseContent.IsDisposed);
     }
 
@@ -88,7 +88,7 @@ public sealed class HttpWebClientCancellationTests
         {
             BaseAddress = new Uri("https://vendor.example/")
         };
-        HttpWebClient<object> subject = new("https://vendor.example/", client);
+        HttpWebClient subject = new("https://vendor.example/", client);
 
         Task<string> operation = subject.GetAsync("projects-get-data.php", cancellation.Token);
         await handler.RequestStarted.Task;
@@ -129,7 +129,7 @@ public sealed class HttpWebClientCancellationTests
 
     private sealed class TrackingContent : HttpContent
     {
-        private readonly byte[] value;
+        private readonly byte[] _value;
 
         public TrackingContent(string value)
             : this(Encoding.UTF8.GetBytes(value))
@@ -138,14 +138,14 @@ public sealed class HttpWebClientCancellationTests
 
         public TrackingContent(byte[] value)
         {
-            this.value = value;
+            _value = value;
         }
 
         public bool IsDisposed { get; private set; }
 
         protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
         {
-            return stream.WriteAsync(value).AsTask();
+            return stream.WriteAsync(_value).AsTask();
         }
 
         protected override Task SerializeToStreamAsync(
@@ -153,12 +153,12 @@ public sealed class HttpWebClientCancellationTests
             TransportContext? context,
             CancellationToken cancellationToken)
         {
-            return stream.WriteAsync(value, cancellationToken).AsTask();
+            return stream.WriteAsync(_value, cancellationToken).AsTask();
         }
 
         protected override bool TryComputeLength(out long length)
         {
-            length = value.Length;
+            length = _value.Length;
             return true;
         }
 
@@ -215,4 +215,6 @@ public sealed class HttpWebClientCancellationTests
             base.Dispose(disposing);
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

@@ -14,7 +14,7 @@ namespace Rvt.Reporting.Core.Tests.Reports;
 /// 640x190, which clipped every row past the eighth day and silently truncated
 /// monthly and 31-day one-time reports.
 /// </summary>
-public sealed class ReportHeatmapTests
+public sealed partial class ReportHeatmapTests
 {
     private const decimal _top = 20m;
     private const decimal _cellHeight = 20m;
@@ -87,7 +87,7 @@ public sealed class ReportHeatmapTests
 
     private static decimal ParseViewBoxHeight(string svg)
     {
-        Match match = Regex.Match(svg, @"viewBox=""0 0 (?<width>[\d.]+) (?<height>[\d.]+)""");
+        Match match = ViewBoxPattern().Match(svg);
         Assert.True(match.Success, "The rendered SVG must declare a viewBox.");
         return decimal.Parse(match.Groups["height"].Value, CultureInfo.InvariantCulture);
     }
@@ -98,4 +98,9 @@ public sealed class ReportHeatmapTests
         Assert.NotNull(method);
         return Assert.IsType<string>(method.Invoke(null, [heatmap]));
     }
+
+    [GeneratedRegex(
+        @"viewBox=""0 0 (?<width>[\d.]+) (?<height>[\d.]+)""",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex ViewBoxPattern();
 }

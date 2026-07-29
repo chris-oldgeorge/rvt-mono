@@ -25,7 +25,7 @@ public static class AirQMonitorServices
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddSingleton<IHttpClient>(_ => new HttpWebClient<AirQService>(RvtConfig.BASE_URL));
+        services.AddSingleton<IHttpClient>(_ => new HttpWebClient(RvtConfig.BASE_URL));
         services.AddSingleton<IDBClient>(_ => new DBClient(RvtConfig.DB_CONNECTION_STRING));
         // Broker settings are supplied explicitly rather than read from
         // static configuration inside the client.
@@ -58,6 +58,7 @@ public static class AirQMonitorServices
                 throw; // Need this to kill the instance.
             }
         });
+        services.AddSingleton<IAirQMonitorJobs>(provider => provider.GetRequiredService<AirQService>());
         services.AddSingleton<IAirQDateImporter>(provider => provider.GetRequiredService<AirQService>());
         return services;
     }

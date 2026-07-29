@@ -1,18 +1,14 @@
-using System.Net;
-using System.Text;
 using MyAtm.Model.Config;
 using Rvt.Monitor.Common.Diagnostics;
+using Rvt.Monitor.Common.Http;
 
 namespace MyAtm.Api.Http
 {
 
-    public class HttpWebClient<T> : IHttpClient
+    public class HttpWebClient : IHttpClient
     {
 
-        private readonly HttpClient httpClient;
-        private readonly MyAtmRequestPolicy requestPolicy;
-        private readonly int maxResponseBytes;
-
+        private readonly VendorHttpTransport _transport;
 
         public HttpWebClient(string baseUrl, string token)
             : this(baseUrl, token, new HttpClient(), new MyAtmRequestPolicy(), 4 * 1024 * 1024)
@@ -26,15 +22,16 @@ namespace MyAtm.Api.Http
             MyAtmRequestPolicy requestPolicy,
             int maxResponseBytes = 4 * 1024 * 1024)
         {
-            this.httpClient = httpClient;
-            this.requestPolicy = requestPolicy;
-            this.maxResponseBytes = maxResponseBytes > 0
-                ? maxResponseBytes
-                : throw new ArgumentOutOfRangeException(nameof(maxResponseBytes));
-            this.httpClient.BaseAddress = new Uri(baseUrl);
-            this.httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Api-Key", token);
-            this.httpClient.DefaultRequestHeaders.TryAddWithoutValidation("accept", "application/json");
-            this.httpClient.Timeout = TimeSpan.FromSeconds(15);
+            if (maxResponseBytes <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxResponseBytes));
+            }
+
+            httpClient.BaseAddress = new Uri(baseUrl);
+            httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Api-Key", token);
+            httpClient.DefaultRequestHeaders.TryAddWithoutValidation("accept", "application/json");
+            httpClient.Timeout = TimeSpan.FromSeconds(15);
+            _transport = new VendorHttpTransport(httpClient, requestPolicy, maxResponseBytes);
         }
 
         public HttpWebClient(
@@ -63,59 +60,14 @@ namespace MyAtm.Api.Http
             And include more than 50 results (the default response page size). Let's put the maximum supported page size:
             $top=50000
             */
-            for (int attempt = 1; ; attempt++)
+            using VendorHttpResponse response = await _transport.SendAsync(HttpMethod.Get, path, null, cancellationToken);
+            if (!response.IsOk)
             {
-                await requestPolicy.WaitForPermitAsync(cancellationToken);
-                using HttpRequestMessage request = new(HttpMethod.Get, path);
-                using HttpResponseMessage response = await httpClient.SendAsync(
-                    request,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    cancellationToken);
-                if (response.StatusCode == HttpStatusCode.OK)
-                {
-                    return await ReadBoundedContentAsync(response.Content, cancellationToken);
-                }
-
-                if (requestPolicy.ShouldRetry(response.StatusCode, attempt))
-                {
-                    await requestPolicy.DelayAsync(requestPolicy.GetRetryDelay(response, attempt), cancellationToken);
-                    continue;
-                }
-
+                // Deliberately never reads the vendor body on failure.
                 throw AdapterException.Of($"HTTP ERROR status={(int)response.StatusCode} path={path}");
             }
-        }
 
-        private async Task<string> ReadBoundedContentAsync(
-            HttpContent content,
-            CancellationToken cancellationToken)
-        {
-            long? contentLength = content.Headers.ContentLength;
-            if (contentLength.HasValue && contentLength.Value > maxResponseBytes)
-            {
-                throw AdapterException.Of($"HTTP response exceeded the configured {maxResponseBytes}-byte limit.");
-            }
-
-            await using Stream source = await content.ReadAsStreamAsync(cancellationToken);
-            using MemoryStream destination = new();
-            byte[] buffer = new byte[Math.Min(81920, maxResponseBytes)];
-            while (true)
-            {
-                int read = await source.ReadAsync(buffer, cancellationToken);
-                if (read == 0)
-                {
-                    break;
-                }
-
-                if (destination.Length + read > maxResponseBytes)
-                {
-                    throw AdapterException.Of($"HTTP response exceeded the configured {maxResponseBytes}-byte limit.");
-                }
-
-                await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-            }
-
-            return Encoding.UTF8.GetString(destination.GetBuffer(), 0, checked((int)destination.Length));
+            return await response.ReadStringAsync(cancellationToken);
         }
 
     }

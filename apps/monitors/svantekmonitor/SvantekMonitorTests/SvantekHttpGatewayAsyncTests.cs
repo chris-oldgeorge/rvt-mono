@@ -46,7 +46,7 @@ public sealed class SvantekHttpGatewayAsyncTests
                 It.IsAny<HttpContent>(),
                 token))
             .ReturnsAsync(MultiDataJson);
-        http.Setup(client => client.GetByteArrayAsync(
+        http.Setup(client => client.PostForBytesAsync(
                 "projects-get-data.php",
                 It.IsAny<MultipartFormDataContent>(),
                 token))
@@ -75,11 +75,11 @@ public sealed class SvantekHttpGatewayAsyncTests
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .Returns(response.Task);
         SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
-        Task<List<Station>> stationsTask = gateway.GetStationsAsync();
+        Task<List<Station>> stationsTask = gateway.GetStationsAsync(TestContext.CancellationToken);
 
         Assert.IsFalse(stationsTask.IsCompleted);
         response.SetResult(StationsJson);
@@ -95,11 +95,11 @@ public sealed class SvantekHttpGatewayAsyncTests
         http.Setup(client => client.PostAsync(
                 "stations-get-list.php",
                 It.IsAny<HttpContent>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ThrowsAsync(adapterFailure);
         SvantekHttpGateway gateway = new(http.Object, "test-api-key");
 
-        AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => gateway.GetStationsAsync());
+        AdapterException exception = await Assert.ThrowsExactlyAsync<AdapterException>(() => gateway.GetStationsAsync(TestContext.CancellationToken));
 
         Assert.AreEqual("GetStations", exception.Message);
         Assert.AreSame(adapterFailure, exception.InnerException);
@@ -124,4 +124,6 @@ public sealed class SvantekHttpGatewayAsyncTests
 
         Assert.AreSame(expected, exception);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

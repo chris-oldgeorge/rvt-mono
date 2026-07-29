@@ -81,11 +81,11 @@ public sealed class S3ObjectStorageClientTests
                 It.Is<GetObjectRequest>(request =>
                     request.BucketName == "recordings"
                     && request.Key == "tenant-a/sample.wav"),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ReturnsAsync(response);
         S3ObjectStorageClient client = CreateClient(s3, prefix: "tenant-a");
 
-        StorageReadResult? result = await client.OpenReadAsync(key);
+        StorageReadResult? result = await client.OpenReadAsync(key, TestContext.CancellationToken);
 
         Assert.IsNotNull(result);
         Assert.AreSame(content, result.Content);
@@ -103,13 +103,13 @@ public sealed class S3ObjectStorageClientTests
         Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.GetObjectAsync(
                 It.IsAny<GetObjectRequest>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ThrowsAsync(CreateException(
                 HttpStatusCode.BadRequest,
                 errorCode: "NoSuchKey"));
         S3ObjectStorageClient client = CreateClient(s3);
 
-        StorageReadResult? result = await client.OpenReadAsync(key);
+        StorageReadResult? result = await client.OpenReadAsync(key, TestContext.CancellationToken);
 
         Assert.IsNull(result);
         s3.VerifyAll();
@@ -122,13 +122,13 @@ public sealed class S3ObjectStorageClientTests
         Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.GetObjectAsync(
                 It.IsAny<GetObjectRequest>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ThrowsAsync(CreateException(
                 HttpStatusCode.NotFound,
                 errorCode: "ProviderNotFound"));
         S3ObjectStorageClient client = CreateClient(s3);
 
-        StorageReadResult? result = await client.OpenReadAsync(key);
+        StorageReadResult? result = await client.OpenReadAsync(key, TestContext.CancellationToken);
 
         Assert.IsNull(result);
         s3.VerifyAll();
@@ -164,13 +164,13 @@ public sealed class S3ObjectStorageClientTests
                 It.Is<GetObjectMetadataRequest>(request =>
                     request.BucketName == "recordings"
                     && request.Key == "tenant-a/missing.wav"),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ThrowsAsync(CreateException(
                 HttpStatusCode.NotFound,
                 errorCode: "NoSuchKey"));
         S3ObjectStorageClient client = CreateClient(s3, prefix: "tenant-a");
 
-        bool deleted = await client.DeleteIfExistsAsync(key);
+        bool deleted = await client.DeleteIfExistsAsync(key, TestContext.CancellationToken);
 
         Assert.IsFalse(deleted);
         s3.VerifyAll();
@@ -250,7 +250,7 @@ public sealed class S3ObjectStorageClientTests
         Mock<IAmazonS3> s3 = new(MockBehavior.Strict);
         s3.Setup(client => client.GetObjectMetadataAsync(
                 It.IsAny<GetObjectMetadataRequest>(),
-                CancellationToken.None))
+                TestContext.CancellationToken))
             .ThrowsAsync(CreateException(
                 status,
                 providerBody,
@@ -258,7 +258,7 @@ public sealed class S3ObjectStorageClientTests
         S3ObjectStorageClient client = CreateClient(s3);
 
         ObjectStorageException exception = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() =>
-            client.DeleteIfExistsAsync(key));
+            client.DeleteIfExistsAsync(key, TestContext.CancellationToken));
 
         Assert.AreEqual(expectedKind, exception.Kind);
         Assert.AreEqual("recordings-resource", exception.ResourceName);
@@ -358,4 +358,6 @@ public sealed class S3ObjectStorageClientTests
             base.Dispose(disposing);
         }
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

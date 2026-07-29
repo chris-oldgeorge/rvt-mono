@@ -32,7 +32,7 @@ public sealed class MyAtmHttpGatewayTests
             9,
             "11111",
             cursor,
-            Period.Minutes1);
+            Period.Minutes1, TestContext.CancellationToken);
 
         Assert.AreEqual(sampleTime.Ticks, page.Measurements.Single().Timestamp.Ticks);
         Assert.AreEqual(DateTimeKind.Utc, page.Measurements.Single().Timestamp.Kind);
@@ -60,7 +60,7 @@ public sealed class MyAtmHttpGatewayTests
 
         MyAtmHttpGateway gateway = new(httpClient.Object, devicePageSize: 100, measurementPageSize: 2, accessoryPageSize: 2);
 
-        MyAtmMeasurementPage<DeviceMeasurement> page = await gateway.HttpGetDeviceMeasurementPageAsync<DeviceMeasurement>(customerId, serialId, cursor, Period.Minutes1);
+        MyAtmMeasurementPage<DeviceMeasurement> page = await gateway.HttpGetDeviceMeasurementPageAsync<DeviceMeasurement>(customerId, serialId, cursor, Period.Minutes1, TestContext.CancellationToken);
 
         Assert.HasCount(2, page.Measurements);
         Assert.AreEqual(cursor.AddMinutes(1), page.Measurements[0].Timestamp);
@@ -69,4 +69,6 @@ public sealed class MyAtmHttpGatewayTests
         Assert.IsTrue(page.HasMore);
         httpClient.VerifyAll();
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

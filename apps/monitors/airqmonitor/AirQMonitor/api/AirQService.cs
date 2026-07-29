@@ -7,7 +7,7 @@ namespace AirQ.Api
     // Major updates:
     // - 2026-07-12 DI composition: dependencies are injected; wiring moved to AirQMonitorServices.
     // - 2026-07-12 TimerInfo removal: dropped the unused Azure Functions-era TimerInfo parameters.
-    public sealed class AirQService : IAirQDateImporter
+    public sealed class AirQService : IAirQDateImporter, IAirQMonitorJobs
     {
         private readonly AirQApi airQApi;
 

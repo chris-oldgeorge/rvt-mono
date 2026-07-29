@@ -34,7 +34,17 @@ public static class OmnidotsMonitorServices
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddSingleton<IHttpClient>(_ => new HttpWebClient(RvtConfig.BASE_URL));
+        // The static-token seam is a composition decision, not transport
+        // behaviour: when RVT__OMNIDOTS_USE_TOKEN is enabled (its long-standing
+        // default), the authenticate call is answered locally with the
+        // configured token; the transport underneath never fakes responses.
+        services.AddSingleton<IHttpClient>(_ =>
+        {
+            HttpWebClient transport = new(RvtConfig.BASE_URL);
+            return RvtConfig.USE_TOKEN
+                ? new OmnidotsStaticTokenClient(transport, RvtConfig.TOKEN)
+                : transport;
+        });
         services.AddSingleton<IDBClient>(_ => new DBClient(RvtConfig.DB_CONNECTION_STRING));
         services.AddSingleton(provider =>
             (IOmnidotsImportCursorQueries)provider.GetRequiredService<IDBClient>());

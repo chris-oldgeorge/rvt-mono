@@ -4,6 +4,7 @@ using Rvt.Monitor.Common.Mqtt;
 using Rvt.Storage;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
+using Svantek.Api.Ports;
 using Svantek.Api.UseCases;
 using Svantek.Model.Config;
 
@@ -85,7 +86,7 @@ public class SvantekApi
         NoiseRequestWindowCalculator? noiseRequestWindowCalculator = null,
         TimeProvider? timeProvider = null)
     {
-        SvantekHttpGateway gateway = new(httpClient, apiKey);
+        ISvantekVendorGateway gateway = new SvantekHttpGateway(httpClient, apiKey);
         SvantekMonitorReader monitorReader = new(dbClient, testLocal);
         MonitorEventPublisher eventPublisher = new(
             mqttClient,

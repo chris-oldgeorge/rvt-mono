@@ -317,6 +317,12 @@ caller sees a warning. Retirement order (each step unblocks the next):
    constructors take `INotificationDeliveryService` directly.**
 3. Omnidots offline/battery → durable alerts (cheapest retirement — the
    durable stack already runs in-process); delete the inline loop.
+   **Done 2026-07-29: the offline and battery handlers signal
+   `IAlertIngressPort` (the ingress and acceptance policy now admit the
+   transition-driven types), `OmnidotsRuleProcessor` and its inline dispatcher
+   loop are deleted, and Omnidots no longer consumes `IMessageService` at all —
+   its RVT0001 NoWarns are gone. AirQ, Svantek, and MyAtm's rule processors are
+   the remaining step-4 targets.**
 4. AirQ + Svantek alerting → durable stack; retires
    `RuleAlertNotificationDispatcher`, sync `NoiseRuleEvaluator`, sync
    `PublishAlert`.

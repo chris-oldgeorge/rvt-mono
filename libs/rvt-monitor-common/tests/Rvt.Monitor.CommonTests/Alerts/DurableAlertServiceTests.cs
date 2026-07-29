@@ -204,9 +204,6 @@ public sealed class DurableAlertServiceTests
     }
 
     [TestMethod]
-    [DataRow(AlertType.Offline)]
-    [DataRow(AlertType.BatteryAlert)]
-    [DataRow(AlertType.BatteryCaution)]
     [DataRow((AlertType)999)]
     public async Task AcceptAsync_RejectsUnsupportedAlertTypesBeforeCallingStore(AlertType alertType)
     {

@@ -64,7 +64,12 @@ public sealed class DurableAlertService : IAlertIngressPort
 
         ValidateText(signal.SerialId, MaximumSerialIdLength, nameof(signal.SerialId));
 
-        if (signal.AlertType is not AlertType.Alert and not AlertType.Caution and not AlertType.Ignore)
+        if (signal.AlertType is not AlertType.Alert
+            and not AlertType.Caution
+            and not AlertType.Ignore
+            and not AlertType.Offline
+            and not AlertType.BatteryAlert
+            and not AlertType.BatteryCaution)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(signal.AlertType),

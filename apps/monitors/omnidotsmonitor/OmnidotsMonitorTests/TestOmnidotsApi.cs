@@ -12,7 +12,7 @@ using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
@@ -20,7 +20,6 @@ using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using static Omnidots.Api.OmnidotsApi;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
 namespace OmnidotsAdapterTests
 {
@@ -44,7 +43,7 @@ namespace OmnidotsAdapterTests
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageClient);
+                                                     out Mock<IAlertIngressPort> messageClient);
 
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
@@ -70,7 +69,7 @@ namespace OmnidotsAdapterTests
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                     out Mock<IDBClient> dbClient,
                                                     out Mock<IMqttClient> mqttClient,
-                                                    out Mock<IMessageService> messageClient);
+                                                    out Mock<IAlertIngressPort> messageClient);
             string token = "sometesttoken123";
 
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
@@ -103,7 +102,7 @@ namespace OmnidotsAdapterTests
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                     out Mock<IDBClient> dbClient,
                                                     out Mock<IMqttClient> mqttClient,
-                                                    out Mock<IMessageService> messageClient,
+                                                    out Mock<IAlertIngressPort> messageClient,
                                                     testLocal: true);
             string token = "sometesttoken123";
 
@@ -217,7 +216,7 @@ namespace OmnidotsAdapterTests
         public async Task TestCheckForOfflineMonitors_MonitorsOfflineFor23Hours_Success()
         {
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                                     out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
 
             List<RvtAlertRuleDto> rules = OmnidotsFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
@@ -243,7 +242,7 @@ namespace OmnidotsAdapterTests
         public async Task TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
         {
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                                     out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
 
             List<RvtAlertRuleDto> rules = OmnidotsFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
@@ -258,9 +257,6 @@ namespace OmnidotsAdapterTests
                 Returns(monitors);
             dbClient.Setup(c => c.ReadSiteTimes(It.IsAny<Guid>())).Returns(OmnidotsFixture.AlwaysOpenSiteTimes());
 
-            List<RvtContactDto> contacts = OmnidotsFixture.AlertContacts();
-            dbClient.Setup(c => c.ReadAlertContacts(It.IsAny<Guid>())).Returns(contacts);
-
             await testObj.CheckForOfflineMonitorsAsync();
 
             httpClient.VerifyNoOtherCalls();
@@ -268,33 +264,26 @@ namespace OmnidotsAdapterTests
             dbClient.Verify(c => c.ReadRules(null), Times.Exactly(1));
             dbClient.Verify(c => c.ReadMonitorList(It.IsAny<DateTime?>()), Times.Exactly(1));
 
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", "Sent ok"),
-                Times.Exactly(monitors.Count));
-
             foreach (VibrationMonitorDto m in monitors)
             {
-                dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
-                   n => n.MonitorId == m.Id &&
-                        n.AveragingPeriod == 60 * 60 * 24 &&
-                        n.Level == offlineForSeconds &&
-                        n.AlertType == AlertType.Offline &&
-                        n.AlertField.Equals(rules[0].Field)
-                        )), Times.Exactly(1));
+                // The durable stack owns notification persistence, contact
+                // fan-out, and audits; the handler's contract is the signal.
+                messageClient.Verify(c => c.AcceptAsync(
+                    It.Is<AlertSignal>(signal =>
+                        signal.SerialId == m.SerialId &&
+                        signal.AlertType == AlertType.Offline &&
+                        signal.AveragingPeriod == 60 * 60 * 24 &&
+                        signal.Level == offlineForSeconds &&
+                        signal.Field == rules[0].Field &&
+                        signal.DeliveryChannels == (AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms)),
+                    It.IsAny<CancellationToken>()), Times.Exactly(1));
                 dbClient.Verify(c => c.SetMonitorOffline(m.Id, true), Times.Exactly(1));
-                dbClient.Verify(c => c.ReadAlertContacts(m.Id), Times.Exactly(1));
                 dbClient.Verify(c => c.ReadSiteTimes(m.Id), Times.Exactly(1));
             }
 
             dbClient.VerifyNoOtherCalls();
 
             mqttClient.VerifyNoOtherCalls();
-
-            messageClient.Verify(c => c.Sendmessage(
-               LegacyMessageKind.Offline,
-               LegacyMessageChannel.Email,
-               contacts[0],
-               It.IsAny<string>(),
-               It.IsAny<string>()), Times.Exactly(monitors.Count));
             messageClient.VerifyNoOtherCalls();
         }
 
@@ -308,7 +297,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
-                out Mock<IMessageService> messageClient);
+                out Mock<IAlertIngressPort> messageClient);
             List<RvtAlertRuleDto> rules = OmnidotsFixture.OfflineRules();
             VibrationMonitorDto invalidMonitor = OmnidotsFixture.MonitorsList(
                 1,
@@ -341,17 +330,14 @@ namespace OmnidotsAdapterTests
             dbClient.Verify(c => c.ReadSiteTimes(invalidMonitor.Id), Times.Never);
             dbClient.Verify(c => c.ReadSiteTimes(validMonitor.Id), Times.Once);
             dbClient.Verify(c => c.SetMonitorOffline(validMonitor.Id, true), Times.Once);
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(n =>
-                n.MonitorId == validMonitor.Id)), Times.Once);
 
             httpClient.VerifyNoOtherCalls();
             mqttClient.VerifyNoOtherCalls();
-            messageClient.Verify(c => c.Sendmessage(
-                LegacyMessageKind.Offline,
-                LegacyMessageChannel.Email,
-                It.IsAny<RvtContactDto>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()), Times.Once);
+            messageClient.Verify(c => c.AcceptAsync(
+                It.Is<AlertSignal>(signal =>
+                    signal.SerialId == validMonitor.SerialId &&
+                    signal.AlertType == AlertType.Offline),
+                It.IsAny<CancellationToken>()), Times.Once);
         }
 
         [DataRow("2026-03-29T00:00:00Z")]
@@ -364,7 +350,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
-                out Mock<IMessageService> messageClient);
+                out Mock<IAlertIngressPort> messageClient);
             VibrationMonitorDto invalidMonitor = OmnidotsFixture.MonitorsList(
                 1,
                 DateTimeOffset.Parse(lastDataTimeUtc).UtcDateTime,
@@ -405,17 +391,14 @@ namespace OmnidotsAdapterTests
             Assert.IsFalse(exception.ToString().Contains("secret recorder detail", StringComparison.Ordinal));
             dbClient.Verify(c => c.ReadSiteTimes(validMonitor.Id), Times.Once);
             dbClient.Verify(c => c.SetMonitorOffline(validMonitor.Id, true), Times.Once);
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(n =>
-                n.MonitorId == validMonitor.Id)), Times.Once);
 
             httpClient.VerifyNoOtherCalls();
             mqttClient.VerifyNoOtherCalls();
-            messageClient.Verify(c => c.Sendmessage(
-                LegacyMessageKind.Offline,
-                LegacyMessageChannel.Email,
-                It.IsAny<RvtContactDto>(),
-                It.IsAny<string>(),
-                It.IsAny<string>()), Times.Once);
+            messageClient.Verify(c => c.AcceptAsync(
+                It.Is<AlertSignal>(signal =>
+                    signal.SerialId == validMonitor.SerialId &&
+                    signal.AlertType == AlertType.Offline),
+                It.IsAny<CancellationToken>()), Times.Once);
         }
 
 
@@ -426,7 +409,7 @@ namespace OmnidotsAdapterTests
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
-                                                 out Mock<IMessageService> messageClient);
+                                                 out Mock<IAlertIngressPort> messageClient);
             string token = "hghjadg";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
@@ -479,7 +462,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
-                out Mock<IMessageService> messageClient,
+                out Mock<IAlertIngressPort> messageClient,
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
             DateTime cursor = new(2026, 7, 11, 8, 30, 0, DateTimeKind.Utc);
@@ -523,7 +506,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
-                out Mock<IMessageService> messageClient,
+                out Mock<IAlertIngressPort> messageClient,
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
             VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
@@ -564,7 +547,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
-                out Mock<IMessageService> messageClient,
+                out Mock<IAlertIngressPort> messageClient,
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
             DateTime storedMeasurement = new(2026, 7, 9, 4, 15, 0, DateTimeKind.Utc);
@@ -608,7 +591,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
-                out Mock<IMessageService> messageClient,
+                out Mock<IAlertIngressPort> messageClient,
                 out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                 out Mock<IOmnidotsMeasurementImportCommands> importCommands);
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
@@ -645,7 +628,7 @@ namespace OmnidotsAdapterTests
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
-                                                 out Mock<IMessageService> messageClient);
+                                                 out Mock<IAlertIngressPort> messageClient);
             string token = "hghjadg";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
@@ -710,7 +693,7 @@ namespace OmnidotsAdapterTests
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
-                                                 out Mock<IMessageService> messageClient);
+                                                 out Mock<IAlertIngressPort> messageClient);
             string token = "hghjadg";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
@@ -764,7 +747,7 @@ namespace OmnidotsAdapterTests
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                    out Mock<IDBClient> dbClient,
                                                    out Mock<IMqttClient> mqttClient,
-                                                    out Mock<IMessageService> messageClient);
+                                                    out Mock<IAlertIngressPort> messageClient);
             string token = "hghjadg";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
@@ -818,7 +801,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
-                out Mock<IMessageService> messageClient,
+                out Mock<IAlertIngressPort> messageClient,
                 traceCollectionOptions: new OmnidotsTraceCollectionOptions
                 {
                     AllowedSerialIds = [],
@@ -850,7 +833,7 @@ namespace OmnidotsAdapterTests
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
-                out Mock<IMessageService> messageClient,
+                out Mock<IAlertIngressPort> messageClient,
                 traceCollectionOptions: new OmnidotsTraceCollectionOptions
                 {
                     Enabled = false,
@@ -881,7 +864,7 @@ namespace OmnidotsAdapterTests
             OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                  out Mock<IDBClient> dbClient,
                                                  out Mock<IMqttClient> mqttClient,
-                                                 out Mock<IMessageService> messageClient);
+                                                 out Mock<IAlertIngressPort> messageClient);
 
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(numMonitors: 1,
                                                         lastDataTime: null,
@@ -898,26 +881,18 @@ namespace OmnidotsAdapterTests
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
             if (expectNotification)
             {
-                dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id),
-                    Times.Exactly(1));
-                dbClient.Verify(c => c.WriteNotification(
-                    It.Is<NotificationDto>(dto => VerifyBatteryNotification(dto, expectedAlertType, batteryLevel))),
-                    Times.Exactly(1));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), contacts[0].EmailAddress, NotificationConstants.SENT_OK),
-                    Times.Exactly(1));
                 dbClient.Verify(c => c.SetMonitorBatteryStatus(monitors[0].Id, (byte)expectedBatteryStatus),
                     Times.Exactly(1));
-                //commsClient.Verify(c => c.SendMessage(ContactMethod.Email, expectedAlertType, contacts[0].EmailAddress, null, It.IsAny<string>()),
-                LegacyMessageKind expectedMessage = expectedAlertType == AlertType.BatteryAlert
-                    ? LegacyMessageKind.Battery_Alert
-                    : LegacyMessageKind.Battery_Caution;
 
-                messageClient.Verify(c => c.Sendmessage(
-                     expectedMessage,
-                     LegacyMessageChannel.Email,
-                     contacts[0],
-                     It.IsAny<string>(),
-                     It.IsAny<string>()), Times.Exactly(1));
+                // The durable stack owns notification persistence, contact
+                // fan-out, and audits; the handler's contract is the signal.
+                messageClient.Verify(c => c.AcceptAsync(
+                    It.Is<AlertSignal>(signal =>
+                        signal.SerialId == monitors[0].SerialId &&
+                        signal.AlertType == expectedAlertType &&
+                        signal.Level == batteryLevel &&
+                        signal.DeliveryChannels == (AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms)),
+                    It.IsAny<CancellationToken>()), Times.Exactly(1));
             }
             else
             {
@@ -929,25 +904,6 @@ namespace OmnidotsAdapterTests
             dbClient.VerifyNoOtherCalls();
             mqttClient.VerifyNoOtherCalls();
             messageClient.VerifyNoOtherCalls();
-        }
-
-
-        private static bool VerifyBatteryNotification(NotificationDto dto, AlertType expectedAlertType, int expectedBatteryLevel)
-        {
-            if (expectedAlertType != dto.AlertType)
-            {
-                RvtLogger.Logger.LogError("VerifyBatteryNotification alert type mismatch expected={} actual={}",
-                    expectedAlertType, dto.AlertType);
-                return false;
-            }
-
-            if (dto.Level != expectedBatteryLevel)
-            {
-                RvtLogger.Logger.LogError("VerifyBatteryNotification level mismatch expected={} actual={}",
-                    expectedBatteryLevel, dto.Level);
-                return false;
-            }
-            return true;
         }
 
         //public void TestGetTracesList_Success()

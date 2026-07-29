@@ -7,8 +7,9 @@ public sealed class ConsumerMessagingBoundaryTests
 {
     private static readonly string[] SynchronousCompatibilityCallers =
     [
-        "apps/monitors/myatmmonitor/MyAtmMonitor/api/MyAtmRuleProcessor.cs",
-        "apps/monitors/omnidotsmonitor/OmnidotsMonitor/api/OmnidotsRuleProcessor.cs"
+        // Omnidots left this list on 2026-07-29 when its offline/battery
+        // alerting moved to the durable stack (legacy-retirement step 3).
+        "apps/monitors/myatmmonitor/MyAtmMonitor/api/MyAtmRuleProcessor.cs"
     ];
 
     [TestMethod]

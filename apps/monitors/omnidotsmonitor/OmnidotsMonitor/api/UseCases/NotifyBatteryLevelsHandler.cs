@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
 using Omnidots.Model.Dto;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
@@ -18,19 +19,19 @@ namespace Omnidots.Api.UseCases
 
         private readonly OmnidotsMonitorReader monitorReader;
         private readonly IOmnidotsMonitorCommands monitorCommands;
-        private readonly OmnidotsRuleProcessor ruleProcessor;
+        private readonly IAlertIngressPort _alertIngress;
 
         public NotifyBatteryLevelsHandler(
             OmnidotsMonitorReader monitorReader,
             IOmnidotsMonitorCommands monitorCommands,
-            OmnidotsRuleProcessor ruleProcessor)
+            IAlertIngressPort alertIngress)
         {
             this.monitorReader = monitorReader;
             this.monitorCommands = monitorCommands;
-            this.ruleProcessor = ruleProcessor;
+            _alertIngress = alertIngress;
         }
 
-        public Task RunAsync(CancellationToken cancellationToken = default)
+        public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
@@ -57,7 +58,7 @@ namespace Omnidots.Api.UseCases
 
                         RvtLogger.Logger.LogWarning("NotifyBatteryLevels Battery ALERT level={Value1} for serialId={Value2} below alert level={Value3}",
                         batteryLevel, monitor.SerialId!, BATTERY_LEVEL_PERCENT_ALERT);
-                        ProcessBatteryAlert(batteryLevel, monitor, BATTERY_LEVEL_PERCENT_ALERT, AlertType.BatteryAlert);
+                        await ProcessBatteryAlertAsync(batteryLevel, monitor, BATTERY_LEVEL_PERCENT_ALERT, AlertType.BatteryAlert, cancellationToken);
                     }
                     else if (batteryLevel <= BATTERY_LEVEL_PERCENT_CAUTION)
                     {
@@ -71,7 +72,7 @@ namespace Omnidots.Api.UseCases
 
                         RvtLogger.Logger.LogWarning("NotifyBatteryLevels Battery CAUTION level={Value1} for serialId={Value2} below alert level={Value3}",
                         batteryLevel, monitor.SerialId!, BATTERY_LEVEL_PERCENT_CAUTION);
-                        ProcessBatteryAlert(batteryLevel, monitor, BATTERY_LEVEL_PERCENT_CAUTION, AlertType.BatteryCaution);
+                        await ProcessBatteryAlertAsync(batteryLevel, monitor, BATTERY_LEVEL_PERCENT_CAUTION, AlertType.BatteryCaution, cancellationToken);
 
                     }
                     else
@@ -91,27 +92,36 @@ namespace Omnidots.Api.UseCases
 
             }
 
-            return Task.CompletedTask;
         }
 
-        private void ProcessBatteryAlert(int batteryLevel, VibrationMonitorDto monitor, int alertLevel, AlertType alertType)
+        private Task ProcessBatteryAlertAsync(
+            int batteryLevel,
+            VibrationMonitorDto monitor,
+            int alertLevel,
+            AlertType alertType,
+            CancellationToken cancellationToken)
         {
             monitorCommands.SetMonitorBatteryStatus(monitor.Id, (byte)(alertType == AlertType.BatteryAlert ? 1 : 2));  //1 for alert and 2 for Caution
             DateTime createdTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow);
 
-            NotificationDto notification = new(id: Guid.NewGuid(),
-                notificationTime: createdTime,
-                limitOn: alertLevel,
-                averagingPeriod: 0,
-                level: batteryLevel,
-                closedTime: null,
-                closedByUser: null,
-                alertType: alertType,
-                alertField: BATTERY_LEVEL,
-                monitorId: monitor.Id);
-
-            ruleProcessor.ProcessAlertForContacts(monitor, notification);
-
+            // The durable stack writes the notification, plans per-contact
+            // deliveries, and retries them; the status transition above gates
+            // duplicates.
+            return _alertIngress.AcceptAsync(
+                new AlertSignal(
+                    Source: "omnidots.battery",
+                    SourceEventKey: $"{monitor.SerialId}:{alertType}:{createdTime:O}",
+                    EventTime: createdTime,
+                    SerialId: monitor.SerialId!,
+                    AlertType: alertType,
+                    Field: BATTERY_LEVEL,
+                    Level: batteryLevel,
+                    Limit: alertLevel,
+                    AveragingPeriod: 0,
+                    Message: $"Battery level {batteryLevel}% (limit {alertLevel}%)",
+                    DeliveryChannels: AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms,
+                    SuppressionWindow: TimeSpan.Zero),
+                cancellationToken);
         }
     }
 }

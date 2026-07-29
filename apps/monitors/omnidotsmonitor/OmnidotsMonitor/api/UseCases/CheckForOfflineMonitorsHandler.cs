@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
@@ -18,7 +19,7 @@ namespace Omnidots.Api.UseCases
         private readonly IOmnidotsMonitorQueries monitorQueries;
         private readonly IOmnidotsMonitorCommands monitorCommands;
         private readonly IOmnidotsOperationalCommands operationalCommands;
-        private readonly OmnidotsRuleProcessor ruleProcessor;
+        private readonly IAlertIngressPort _alertIngress;
 
         public CheckForOfflineMonitorsHandler(
             IOmnidotsRuleQueries ruleQueries,
@@ -26,17 +27,17 @@ namespace Omnidots.Api.UseCases
             IOmnidotsMonitorQueries monitorQueries,
             IOmnidotsMonitorCommands monitorCommands,
             IOmnidotsOperationalCommands operationalCommands,
-            OmnidotsRuleProcessor ruleProcessor)
+            IAlertIngressPort alertIngress)
         {
             this.ruleQueries = ruleQueries;
             this.monitorReader = monitorReader;
             this.monitorQueries = monitorQueries;
             this.monitorCommands = monitorCommands;
             this.operationalCommands = operationalCommands;
-            this.ruleProcessor = ruleProcessor;
+            _alertIngress = alertIngress;
         }
 
-        public Task RunAsync(CancellationToken cancellationToken = default)
+        public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = ruleQueries.ReadRules(null);
@@ -97,18 +98,24 @@ namespace Omnidots.Api.UseCases
                                 {
                                     RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
 
-                                    NotificationDto notification = new(id: Guid.NewGuid(),
-                                                                                   notificationTime: DateTime.UtcNow,
-                                                                                   limitOn: 0,
-                                                                                   averagingPeriod: rule.AveragingPeriod,
-                                                                                   level: diffInSeconds,
-                                                                                   closedTime: null,
-                                                                                   closedByUser: null,
-                                                                                   alertField: rule.Field,
-                                                                                   alertType: AlertType.Offline,
-                                                                                   monitorId: monitor.Id);
-
-                                    ruleProcessor.ProcessAlertForContacts(monitor, notification);
+                                    // The durable stack writes the notification, plans
+                                    // per-contact deliveries, and retries them; the
+                                    // data-gap start keys idempotency across re-runs.
+                                    await _alertIngress.AcceptAsync(
+                                        new AlertSignal(
+                                            Source: "omnidots.offline",
+                                            SourceEventKey: $"{monitor.SerialId}:offline:{lastDataTime:O}",
+                                            EventTime: utcNow,
+                                            SerialId: monitor.SerialId!,
+                                            AlertType: AlertType.Offline,
+                                            Field: rule.Field,
+                                            Level: diffInSeconds,
+                                            Limit: 0,
+                                            AveragingPeriod: rule.AveragingPeriod,
+                                            Message: $"Monitor offline for {diffInSeconds:F0}s",
+                                            DeliveryChannels: AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms,
+                                            SuppressionWindow: TimeSpan.Zero),
+                                        cancellationToken);
 
                                     monitor.Offline = true;
                                     monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
@@ -146,7 +153,6 @@ namespace Omnidots.Api.UseCases
                 throw new OmnidotsImportException("CheckForOfflineMonitors", failures);
             }
 
-            return Task.CompletedTask;
         }
 
         private static DateTime AsUtc(DateTime value) => value.Kind switch

@@ -3,7 +3,9 @@ using RvtPortal.Spa.Adapters.Archive;
 
 namespace RvtPortal.Spa.Adapters.Sites;
 
-public sealed class SiteArchiveAdapter(ISiteArchiveService archiveService)
+public sealed class SiteArchiveAdapter(
+    ISiteArchiveService archiveService,
+    ILogger<SiteArchiveAdapter> logger)
     : ISiteArchivePort
 {
     private const string ExportFailureMessage =
@@ -24,8 +26,12 @@ public sealed class SiteArchiveAdapter(ISiteArchiveService archiveService)
         {
             throw;
         }
-        catch
+        catch (Exception exception)
         {
+            logger.LogError(
+                exception,
+                "Failed to export the site archive for site {SiteId}.",
+                siteId);
             return SiteArchiveExportResult.Failed(ExportFailureMessage);
         }
     }
@@ -47,8 +53,12 @@ public sealed class SiteArchiveAdapter(ISiteArchiveService archiveService)
         {
             throw;
         }
-        catch
+        catch (Exception exception)
         {
+            logger.LogError(
+                exception,
+                "Failed to remove a superseded site archive for site {SiteId}.",
+                siteId);
             return SiteArchiveCleanupResult.Failed(CleanupFailureMessage);
         }
     }

@@ -134,12 +134,6 @@ public static class MyAtmMonitorServices
             provider.GetRequiredService<IMyAtmMeasurementQueries>(),
             provider.GetRequiredService<IMyAtmOperationalCommands>(),
             provider.GetRequiredService<MyAtmMonitorOptions>().MaxPagesPerMonitorPerRun));
-        services.AddSingleton(provider => new MyAtmApi(
-            provider.GetRequiredService<IHttpClient>(),
-            provider.GetRequiredService<IDBClient>(),
-            RvtConfig.TESTLOCAL,
-            provider.GetRequiredService<MyAtmMonitorOptions>(),
-            provider.GetRequiredService<MonitorDeliveryDispatcher>()));
         services.AddSingleton(provider =>
         {
             RvtLogger.CreateLogger(provider.GetRequiredService<ILoggerFactory>(), "MyAtmService");

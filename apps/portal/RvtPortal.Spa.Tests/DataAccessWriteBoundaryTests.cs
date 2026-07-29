@@ -70,7 +70,6 @@ public sealed class DataAccessWriteBoundaryTests
         [
             typeof(IMonitorRepository),
             typeof(ICompanyRepository),
-            typeof(IAlertlevelRepository),
             typeof(IDeploymentRepository)
         ];
 

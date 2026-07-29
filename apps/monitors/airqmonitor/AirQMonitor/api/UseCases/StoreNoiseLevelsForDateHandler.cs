@@ -75,15 +75,11 @@ namespace AirQ.Api.UseCases
                     throw new AggregateException("One or more AirQ date imports failed.", failures);
                 }
             }
-            catch (AggregateException)
-            {
-                throw;
-            }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not AggregateException)
             {
                 _operationalCommands.HandleException("StoreAllNoiseLevelsForDate", e);
                 throw;

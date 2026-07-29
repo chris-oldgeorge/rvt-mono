@@ -51,7 +51,7 @@ namespace MyAtm.Api.UseCases
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     DateTime cursor = DateTimeUtil.AsUtc(
-                        _measurementQueries.ReadLatestAccessoryTimestamp(customerDto.SerialId) ?? MyAtmApi.JAN1_1970);
+                        _measurementQueries.ReadLatestAccessoryTimestamp(customerDto.SerialId) ?? DateTimeUtil.JAN1_1970);
                     for (int pageNumber = 0; pageNumber < _maxPagesPerMonitorPerRun; pageNumber++)
                     {
                         MyAtmMeasurementPage<AccessoryInfo> page = await _gateway.HttpGetAccessoryInfoPageAsync(

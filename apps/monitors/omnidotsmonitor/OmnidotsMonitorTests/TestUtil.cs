@@ -81,7 +81,6 @@ namespace OmnidotsAdapterTests
                 Mock.Of<IOmnidotsMonitoringNotifier>(),
                 traceCollectionOptions ?? new OmnidotsTraceCollectionOptions
                 {
-                    AllowedSerialIds = ["23423"],
                     MaxMonitorsPerRun = int.MaxValue
                 },
                 TimeProvider.System);

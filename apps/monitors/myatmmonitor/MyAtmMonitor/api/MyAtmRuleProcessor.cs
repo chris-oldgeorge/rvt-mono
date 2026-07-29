@@ -8,8 +8,7 @@ using Rvt.Monitor.Common.Utilities;
 
 namespace MyAtm.Api;
 
-// Builds pure scheduled alert commits; the legacy direct-delivery route was
-// deleted by legacy-retirement step 4 (2026-07-29) with no remaining callers.
+// Builds pure scheduled alert commits; delivery is carried by the durable outbox.
 public sealed class MyAtmRuleProcessor
 {
     private readonly IMyAtmRuleQueries _ruleQueries;

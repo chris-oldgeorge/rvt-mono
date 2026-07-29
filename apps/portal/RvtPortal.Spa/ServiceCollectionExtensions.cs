@@ -178,7 +178,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICompanyRepository, CompanyRepository>();
         services.AddScoped<IDeploymentRepository, DeploymentRepository>();
         services.AddScoped<IMonitorRepository, MonitorRepository>();
-        services.AddScoped<IAlertlevelRepository, AlertlevelRepository>();
         services.AddScoped<ISearchQueryReader, SearchQueryReader>();
         return services;
     }

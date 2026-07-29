@@ -183,7 +183,7 @@ Implementation notes:
 
 Do not set `testlocal=true` for normal Omnidots runs; it deliberately excludes every vibration monitor except `14768` / `R17222V-QUCILO`.
 
-Normal trace rollout is configured separately through `Omnidots__TraceCollection__Enabled`, `Omnidots__TraceCollection__AllowedSerialIds__<index>`, and `Omnidots__TraceCollection__MaxMonitorsPerRun`. The checked-in configuration enables only serial `23423` and processes at most one eligible monitor per five-minute run. An empty allowed-serial list means the filtered fleet is eligible; increase the per-run maximum gradually after validating vendor and database capacity.
+Normal trace rollout is configured separately through `Omnidots__TraceCollection__Enabled`, `Omnidots__TraceCollection__AllowedSerialIds__<index>`, and `Omnidots__TraceCollection__MaxMonitorsPerRun`. The checked-in configuration makes the filtered fleet eligible and processes at most one monitor per five-minute run. Supply an explicit allowed-serial list through deployment configuration when a staged rollout is required; do not commit customer-specific serials. Increase the per-run maximum gradually after validating vendor and database capacity.
 
 ## MyAtm Dust Local Demo
 
@@ -192,7 +192,7 @@ The MyAtm dust monitor also honors `testlocal=true`. When enabled, the app inten
 Implementation notes:
 
 - `RvtConfig.TESTLOCAL` reads the `testlocal` environment variable.
-- `MyAtmApi` captures that flag at construction time.
+- `MyAtmMonitorServices` reads that flag once and passes it to the registered monitor reader and handlers.
 - `MyAtmTestLocalMonitorFilter` filters MyAtmosphere catalog results by serial `21972`.
 - The same filter narrows database monitor reads by serial `21972` and fleet `R6025V`.
 - StoreDust, StoreAccessoryInfo, offline checks, clear-offline, and serial-specific ProcessDustLevels rules are constrained to the demo monitor when `testlocal=true`.

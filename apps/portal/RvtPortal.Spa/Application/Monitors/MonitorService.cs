@@ -30,17 +30,10 @@ public interface IMonitorService
 
 
 
-    Task<IList<Monitor>> ReadAllAsync();
     Task<Monitor?> ReadOneAsync(Guid id);
-
-
-
 
     //Deployments
     Task<Deployment?> DeploymentReadOneAsync(Guid deploymentId);
-
-    //AlertLevels
-
 
     //Dust data
     [SuppressMessage("Maintainability", "S107:Methods should not have too many parameters", Justification = "The interface preserves the established monitor search contract used by portal workflows.")]
@@ -64,17 +57,6 @@ public interface IMonitorService
     Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string serialId);
     Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid traceId, CancellationToken cancellationToken = default);
     Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid id);
-
-    //  Data services
-}
-
-public class MonitorDataSearchFilters
-{
-    public Guid? MonitorId { get; set; }
-    public Guid DeploymentId { get; set; }
-    public string? FilterOption { get; set; }
-    public DateTime? FromDate { get; set; }
-    public DateTime? ToDate { get; set; }
 }
 
 public class MonitorService : IMonitorService
@@ -107,17 +89,6 @@ public class MonitorService : IMonitorService
         return _monitorRepository.GetByIdAsync(id);
     }
 
-    // Function summary: Retrieves all data for callers.
-    public Task<IList<Monitor>> ReadAllAsync()
-    {
-        return _monitorRepository.ReadAllAsync();
-    }
-
-    #region AlertLevel
-    //Return active alert levels for a monitor
-
-
-    #endregion
 
     #region Deployment
     //Returns current  Deployment if any

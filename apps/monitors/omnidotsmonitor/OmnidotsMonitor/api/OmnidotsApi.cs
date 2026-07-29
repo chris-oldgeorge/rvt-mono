@@ -196,7 +196,6 @@ namespace Omnidots.Api
 
         private static OmnidotsTraceCollectionOptions LegacyTraceCollectionOptions() => new()
         {
-            AllowedSerialIds = ["23423"],
             MaxMonitorsPerRun = int.MaxValue
         };
     }

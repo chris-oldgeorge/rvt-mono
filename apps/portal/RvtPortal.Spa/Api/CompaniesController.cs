@@ -47,15 +47,6 @@ public class CompaniesController : ControllerBase
         {
             return InvalidSort(result.InvalidSort, result.AllowedSortFields);
         }
-        if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
-        {
-            return BadRequest(ApiProblems.Create(
-                HttpContext,
-                StatusCodes.Status400BadRequest,
-                "Company search failed",
-                result.ErrorMessage));
-        }
-
         return result.Response!;
     }
 

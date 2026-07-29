@@ -17,11 +17,6 @@ public class CompanyRepository : GenericRepository<Company>, ICompanyRepository
         : base(contextDB)
     {
     }
-    // Function summary: Retrieves by ID with contracts data for callers.
-    public async Task<Company> GetByIdWithContractsAsync(Guid id)
-    {
-        return (await base.GetByIdAsync(id, "Contracts"))!;
-    }
     // Function summary: Retrieves filtered data for callers.
     public Task<SearchQueryResult<Company>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default)
     {

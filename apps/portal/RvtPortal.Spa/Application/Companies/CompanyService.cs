@@ -17,10 +17,7 @@ namespace RvtPortal.Spa.Application.Companies;
 
 public interface ICompanyService
 {
-    Task<bool> CompanyExist(string companyName, CancellationToken cancellationToken = default);
-    Task<IList<Company>> ReadAllAsync();
     Task<Company> ReadOneAsync(Guid id);
-    Task<Company> ReadOneWithContractsAsync(Guid id);
     Task<SearchQueryResult<CompanySearch>> Search(string companyName, int? page, OrderByDirectionEnum sortdir, string sort, int pageSize, CancellationToken cancellationToken = default);
 }
 
@@ -38,31 +35,6 @@ public class CompanyService : ICompanyService
     public async Task<Company> ReadOneAsync(Guid id)
     {
         return (await _companyRepository.GetByIdAsync(id))!;
-    }
-
-    // Function summary: Retrieves one with contracts data for callers.
-    public Task<Company> ReadOneWithContractsAsync(Guid id)
-    {
-        return _companyRepository.GetByIdWithContractsAsync(id);
-    }
-    // Function summary: Retrieves all data for callers.
-    public Task<IList<Company>> ReadAllAsync()
-    {
-        return _companyRepository.ReadAllAsync();
-    }
-
-    // Function summary: Handles the company exist workflow for this module.
-    public async Task<bool> CompanyExist(string companyName, CancellationToken cancellationToken = default)
-    {
-        List<OrderByProperty> orderBy = new();
-        orderBy.Add(new OrderByProperty() { OrderByDirection = OrderByDirectionEnum.Ascending, OrderByColumn = "CompanyName" });
-
-        List<Filter> query = new()
-        {
-            new SingleFilter{ Operation = Op.Equals, PropertyName = "CompanyName", Value = companyName }
-    };
-        SearchQueryResult<Company> res = await _companyRepository.ReadFilteredAsync(query, [.. orderBy], 100, new Paging { Paged = true, Page = 1, PageSize = 200 }, cancellationToken);
-        return res.RecordCount > 0;
     }
 
     // Function summary: Handles the search workflow for this module.

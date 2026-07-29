@@ -35,6 +35,25 @@ namespace AirQ.Api
             IAlertIngressPort alertIngress,
             bool testLocal,
             string? testLocalSerialId)
+            : this(
+                httpClient,
+                dbClient,
+                mqttClient,
+                messageService,
+                testLocal,
+                testLocalSerialId,
+                TimeProvider.System)
+        {
+        }
+
+        public AirQApi(
+            IHttpClient httpClient,
+            IDBClient dbClient,
+            IMqttClient mqttClient,
+            IMessageService messageService,
+            bool testLocal,
+            string? testLocalSerialId,
+            TimeProvider timeProvider)
         {
             IAirQVendorGateway gateway = new AirQHttpGateway(httpClient);
             AirQTestLocalMonitorFilter testLocalFilter = AirQTestLocalMonitorFilter.Create(testLocal, testLocalSerialId);
@@ -44,7 +63,16 @@ namespace AirQ.Api
 
             _storeMonitors = new StoreMonitorsHandler(gateway, dbClient, dbClient, testLocalFilter);
             _checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(dbClient, monitorReader, dbClient, ruleProcessor);
-            _storeNoiseLevels = new StoreNoiseLevelsHandler(gateway, monitorReader, dbClient, dbClient, dbClient, dbClient, eventPublisher, ruleProcessor);
+            _storeNoiseLevels = new StoreNoiseLevelsHandler(
+                gateway,
+                monitorReader,
+                dbClient,
+                dbClient,
+                dbClient,
+                dbClient,
+                eventPublisher,
+                ruleProcessor,
+                timeProvider);
             _storeNoiseLevelsForDate = new StoreNoiseLevelsForDateHandler(gateway, monitorReader, dbClient, dbClient);
             _storeAllNoiseLevelsForYesterday = new StoreAllNoiseLevelsForYesterdayHandler(_storeNoiseLevelsForDate);
             _notifySiteAverages = new NotifySiteAveragesHandler(dbClient, dbClient, dbClient, dbClient, ruleProcessor);

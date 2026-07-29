@@ -35,7 +35,7 @@ namespace MyAtmMonitorTests
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageClient);
+                                                     out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 656;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
@@ -85,7 +85,7 @@ namespace MyAtmMonitorTests
             Mock<IHttpClient> httpClient = new();
             Mock<IDBClient> dbClient = new();
             Mock<IMqttClient> mqttClient = new();
-            Mock<IMessageService> messageClient = new();
+            Mock<INotificationDeliveryService> messageClient = new();
             MyAtmMonitorOptions options = new()
             {
                 MeasurementPageSize = 2,
@@ -131,7 +131,7 @@ namespace MyAtmMonitorTests
             Mock<IHttpClient> httpClient = new();
             Mock<IDBClient> dbClient = new();
             Mock<IMqttClient> mqttClient = new();
-            Mock<IMessageService> messageClient = new();
+            Mock<INotificationDeliveryService> messageClient = new();
             MyAtmMonitorOptions options = new()
             {
                 OutboxBatchSize = 2
@@ -179,7 +179,7 @@ namespace MyAtmMonitorTests
                 out Mock<IHttpClient> httpClient,
                 out Mock<IDBClient> dbClient,
                 out Mock<IMqttClient> mqttClient,
-                out Mock<IMessageService> messageClient);
+                out Mock<INotificationDeliveryService> messageClient);
             httpClient.Setup(client => client.GetAsync(
                     It.IsRegex("/api/customers/656/devices/11111/measurements"),
                     It.IsAny<CancellationToken>()))
@@ -214,7 +214,7 @@ namespace MyAtmMonitorTests
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageClient);
+                                                     out Mock<INotificationDeliveryService> messageClient);
             int customerId = 656;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements"))).Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.MeasurementsResponseJson(period)));
 
@@ -282,7 +282,7 @@ namespace MyAtmMonitorTests
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageClient);
+                                                     out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 656;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
@@ -316,7 +316,7 @@ namespace MyAtmMonitorTests
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                          out Mock<IDBClient> dbClient,
                                          out Mock<IMqttClient> mqttClient,
-                                         out Mock<IMessageService> messageClient);
+                                         out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 656;
             DateTime expectedDateTime = DateTime.UtcNow;

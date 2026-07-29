@@ -31,7 +31,7 @@ namespace MyAtmMonitorTests
         public async Task TestStoreDevices_HandlesJsonExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                 out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                                                 out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
             httpClient.Setup(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100")).
                     Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah."));
 
@@ -52,7 +52,7 @@ namespace MyAtmMonitorTests
         public async Task TestStoreDevices_HandlesExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                         out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             httpClient.Setup(c => c.GetAsync("/api/customers/987/devices?$skip=0&$top=100")).
                     Throws(new IOException());
@@ -73,7 +73,7 @@ namespace MyAtmMonitorTests
         public async Task ReadMonitorsList_HandlesExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                         out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 656;
             dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
@@ -97,7 +97,7 @@ namespace MyAtmMonitorTests
         public async Task TestStoreDustLevels_HandlesJsonExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                         out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 987;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).
@@ -126,7 +126,7 @@ namespace MyAtmMonitorTests
         public async Task TestStoreDustLevels_HandlesExceptionCorrectly()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                         out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 987;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements" + Regex.Escape(TestUtil.MEASUREMENT_SELECT)))).

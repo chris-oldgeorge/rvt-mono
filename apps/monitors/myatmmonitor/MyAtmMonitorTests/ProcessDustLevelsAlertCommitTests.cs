@@ -25,7 +25,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         int customerId = 656;
         DateTime now = DateTime.UtcNow;
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(now.AddDays(1), singleItem: true).Single();
@@ -61,7 +61,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         int customerId = 656;
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(DateTime.UtcNow.AddDays(1), singleItem: true).Single();
         RvtAlertRuleDto rule = new(
@@ -146,7 +146,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
         Mock<IHttpClient> httpClient = new();
         Mock<IDBClient> dbClient = new();
         Mock<IMqttClient> mqttClient = new();
-        Mock<IMessageService> messageService = new();
+        Mock<INotificationDeliveryService> messageService = new();
         int customerId = 656;
         DustMonitorDto monitor = MyAtmFixture.CustomerDeviceDtos(null, singleItem: true).Single();
         RvtAlertRuleDto rule = new(

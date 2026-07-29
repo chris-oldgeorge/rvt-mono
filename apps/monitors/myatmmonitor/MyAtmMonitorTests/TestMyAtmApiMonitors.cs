@@ -48,7 +48,7 @@ namespace MyAtmMonitorTests
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                 out Mock<IDBClient> dbClient,
                                                 out Mock<IMqttClient> mqttClient,
-                                                out Mock<IMessageService> messageClient);
+                                                out Mock<INotificationDeliveryService> messageClient);
 
             httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100")).
                     Returns(Task<string>.Factory.StartNew(() => MyAtmFixture.DevicesResponseJson()));
@@ -81,7 +81,7 @@ namespace MyAtmMonitorTests
             Mock<IHttpClient> httpClient = new();
             Mock<IDBClient> dbClient = new();
             Mock<IMqttClient> mqttClient = new();
-            Mock<IMessageService> messageClient = new();
+            Mock<INotificationDeliveryService> messageClient = new();
             MyAtmMonitorOptions options = new()
             {
                 CustomerId = 123,
@@ -141,7 +141,7 @@ namespace MyAtmMonitorTests
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                 out Mock<IDBClient> dbClient,
                                                 out Mock<IMqttClient> mqttClient,
-                                                out Mock<IMessageService> messageClient,
+                                                out Mock<INotificationDeliveryService> messageClient,
                                                 testLocal: true);
 
             httpClient.Setup(c => c.GetAsync("/api/customers/123/devices?$skip=0&$top=100")).
@@ -226,7 +226,7 @@ namespace MyAtmMonitorTests
         public async Task TestStoreAccessoryInfo_Success()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                         out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 656;
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/api\\/customers\\/" + customerId + "\\/devices\\/.*\\/measurements/accessory"))).
@@ -261,7 +261,7 @@ namespace MyAtmMonitorTests
         public async Task TestCheckForOfflineMonitors_MonitorsOfflineFor23Hours_Success()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                                     out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 765;
             List<RvtAlertRuleDto> rules = MyAtmFixture.OfflineRules();
@@ -289,7 +289,7 @@ namespace MyAtmMonitorTests
         public async Task TestCheckForOfflineMonitors_NotificationWrittenOk_Success(int minutesOffline, int offlineForSeconds)
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                                     out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 765;
             List<RvtAlertRuleDto> rules = MyAtmFixture.OfflineRules();
@@ -346,7 +346,7 @@ namespace MyAtmMonitorTests
         public async Task TestCheckForOfflineMonitors_OfflineMonitorWithRecentData_MarkedOnline()
         {
             MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient);
+                                     out Mock<IMqttClient> mqttClient, out Mock<INotificationDeliveryService> messageClient);
 
             int customerId = 765;
             List<RvtAlertRuleDto> rules = MyAtmFixture.OfflineRules();

@@ -36,18 +36,12 @@ namespace AirQ.Model.Dto
         public bool ShouldReportForDate(DateTime date)
         {
 
-            switch (date.DayOfWeek)
+            return date.DayOfWeek switch
             {
-                case DayOfWeek.Sunday:
-                    return SunStartTime != null && SunEndTime != null;
-
-                case DayOfWeek.Saturday:
-                    return SatStartTime != null && SatEndTime != null;
-
-                default:
-                    return StartTime != null && EndTime != null;
-
-            }
+                DayOfWeek.Sunday => SunStartTime != null && SunEndTime != null,
+                DayOfWeek.Saturday => SatStartTime != null && SatEndTime != null,
+                _ => StartTime != null && EndTime != null,
+            };
         }
 
         public void GetStartAndEndTimeForDate(DateTime date, out DateTime startTime, out DateTime endTime)

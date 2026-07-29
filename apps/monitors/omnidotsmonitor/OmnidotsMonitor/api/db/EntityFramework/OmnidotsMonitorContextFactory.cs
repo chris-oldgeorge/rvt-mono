@@ -6,8 +6,8 @@ namespace Omnidots.Api.Db.EntityFramework;
 
 public sealed class OmnidotsMonitorContextFactory : IMonitorDbContextFactory<OmnidotsMonitorContext>
 {
-    private readonly string connectionString;
-    private readonly MonitorDbOptions monitorOptions;
+    private readonly string _connectionString;
+    private readonly MonitorDbOptions _monitorOptions;
 
     public OmnidotsMonitorContextFactory(
         string connectionString,
@@ -16,14 +16,14 @@ public sealed class OmnidotsMonitorContextFactory : IMonitorDbContextFactory<Omn
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         ArgumentNullException.ThrowIfNull(monitorOptions);
 
-        this.connectionString = connectionString;
-        this.monitorOptions = monitorOptions;
+        _connectionString = connectionString;
+        _monitorOptions = monitorOptions;
     }
 
     public OmnidotsMonitorContext CreateDbContext()
     {
         DbContextOptions<OmnidotsMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<OmnidotsMonitorContext>(
-            connectionString);
-        return new OmnidotsMonitorContext(options, monitorOptions);
+            _connectionString);
+        return new OmnidotsMonitorContext(options, _monitorOptions);
     }
 }

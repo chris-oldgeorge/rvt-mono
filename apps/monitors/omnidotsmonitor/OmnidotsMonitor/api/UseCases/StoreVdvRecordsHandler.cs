@@ -14,12 +14,12 @@ namespace Omnidots.Api.UseCases
     public class StoreVdvRecordsHandler
     {
         private readonly IOmnidotsVendorGateway _gateway;
-        private readonly OmnidotsMonitorReader monitorReader;
-        private readonly IOmnidotsMonitorCommands monitorCommands;
-        private readonly IOmnidotsImportCursorQueries cursorQueries;
-        private readonly IOmnidotsMeasurementImportCommands importCommands;
-        private readonly IOmnidotsOperationalCommands operationalCommands;
-        private readonly IMonitorEventPublisher eventPublisher;
+        private readonly OmnidotsMonitorReader _monitorReader;
+        private readonly IOmnidotsMonitorCommands _monitorCommands;
+        private readonly IOmnidotsImportCursorQueries _cursorQueries;
+        private readonly IOmnidotsMeasurementImportCommands _importCommands;
+        private readonly IOmnidotsOperationalCommands _operationalCommands;
+        private readonly IMonitorEventPublisher _eventPublisher;
 
         public StoreVdvRecordsHandler(
             IOmnidotsVendorGateway gateway,
@@ -31,23 +31,23 @@ namespace Omnidots.Api.UseCases
             IMonitorEventPublisher eventPublisher)
         {
             _gateway = gateway;
-            this.monitorReader = monitorReader;
-            this.monitorCommands = monitorCommands;
-            this.cursorQueries = cursorQueries;
-            this.importCommands = importCommands;
-            this.operationalCommands = operationalCommands;
-            this.eventPublisher = eventPublisher;
+            _monitorReader = monitorReader;
+            _monitorCommands = monitorCommands;
+            _cursorQueries = cursorQueries;
+            _importCommands = importCommands;
+            _operationalCommands = operationalCommands;
+            _eventPublisher = eventPublisher;
         }
 
         public async Task RunAsync(TimeSpan lookback, CancellationToken cancellationToken = default)
         {
             string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
-            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
+            List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
             DateTime utcNow = DateTime.UtcNow;
             List<OmnidotsMonitorFailure> failures = await OmnidotsFleetImport.RunAsync(
                 "StoreVdvRecords",
                 monitors,
-                operationalCommands,
+                _operationalCommands,
                 async monitor =>
                 {
                     if ("OmniDots guest".Equals(monitor.CustomerDisplayName))
@@ -67,18 +67,24 @@ namespace Omnidots.Api.UseCases
                     {
                         DateTime newestSampleAt = dtos[^1].SampleTime;
                         DateTime ps = DateTime.Now;
-                        importCommands.ImportVdvRecords(monitor.SerialId, dtos, newestSampleAt);
+                        _importCommands.ImportVdvRecords(monitor.SerialId, dtos, newestSampleAt);
                         TimeSpan ts = DateTime.Now - ps;
-                        RvtLogger.Logger.LogInformation("InsertVdvRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
-                             monitor.SerialId, dtos.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / dtos.Count));
+                        if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation("InsertVdvRecords for serialId={Value1} INSERT number of dtos={Value2} took={Value3}ms avg={Value4} ms",
+                                 monitor.SerialId, dtos.Count, ts.TotalMilliseconds, (ts.TotalMilliseconds / dtos.Count));
+                        }
 
-                        monitorCommands.SetMonitorOffline(monitor.Id, false);
+                        _monitorCommands.SetMonitorOffline(monitor.Id, false);
 
-                        await eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
+                        await _eventPublisher.PublishDataInsertedAsync(newestSampleAt, monitor.SerialId, cancellationToken: cancellationToken);
                     }
                     else
                     {
-                        RvtLogger.Logger.LogDebug("StoreVdvRecords no samples for serialId={Value1}", monitor.SerialId);
+                        if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                        {
+                            RvtLogger.Logger.LogDebug("StoreVdvRecords no samples for serialId={Value1}", monitor.SerialId);
+                        }
                     }
                 },
                 cancellationToken);
@@ -89,10 +95,10 @@ namespace Omnidots.Api.UseCases
 
         private DateTime ResolveStart(string serialId, DateTime utcNow, TimeSpan lookback)
         {
-            DateTime? cursor = cursorQueries.ReadImportCursor(
+            DateTime? cursor = _cursorQueries.ReadImportCursor(
                 serialId,
                 OmnidotsMeasurementSeries.Vdv);
-            DateTime? latestMeasurement = cursor ?? cursorQueries.ReadLatestMeasurementTime(
+            DateTime? latestMeasurement = cursor ?? _cursorQueries.ReadLatestMeasurementTime(
                 serialId,
                 OmnidotsMeasurementSeries.Vdv);
             return latestMeasurement.HasValue

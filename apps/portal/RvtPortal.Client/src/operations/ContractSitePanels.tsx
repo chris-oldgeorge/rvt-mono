@@ -34,7 +34,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import type { ReactNode, SyntheticEvent } from 'react';
 import {
   addUserToSite,
   archiveSite,
@@ -510,7 +510,7 @@ function ContractFormPanel({
       onRequestError(err);
     }
   }
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SyntheticEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -1124,7 +1124,7 @@ function SiteFormPanel({
       ),
     }));
   }
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SyntheticEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);

@@ -58,7 +58,7 @@ public sealed class SpaProxyConfigurationTests
         Assert.Contains("cachedViteConfigPath", launcher, StringComparison.Ordinal);
         Assert.Contains("copyFileSync(viteConfigPath", launcher, StringComparison.Ordinal);
         Assert.Contains("robocopy.exe", launcher, StringComparison.Ordinal);
-        Assert.Contains("\"/MIR\"", launcher, StringComparison.Ordinal);
+        Assert.Contains("'/MIR'", launcher, StringComparison.Ordinal);
         Assert.Contains("workspaceRoot", launcher, StringComparison.Ordinal);
         Assert.Contains("setInterval", launcher, StringComparison.Ordinal);
         Assert.Contains("node_modules", launcher, StringComparison.Ordinal);

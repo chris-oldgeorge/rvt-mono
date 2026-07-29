@@ -8,24 +8,24 @@ namespace MyAtm.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiMonitors).
     public class ClearMonitorsOfflineFlagHandler
     {
-        private readonly MyAtmMonitorReader monitorReader;
-        private readonly IMyAtmMonitorCommands monitorCommands;
+        private readonly MyAtmMonitorReader _monitorReader;
+        private readonly IMyAtmMonitorCommands _monitorCommands;
 
         public ClearMonitorsOfflineFlagHandler(
             MyAtmMonitorReader monitorReader,
             IMyAtmMonitorCommands monitorCommands)
         {
-            this.monitorReader = monitorReader;
-            this.monitorCommands = monitorCommands;
+            _monitorReader = monitorReader;
+            _monitorCommands = monitorCommands;
         }
 
         public void Run(int customerId)
         {
-            List<DustMonitorDto>? monitors = monitorReader.ReadMonitors(customerId);
+            List<DustMonitorDto>? monitors = _monitorReader.ReadMonitors(customerId);
 
             foreach (DustMonitorDto monitor in monitors!)
             {
-                monitorCommands.SetMonitorOffline(monitor.Id, false);
+                _monitorCommands.SetMonitorOffline(monitor.Id, false);
             }
         }
     }

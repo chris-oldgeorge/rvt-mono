@@ -5,12 +5,12 @@ namespace Svantek.Api;
 
 public sealed class SvantekFailureCollector
 {
-    private readonly ISvantekOperationalCommands operationalCommands;
-    private readonly List<Exception> failures = [];
+    private readonly ISvantekOperationalCommands _operationalCommands;
+    private readonly List<Exception> _failures = [];
 
     public SvantekFailureCollector(ISvantekOperationalCommands operationalCommands)
     {
-        this.operationalCommands = operationalCommands;
+        _operationalCommands = operationalCommands;
     }
 
     public void Capture(string identifier, Exception exception)
@@ -20,15 +20,15 @@ public sealed class SvantekFailureCollector
             ExceptionDispatchInfo.Capture(exception).Throw();
         }
 
-        operationalCommands.HandleException(identifier, exception);
-        failures.Add(new InvalidOperationException(identifier, exception));
+        _operationalCommands.HandleException(identifier, exception);
+        _failures.Add(new InvalidOperationException(identifier, exception));
     }
 
     public void ThrowIfAny(string jobName)
     {
-        if (failures.Count > 0)
+        if (_failures.Count > 0)
         {
-            throw new SvantekJobAggregateException(jobName, failures);
+            throw new SvantekJobAggregateException(jobName, _failures);
         }
     }
 }

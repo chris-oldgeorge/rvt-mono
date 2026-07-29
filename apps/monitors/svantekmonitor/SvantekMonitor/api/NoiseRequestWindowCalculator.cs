@@ -6,15 +6,15 @@ public sealed record NoiseRequestWindow(DateTime Start, DateTime End);
 
 public sealed class NoiseRequestWindowCalculator
 {
-    private static readonly DateTime UtcMin = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
-    private static readonly DateTime UtcMax = DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc);
+    private static readonly DateTime _utcMin = DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc);
+    private static readonly DateTime _utcMax = DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc);
 
-    private readonly SvantekImportOptions options;
+    private readonly SvantekImportOptions _options;
 
     public NoiseRequestWindowCalculator(SvantekImportOptions options)
     {
         options.Validate();
-        this.options = options;
+        _options = options;
     }
 
     public IReadOnlyList<NoiseRequestWindow> Calculate(
@@ -29,8 +29,8 @@ public sealed class NoiseRequestWindowCalculator
         DateTime normalizedNow = NormalizeUtc(utcNow);
 
         DateTime start = normalizedWatermark.HasValue
-            ? LaterOf(normalizedDeployment, SaturatingSubtract(normalizedWatermark.Value, options.WatermarkOverlap))
-            : LaterOf(normalizedDeployment, SaturatingSubtract(normalizedNow, options.MaximumInitialBackfill));
+            ? LaterOf(normalizedDeployment, SaturatingSubtract(normalizedWatermark.Value, _options.WatermarkOverlap))
+            : LaterOf(normalizedDeployment, SaturatingSubtract(normalizedNow, _options.MaximumInitialBackfill));
         DateTime candidateEnd = normalizedStatus.HasValue
             ? SaturatingAdd(normalizedStatus.Value, TimeSpan.FromHours(1))
             : normalizedNow;
@@ -43,7 +43,7 @@ public sealed class NoiseRequestWindowCalculator
         List<NoiseRequestWindow> windows = [];
         for (DateTime cursor = start; cursor < end;)
         {
-            DateTime windowEnd = EarlierOf(SaturatingAdd(cursor, options.MaximumRequestWindow), end);
+            DateTime windowEnd = EarlierOf(SaturatingAdd(cursor, _options.MaximumRequestWindow), end);
             windows.Add(new NoiseRequestWindow(cursor, windowEnd));
             cursor = windowEnd;
         }
@@ -69,7 +69,7 @@ public sealed class NoiseRequestWindowCalculator
     {
         long remainingTicks = DateTime.MaxValue.Ticks - value.Ticks;
         return remainingTicks < duration.Ticks
-            ? UtcMax
+            ? _utcMax
             : new DateTime(value.Ticks + duration.Ticks, DateTimeKind.Utc);
     }
 
@@ -77,7 +77,7 @@ public sealed class NoiseRequestWindowCalculator
     {
         long availableTicks = value.Ticks - DateTime.MinValue.Ticks;
         return availableTicks < duration.Ticks
-            ? UtcMin
+            ? _utcMin
             : new DateTime(value.Ticks - duration.Ticks, DateTimeKind.Utc);
     }
 }

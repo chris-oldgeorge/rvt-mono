@@ -23,14 +23,14 @@ namespace Svantek.Api.Db
     // - 2026-06-20 EF migration: replaced DBUtil SQL calls with provider-aware EF Core operations.
     public class DBClient : IDBClient
     {
-        private readonly string ConnectionString;
+        private readonly string _connectionString;
 
         public DBClient(string connectionString)
         {
             MonitorDb.ValidateLegacyProvider(
                 Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
                 Environment.GetEnvironmentVariable("DatabaseProvider"));
-            ConnectionString = connectionString;
+            _connectionString = connectionString;
         }
 
         public void InsertNoiseDtos(List<NoiseDto> dtos)
@@ -390,8 +390,11 @@ namespace Svantek.Api.Db
 
         public void WriteNotificationAudit(Guid notificationId, string address, string message)
         {
-            RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
-                SensitiveLogRedactor.Redact(address), message);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
+                    SensitiveLogRedactor.Redact(address), message);
+            }
 
             using SvantekMonitorContext context = CreateContext();
             context.NotificationAudits.Add(new NotificationSentEntity
@@ -448,11 +451,8 @@ namespace Svantek.Api.Db
         public SiteInfoDto ReadSiteInfo(Guid siteId)
         {
             using SvantekMonitorContext context = CreateContext();
-            SiteEntity? site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId);
-            if (site == null)
-            {
-                throw AdapterException.Of($"No site info for site Id={siteId}");
-            }
+            SiteEntity site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId)
+                ?? throw AdapterException.Of($"No site info for site Id={siteId}");
 
             return new SiteInfoDto(
                 siteId: siteId,
@@ -825,7 +825,7 @@ namespace Svantek.Api.Db
         private SvantekMonitorContext CreateContext()
         {
             MonitorDbOptions monitorOptions = SvantekMonitorDbOptions.Current;
-            DbContextOptions<SvantekMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<SvantekMonitorContext>(ConnectionString);
+            DbContextOptions<SvantekMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<SvantekMonitorContext>(_connectionString);
             return new SvantekMonitorContext(options, monitorOptions);
         }
 
@@ -934,7 +934,7 @@ namespace Svantek.Api.Db
                 return value;
             }
 
-            return value.Length <= maxLength ? value : value.Substring(0, maxLength);
+            return value.Length <= maxLength ? value : value[..maxLength];
         }
     }
 }

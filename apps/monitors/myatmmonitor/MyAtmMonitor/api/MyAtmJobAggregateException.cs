@@ -11,7 +11,7 @@ public sealed class MyAtmJobAggregateException : Exception
         : base($"{operation} failed for {failures.Count} item(s): {string.Join(", ", failures.Select(failure => failure.Identifier))}")
     {
         Operation = operation;
-        Failures = failures.ToArray();
+        Failures = [.. failures];
     }
 
     public string Operation { get; }

@@ -12,17 +12,17 @@ namespace Svantek.Api.Http
     // - 2026-07-12 God-class split: extracted from the SvantekApi partials (SvantekApiProjects, SvantekApi).
     public class SvantekHttpGateway : ISvantekVendorGateway
     {
-        private const string API_URL_PROJECTS_GET_DATA = "projects-get-data.php";
-        private const string API_URL_STATIONS_GET_LIST = "stations-get-list.php";
-        private const string API_URL_PROJECTS_GET_RESULT_DATA_MULTI = "projects-get-result-data-multi-point.php";
+        private const string _apiUrlProjectsGetData = "projects-get-data.php";
+        private const string _apiUrlStationsGetList = "stations-get-list.php";
+        private const string _apiUrlProjectsGetResultDataMulti = "projects-get-result-data-multi-point.php";
 
-        private readonly IHttpClient httpClient;
-        private readonly string apiKey;
+        private readonly IHttpClient _httpClient;
+        private readonly string _apiKey;
 
         public SvantekHttpGateway(IHttpClient httpClient, string apiKey)
         {
-            this.httpClient = httpClient;
-            this.apiKey = apiKey;
+            _httpClient = httpClient;
+            _apiKey = apiKey;
         }
 
         public async Task<List<Project>> GetProjectsAsync(CancellationToken cancellationToken = default)
@@ -149,7 +149,7 @@ namespace Svantek.Api.Http
             using MultipartFormDataContent content = new();
             KeyValuePair<string, string>[] values =
             [
-                new KeyValuePair<string, string>("key", apiKey),
+                new KeyValuePair<string, string>("key", _apiKey),
                 new KeyValuePair<string, string>("project", project.ToString()),
                 new KeyValuePair<string, string>("point", point.ToString()),
                 new KeyValuePair<string, string>("station_type", stationType),
@@ -166,8 +166,8 @@ namespace Svantek.Api.Http
 
             try
             {
-                return await httpClient.PostForBytesAsync(
-                    API_URL_PROJECTS_GET_DATA,
+                return await _httpClient.PostForBytesAsync(
+                    _apiUrlProjectsGetData,
                     content,
                     cancellationToken).ConfigureAwait(false);
             }
@@ -192,7 +192,7 @@ namespace Svantek.Api.Http
         {
             List<KeyValuePair<string, string>> values =
             [
-                new KeyValuePair<string, string>("key", apiKey)
+                new KeyValuePair<string, string>("key", _apiKey)
             ];
 
             if (projectId != null)
@@ -213,8 +213,8 @@ namespace Svantek.Api.Http
             }
 
             using MultipartFormDataContent content = GetApiContent(values);
-            return await httpClient.PostAsync(
-                API_URL_PROJECTS_GET_DATA,
+            return await _httpClient.PostAsync(
+                _apiUrlProjectsGetData,
                 content,
                 cancellationToken).ConfigureAwait(false);
         }
@@ -225,7 +225,7 @@ namespace Svantek.Api.Http
         {
             List<KeyValuePair<string, string>> values =
             [
-                new KeyValuePair<string, string>("key", apiKey)
+                new KeyValuePair<string, string>("key", _apiKey)
             ];
 
             if (stationId != null)
@@ -234,8 +234,8 @@ namespace Svantek.Api.Http
             }
 
             using MultipartFormDataContent content = GetApiContent(values);
-            return await httpClient.PostAsync(
-                API_URL_STATIONS_GET_LIST,
+            return await _httpClient.PostAsync(
+                _apiUrlStationsGetList,
                 content,
                 cancellationToken).ConfigureAwait(false);
         }
@@ -247,15 +247,15 @@ namespace Svantek.Api.Http
         {
             List<KeyValuePair<string, string>> values =
             [
-                new KeyValuePair<string, string>("key", apiKey),
+                new KeyValuePair<string, string>("key", _apiKey),
                 new KeyValuePair<string, string>("project", projectId),
                 new KeyValuePair<string, string>("results", "[\"leq-S-S-0-0-N\",\"max-S-S-0-0-N\",\"l90-S-S-0-0-N\",\"l10-S-S-0-0-N\",\"leq-S-S-0-1-N\",\"max-S-S-0-1-N\",\"l90-S-S-0-1-N\",\"l10-S-S-0-1-N\"]"),// LAeq, LCeq, L10 , L90
                 new KeyValuePair<string, string>("data", JsonSerializer.Serialize(arguments)),
             ];
 
             using MultipartFormDataContent content = GetApiContent(values);
-            return await httpClient.PostAsync(
-                API_URL_PROJECTS_GET_RESULT_DATA_MULTI,
+            return await _httpClient.PostAsync(
+                _apiUrlProjectsGetResultDataMulti,
                 content,
                 cancellationToken).ConfigureAwait(false);
         }

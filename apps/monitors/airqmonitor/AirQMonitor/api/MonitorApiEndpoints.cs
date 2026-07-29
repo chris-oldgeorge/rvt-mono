@@ -16,7 +16,7 @@ namespace AirQ.Api;
 // - 2026-07-14 API key protection: import requests use a narrow date-import port.
 public static class MonitorApiEndpoints
 {
-    private static readonly JsonSerializerOptions RequestJsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions _requestJsonOptions = new(JsonSerializerDefaults.Web);
 
     public static IEndpointRouteBuilder MapAirQMonitorApi(this IEndpointRouteBuilder endpoints)
     {
@@ -51,7 +51,7 @@ public static class MonitorApiEndpoints
         {
             request = await JsonSerializer.DeserializeAsync<StoreNoiseLevelsForDateRequest>(
                 context.Request.Body,
-                RequestJsonOptions,
+                _requestJsonOptions,
                 context.RequestAborted);
         }
         catch (JsonException)

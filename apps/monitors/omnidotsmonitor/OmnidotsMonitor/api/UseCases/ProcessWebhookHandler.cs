@@ -9,14 +9,14 @@ namespace Omnidots.Api.UseCases;
 
 public sealed class ProcessWebhookHandler
 {
-    private static readonly UTF8Encoding StrictUtf8 = new(
+    private static readonly UTF8Encoding _strictUtf8 = new(
         encoderShouldEmitUTF8Identifier: false,
         throwOnInvalidBytes: true);
 
-    private readonly IAlertIngressPort ingress;
-    private readonly OmnidotsAlarmTranslator translator;
-    private readonly OmnidotsApiSecurityOptions securityOptions;
-    private readonly OmnidotsWebhookSignatureValidator signatureValidator;
+    private readonly IAlertIngressPort _ingress;
+    private readonly OmnidotsAlarmTranslator _translator;
+    private readonly OmnidotsApiSecurityOptions _securityOptions;
+    private readonly OmnidotsWebhookSignatureValidator _signatureValidator;
 
     public ProcessWebhookHandler(
         IAlertIngressPort ingress,
@@ -24,10 +24,10 @@ public sealed class ProcessWebhookHandler
         OmnidotsApiSecurityOptions securityOptions,
         OmnidotsWebhookSignatureValidator signatureValidator)
     {
-        this.ingress = ingress;
-        this.translator = translator;
-        this.securityOptions = securityOptions;
-        this.signatureValidator = signatureValidator;
+        _ingress = ingress;
+        _translator = translator;
+        _securityOptions = securityOptions;
+        _signatureValidator = signatureValidator;
     }
 
     public async Task<AlertIngressResult> RunAsync(
@@ -35,8 +35,8 @@ public sealed class ProcessWebhookHandler
         string signature,
         CancellationToken cancellationToken = default)
     {
-        OmnidotsApiSecurityGuard.EnsureWebhookReady(securityOptions);
-        if (!signatureValidator.IsValid(body.Span, signature, securityOptions.WebhookSecret))
+        OmnidotsApiSecurityGuard.EnsureWebhookReady(_securityOptions);
+        if (!_signatureValidator.IsValid(body.Span, signature, _securityOptions.WebhookSecret))
         {
             throw new OmnidotsWebhookAuthenticationException();
         }
@@ -44,19 +44,19 @@ public sealed class ProcessWebhookHandler
         string json = DecodeJson(body.Span);
         AlarmDataV2 alarm = JsonSerializer.Deserialize<AlarmDataV2>(json)
             ?? throw AdapterException.Of("Invalid alarm payload.");
-        AlertSignal signal = translator.Translate(
+        AlertSignal signal = _translator.Translate(
             alarm,
             body.Span,
-            TimeSpan.FromMinutes(securityOptions.NotificationDelayMinutes));
+            TimeSpan.FromMinutes(_securityOptions.NotificationDelayMinutes));
 
-        return await ingress.AcceptAsync(signal, cancellationToken);
+        return await _ingress.AcceptAsync(signal, cancellationToken);
     }
 
     private static string DecodeJson(ReadOnlySpan<byte> body)
     {
         try
         {
-            string json = StrictUtf8.GetString(body);
+            string json = _strictUtf8.GetString(body);
             return json.Length > 0 && json[0] == '\uFEFF'
                 ? json[1..]
                 : json;

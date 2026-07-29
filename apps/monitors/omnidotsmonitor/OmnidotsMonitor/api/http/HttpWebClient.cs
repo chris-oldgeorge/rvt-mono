@@ -32,7 +32,11 @@ namespace Omnidots.Api.Http
 
         public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
         {
-            RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+            {
+                RvtLogger.Logger.LogDebug("HttpWebClient GetAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
+            }
+
             using VendorHttpResponse response = await _transport.SendAsync(HttpMethod.Get, path, null, cancellationToken);
             string reply = await response.ReadStringAsync(cancellationToken);
             if (!response.IsOk)
@@ -45,7 +49,10 @@ namespace Omnidots.Api.Http
 
         public async Task<string> PostAsync(string path, HttpContent content, CancellationToken cancellationToken = default)
         {
-            RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+            {
+                RvtLogger.Logger.LogDebug("HttpWebClient PostAsync path={Value1}", SensitiveLogRedactor.RedactUrl(path));
+            }
 
             using VendorHttpResponse response = await _transport.SendAsync(HttpMethod.Post, path, content, cancellationToken);
             if (!response.IsOk)

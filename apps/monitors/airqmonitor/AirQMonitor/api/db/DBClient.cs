@@ -22,14 +22,14 @@ namespace AirQ.Api.Db
     // - 2026-06-20 EF migration: replaced DBUtil SQL calls with provider-aware EF Core operations.
     public class DBClient : IDBClient
     {
-        private readonly string ConnectionString;
+        private readonly string _connectionString;
 
         public DBClient(string connectionString)
         {
             MonitorDb.ValidateLegacyProvider(
                 Environment.GetEnvironmentVariable("RVT__DATABASE_PROVIDER"),
                 Environment.GetEnvironmentVariable("DatabaseProvider"));
-            ConnectionString = connectionString;
+            _connectionString = connectionString;
         }
 
         public void InsertNoiseDtos(string serialId, List<NoiseDto> dtos)
@@ -288,8 +288,11 @@ namespace AirQ.Api.Db
 
         public void WriteNotificationAudit(Guid notificationId, string address, string message)
         {
-            RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
-                SensitiveLogRedactor.Redact(address), message);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
+                    SensitiveLogRedactor.Redact(address), message);
+            }
 
             using AirQMonitorContext context = CreateContext();
             context.NotificationAudits.Add(new NotificationSentEntity
@@ -328,13 +331,10 @@ namespace AirQ.Api.Db
         public SiteInfoDto ReadSiteInfo(Guid siteId)
         {
             using AirQMonitorContext context = CreateContext();
-            SiteEntity? site = context.Sites
+            SiteEntity site = context.Sites
                 .AsNoTracking()
-                .FirstOrDefault(row => row.Id == siteId);
-            if (site == null)
-            {
-                throw AdapterException.Of(string.Format("No site info for site Id={0}", siteId));
-            }
+                .FirstOrDefault(row => row.Id == siteId)
+                ?? throw AdapterException.Of(string.Format("No site info for site Id={0}", siteId));
 
             return new SiteInfoDto(
                 siteId: siteId,
@@ -446,7 +446,7 @@ namespace AirQ.Api.Db
         private AirQMonitorContext CreateContext()
         {
             MonitorDbOptions monitorOptions = AirQMonitorDbOptions.Current;
-            DbContextOptions<AirQMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<AirQMonitorContext>(ConnectionString);
+            DbContextOptions<AirQMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<AirQMonitorContext>(_connectionString);
             return new AirQMonitorContext(options, monitorOptions);
         }
 
@@ -545,7 +545,7 @@ namespace AirQ.Api.Db
 
         private static string Truncate(string value, int maxLength)
         {
-            return value.Length <= maxLength ? value : value.Substring(0, maxLength);
+            return value.Length <= maxLength ? value : value[..maxLength];
         }
     }
 }

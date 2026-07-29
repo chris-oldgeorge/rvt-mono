@@ -10,7 +10,7 @@
 
 import { Bell, Check, ChevronLeft, Edit3, Eye, Gauge, Plus, RefreshCcw, Save, Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SyntheticEvent } from 'react';
 import {
   batchCloseNotifications,
   closeNotification,
@@ -394,7 +394,7 @@ function NotificationDetailPanel({
       });
   }, [notificationId, onRequestError]);
 
-  async function handleClose(event: FormEvent) {
+  async function handleClose(event: SyntheticEvent) {
     event.preventDefault();
     setIsClosing(true);
     setNotice(null);
@@ -818,7 +818,7 @@ function AlertLevelForm({
       });
   }, [levelId, onRequestError]);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SyntheticEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -980,7 +980,7 @@ function VibrationAlertLevelForm({
     return () => controller.abort();
   }, [monitorId, onRequestError]);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SyntheticEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setNotice(null);

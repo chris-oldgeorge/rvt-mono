@@ -10,10 +10,10 @@ namespace Svantek.Api.UseCases;
 // Summary: Checks Svantek alert notifications for matching audio recordings and uploads them to blob storage.
 public sealed class CheckForSoundRecordingsHandler
 {
-    private readonly ISvantekNotificationQueries notificationQueries;
-    private readonly ISvantekOperationalCommands operationalCommands;
+    private readonly ISvantekNotificationQueries _notificationQueries;
+    private readonly ISvantekOperationalCommands _operationalCommands;
     private readonly ISvantekVendorGateway _gateway;
-    private readonly IObjectStorageClient storage;
+    private readonly IObjectStorageClient _storage;
 
     public CheckForSoundRecordingsHandler(
         ISvantekNotificationQueries notificationQueries,
@@ -21,21 +21,21 @@ public sealed class CheckForSoundRecordingsHandler
         ISvantekVendorGateway gateway,
         IObjectStorageClientFactory storageFactory)
     {
-        this.notificationQueries = notificationQueries;
-        this.operationalCommands = operationalCommands;
+        _notificationQueries = notificationQueries;
+        _operationalCommands = operationalCommands;
         _gateway = gateway;
         ArgumentNullException.ThrowIfNull(storageFactory);
-        storage = storageFactory.GetRequiredClient(
+        _storage = storageFactory.GetRequiredClient(
             SvantekStorageComposition.SoundRecordingsResource);
     }
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         Dictionary<string, List<ProjectFile>> filesCache = [];
-        List<NoiseNotificationLatest> alerts = await notificationQueries
+        List<NoiseNotificationLatest> alerts = await _notificationQueries
             .ReadLatestNotificationAsync(cancellationToken)
             .ConfigureAwait(false);
-        SvantekFailureCollector failures = new(operationalCommands);
+        SvantekFailureCollector failures = new(_operationalCommands);
 
         foreach (NoiseNotificationLatest alert in alerts)
         {
@@ -69,13 +69,13 @@ public sealed class CheckForSoundRecordingsHandler
                     cancellationToken).ConfigureAwait(false);
                 string fileName = $"{alert.NotificationId}.wav";
                 await using MemoryStream stream = new(content, writable: false);
-                await storage.WriteAsync(
+                await _storage.WriteAsync(
                     new StorageWriteRequest(
                         StorageObjectKey.Parse(fileName),
                         stream,
                         "audio/wav"),
                     cancellationToken).ConfigureAwait(false);
-                await operationalCommands.WriteSoundFileAsync(
+                await _operationalCommands.WriteSoundFileAsync(
                     alert.NotificationId,
                     fileName,
                     cancellationToken).ConfigureAwait(false);

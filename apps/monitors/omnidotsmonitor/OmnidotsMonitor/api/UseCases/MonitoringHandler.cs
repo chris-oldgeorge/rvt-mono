@@ -8,11 +8,11 @@ namespace Omnidots.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiVibrationLevels).
     public class MonitoringHandler
     {
-        private readonly OmnidotsMonitorReader monitorReader;
-        private readonly OmnidotsMonitoringOptions options;
-        private readonly IOmnidotsMonitoringNotifier notifier;
-        private readonly TimeProvider timeProvider;
-        private readonly TimeZoneInfo monitoringTimeZone;
+        private readonly OmnidotsMonitorReader _monitorReader;
+        private readonly OmnidotsMonitoringOptions _options;
+        private readonly IOmnidotsMonitoringNotifier _notifier;
+        private readonly TimeProvider _timeProvider;
+        private readonly TimeZoneInfo _monitoringTimeZone;
 
         public MonitoringHandler(
             OmnidotsMonitorReader monitorReader,
@@ -20,24 +20,24 @@ namespace Omnidots.Api.UseCases
             IOmnidotsMonitoringNotifier notifier,
             TimeProvider timeProvider)
         {
-            this.monitorReader = monitorReader;
-            this.options = options;
-            this.notifier = notifier;
-            this.timeProvider = timeProvider;
-            monitoringTimeZone = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZoneId);
+            _monitorReader = monitorReader;
+            _options = options;
+            _notifier = notifier;
+            _timeProvider = timeProvider;
+            _monitoringTimeZone = TimeZoneInfo.FindSystemTimeZoneById(options.TimeZoneId);
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-            TimeSpan localTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, monitoringTimeZone).TimeOfDay;
-            if (localTime <= options.WindowStart || localTime >= options.WindowEnd)
+            DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+            TimeSpan localTime = TimeZoneInfo.ConvertTimeFromUtc(utcNow, _monitoringTimeZone).TimeOfDay;
+            if (localTime <= _options.WindowStart || localTime >= _options.WindowEnd)
             {
                 return;
             }
 
-            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
+            List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
             if (monitors.Count == 0)
             {
                 return;
@@ -45,10 +45,10 @@ namespace Omnidots.Api.UseCases
 
             DateTime? newestLastDataTime = AsUtc(monitors.Max(x => x.LastDataTime));
             if (!newestLastDataTime.HasValue
-                || newestLastDataTime.Value < utcNow - options.StaleAfter)
+                || newestLastDataTime.Value < utcNow - _options.StaleAfter)
             {
-                await notifier.SendNoDataWarningAsync(
-                    options.Recipient,
+                await _notifier.SendNoDataWarningAsync(
+                    _options.Recipient,
                     utcNow,
                     cancellationToken).ConfigureAwait(false);
             }

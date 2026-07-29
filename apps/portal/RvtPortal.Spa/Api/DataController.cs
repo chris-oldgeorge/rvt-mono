@@ -24,12 +24,12 @@ public class DataController : ControllerBase
     public const string TruncatedHeader = "X-RVT-Truncated";
     private static readonly string[] _timestampQueryFields = ["fromDate", "toDate"];
 
-    private readonly IDataApplicationService dataApplication;
+    private readonly IDataApplicationService _dataApplication;
 
     // Function summary: Initializes the data controller with the application service that owns data-view workflows.
     public DataController(IDataApplicationService dataApplication)
     {
-        this.dataApplication = dataApplication;
+        _dataApplication = dataApplication;
     }
 
     [HttpGet("deployments/{deploymentId:guid}/grid")]
@@ -44,7 +44,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        DataWorkflowResult<MonitorDataGridResponse> result = await dataApplication.GetGridAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<MonitorDataGridResponse> result = await _dataApplication.GetGridAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -59,7 +59,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        DataDownloadWorkflowResult result = await dataApplication.DownloadAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataDownloadWorkflowResult result = await _dataApplication.DownloadAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToDownloadResult(result);
     }
 
@@ -74,7 +74,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        DataWorkflowResult<MonitorGraphResponse> result = await dataApplication.GetGraphAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<MonitorGraphResponse> result = await _dataApplication.GetGraphAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -89,7 +89,7 @@ public class DataController : ControllerBase
             return BadRequest(timestampProblem);
         }
 
-        DataWorkflowResult<TraceListResponse> result = await dataApplication.GetTracesAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<TraceListResponse> result = await _dataApplication.GetTracesAsync(deploymentId, request, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -99,7 +99,7 @@ public class DataController : ControllerBase
     // Function summary: Returns vibration trace samples for a visible deployment and trace.
     public async Task<ActionResult<TraceDetailResponse>> TraceDetail(Guid deploymentId, Guid traceId)
     {
-        DataWorkflowResult<TraceDetailResponse> result = await dataApplication.GetTraceDetailAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
+        DataWorkflowResult<TraceDetailResponse> result = await _dataApplication.GetTraceDetailAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
         return ToActionResult(result);
     }
 
@@ -109,7 +109,7 @@ public class DataController : ControllerBase
     // Function summary: Streams vibration trace samples as CSV for a visible deployment and trace.
     public async Task<IActionResult> TraceDownload(Guid deploymentId, Guid traceId)
     {
-        DataDownloadWorkflowResult result = await dataApplication.DownloadTraceAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
+        DataDownloadWorkflowResult result = await _dataApplication.DownloadTraceAsync(deploymentId, traceId, CurrentActor(), HttpContext.RequestAborted);
         return ToDownloadResult(result);
     }
 
@@ -160,6 +160,9 @@ public class DataController : ControllerBase
                 Title = "Trace not found",
                 Detail = $"Trace '{failure.EntityId}' was not found or is not visible to the current user."
             }),
+            DataWorkflowFailureKind.DeploymentNotFound or
+            DataWorkflowFailureKind.NoDataToDownload or
+            DataWorkflowFailureKind.NoTraceDataToDownload => NotFound(ProblemDetailsFor(failure)),
             _ => NotFound(ProblemDetailsFor(failure))
         };
     }
@@ -232,6 +235,12 @@ public class DataController : ControllerBase
             {
                 Title = "No data to download",
                 Detail = "There are no matching records for this deployment and date range."
+            },
+            DataWorkflowFailureKind.InvalidSort or
+            DataWorkflowFailureKind.InvalidTimestamp => new ProblemDetails
+            {
+                Title = "Data request failed",
+                Detail = "The data request could not be completed."
             },
             _ => new ProblemDetails
             {

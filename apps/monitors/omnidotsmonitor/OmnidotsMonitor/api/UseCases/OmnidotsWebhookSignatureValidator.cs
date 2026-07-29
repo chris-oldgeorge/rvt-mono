@@ -7,8 +7,8 @@ namespace Omnidots.Api.UseCases;
 
 public sealed class OmnidotsWebhookSignatureValidator
 {
-    private const string SignaturePrefix = "sha256=";
-    private const int Sha256HexLength = 64;
+    private const string _signaturePrefix = "sha256=";
+    private const int _sha256HexLength = 64;
 
     public bool IsValid(string body, string? signature, string secret) =>
         IsValid(Encoding.UTF8.GetBytes(body), signature, secret);
@@ -23,8 +23,8 @@ public sealed class OmnidotsWebhookSignatureValidator
         try
         {
             if (signature is null ||
-                signature.Length != SignaturePrefix.Length + Sha256HexLength ||
-                !signature.StartsWith(SignaturePrefix, StringComparison.Ordinal))
+                signature.Length != _signaturePrefix.Length + _sha256HexLength ||
+                !signature.StartsWith(_signaturePrefix, StringComparison.Ordinal))
             {
                 return false;
             }
@@ -33,12 +33,12 @@ public sealed class OmnidotsWebhookSignatureValidator
             try
             {
                 OperationStatus status = Convert.FromHexString(
-                    signature.AsSpan(SignaturePrefix.Length),
+                    signature.AsSpan(_signaturePrefix.Length),
                     suppliedDigest,
                     out int charsConsumed,
                     out int bytesWritten);
                 if (status != OperationStatus.Done ||
-                    charsConsumed != Sha256HexLength ||
+                    charsConsumed != _sha256HexLength ||
                     bytesWritten != SHA256.HashSizeInBytes)
                 {
                     return false;

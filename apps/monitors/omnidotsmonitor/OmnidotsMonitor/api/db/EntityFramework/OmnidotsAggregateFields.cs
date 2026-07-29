@@ -4,8 +4,8 @@ namespace Omnidots.Api.Db.EntityFramework;
 
 public static class OmnidotsAggregateFields
 {
-    private static readonly IReadOnlyDictionary<string, MonitorAggregateField<OmnidotsPeakLevelEntity>> Fields =
-        new Dictionary<string, MonitorAggregateField<OmnidotsPeakLevelEntity>>(StringComparer.Ordinal)
+    private static readonly Dictionary<string, MonitorAggregateField<OmnidotsPeakLevelEntity>> _fields =
+        new(StringComparer.Ordinal)
         {
             ["XFdom"] = MonitorAggregateField<OmnidotsPeakLevelEntity>.Average("XFdom", row => row.XFdom),
             ["XVtop"] = MonitorAggregateField<OmnidotsPeakLevelEntity>.Average("XVtop", row => row.XVtop),
@@ -20,7 +20,7 @@ public static class OmnidotsAggregateFields
 
     public static MonitorAggregateField<OmnidotsPeakLevelEntity> Resolve(string fieldName)
     {
-        return Fields.TryGetValue(fieldName, out MonitorAggregateField<OmnidotsPeakLevelEntity>? field)
+        return _fields.TryGetValue(fieldName, out MonitorAggregateField<OmnidotsPeakLevelEntity>? field)
             ? field
             : throw new NotSupportedException($"Unsupported Omnidots aggregate field '{fieldName}'.");
     }

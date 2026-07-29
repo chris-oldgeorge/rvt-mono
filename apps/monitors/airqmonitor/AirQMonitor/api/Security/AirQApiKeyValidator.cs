@@ -6,9 +6,9 @@ namespace AirQ.Api.Security;
 
 public sealed class AirQApiKeyValidator
 {
-    private readonly byte[] expectedKey;
+    private readonly byte[] _expectedKey;
 
-    private AirQApiKeyValidator(string configuredKey) => expectedKey = Encoding.UTF8.GetBytes(configuredKey);
+    private AirQApiKeyValidator(string configuredKey) => _expectedKey = Encoding.UTF8.GetBytes(configuredKey);
 
     public static AirQApiKeyValidator Create(string? configuredKey)
     {
@@ -28,6 +28,6 @@ public sealed class AirQApiKeyValidator
         }
 
         byte[] suppliedKey = Encoding.UTF8.GetBytes(suppliedKeys[0]!);
-        return CryptographicOperations.FixedTimeEquals(expectedKey, suppliedKey);
+        return CryptographicOperations.FixedTimeEquals(_expectedKey, suppliedKey);
     }
 }

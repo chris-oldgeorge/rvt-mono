@@ -55,7 +55,7 @@ public static partial class OmnidotsDbMapper
         entity.LocationAddress = dto.Address;
         entity.TimeZone = dto.TimeZone;
         entity.CustomerDisplayName = dto.CustomerDisplayName != null && dto.CustomerDisplayName.Length > 64
-            ? dto.CustomerDisplayName.Substring(0, 64)
+            ? dto.CustomerDisplayName[..64]
             : dto.CustomerDisplayName;
         entity.Manufacturer = dto.Manufacturer;
         entity.FirmwareVersion = dto.FirmwareVersion;

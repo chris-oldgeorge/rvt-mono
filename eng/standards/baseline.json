@@ -17,12 +17,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE0048",
-      "path": "apps/portal/RvtPortal.Spa/Api/MonitorsController.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0048",
       "path": "apps/portal/RvtPortal.Spa/Api/SitesController.cs",
       "count": 3
     },
@@ -54,90 +48,6 @@
       "tool": "dotnet-format-style",
       "ruleId": "IDE0061",
       "path": "apps/portal/RvtPortal.Spa.Tests/CutoverReadinessTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0120",
-      "path": "apps/portal/RvtPortal.Spa/Adapters/Sites/EfSiteReadAdapter.cs",
-      "count": 4
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/ReportingMonitorTests/Core/Reports/AlertRuleDataTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/ReportingMonitorTests/Core/Reports/OneTimeReportValidatorTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/ReportingMonitorTests/Core/Reports/ReportChromeTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/ReportingMonitorTests/Core/Reports/ReportGenerationServiceTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/ReportingMonitorTests/Core/Reports/ReportInsightBuilderTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/ReportingMonitorTests/Core/Reports/ReportNarrativeProviderTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/ReportingMonitorTests/Core/Reports/ReportPeriodCalculatorTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/Rvt.Reporting.Core/Reports/Ports/IReportingDataQueries.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/Rvt.Reporting.Core/Reports/Ports/IReportingGenerationCommands.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/Rvt.Reporting.Core/Reports/Ports/IReportingGenerationLocks.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/Rvt.Reporting.Core/Reports/Ports/IReportingHealthQueries.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "apps/monitors/reportingmonitor/Rvt.Reporting.Core/Reports/Ports/IReportingRuleQueries.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE0130",
-      "path": "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/RvtContactDto.cs",
       "count": 1
     },
     {
@@ -354,7 +264,7 @@
       "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
       "path": "apps/portal/RvtPortal.Spa.Tests/SharedInfrastructureTests.cs",
-      "count": 5
+      "count": 3
     },
     {
       "tool": "dotnet-format-style",
@@ -521,12 +431,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
-      "path": "apps/portal/RvtPortal.Spa/Api/ReportContentController.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
       "path": "apps/portal/RvtPortal.Spa/Api/ReportRulesController.cs",
       "count": 3
     },
@@ -535,12 +439,6 @@
       "ruleId": "IDE1006",
       "path": "apps/portal/RvtPortal.Spa/Api/ReportsController.cs",
       "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "apps/portal/RvtPortal.Spa/Api/SitesController.cs",
-      "count": 3
     },
     {
       "tool": "dotnet-format-style",
@@ -828,7 +726,7 @@
       "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
       "path": "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Configuration/RvtConfig.cs",
-      "count": 3
+      "count": 2
     },
     {
       "tool": "dotnet-format-style",
@@ -840,7 +738,7 @@
       "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
       "path": "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Delivery/MonitorDeliveryDispatcher.cs",
-      "count": 8
+      "count": 7
     },
     {
       "tool": "dotnet-format-style",
@@ -1001,12 +899,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE2002",
-      "path": "apps/portal/RVT.DataAccess/AlertLevelRepository.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE2002",
       "path": "apps/portal/RVT.DataAccess/CompanyRepository.cs",
       "count": 1
     },
@@ -1109,12 +1001,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE2003",
-      "path": "apps/portal/RvtPortal.Spa/Application/AlertLevels/AlertLevelWorkflow.cs",
-      "count": 4
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE2003",
       "path": "apps/portal/RvtPortal.Spa/Application/Auth/AuthApplicationService.cs",
       "count": 6
     },
@@ -1129,12 +1015,6 @@
       "ruleId": "IDE2003",
       "path": "apps/portal/RvtPortal.Spa/Application/Dashboard/DashboardApplicationService.cs",
       "count": 4
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE2003",
-      "path": "apps/portal/RvtPortal.Spa/Application/Data/DataApplicationService.cs",
-      "count": 13
     },
     {
       "tool": "dotnet-format-style",
@@ -1173,87 +1053,9 @@
       "count": 1
     },
     {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE2003",
-      "path": "apps/portal/RvtPortal.Spa/Application/Users/UserAccountWorkflowService.cs",
-      "count": 5
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE2003",
-      "path": "apps/portal/RvtPortal.Spa/Data/SeedDatabase.cs",
-      "count": 5
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE2003",
-      "path": "apps/portal/RvtPortal.Spa/Program.cs",
-      "count": 5
-    },
-    {
       "tool": "eslint",
       "ruleId": "react-refresh/only-export-components",
       "path": "apps/portal/RvtPortal.Client/src/operations/DataViewPanels.tsx",
-      "count": 2
-    },
-    {
-      "tool": "prettier",
-      "ruleId": "prettier/format",
-      "path": "apps/portal/RvtPortal.Client/playwright.config.ts",
-      "count": 1
-    },
-    {
-      "tool": "prettier",
-      "ruleId": "prettier/format",
-      "path": "apps/portal/RvtPortal.Client/src/api/openApiClient.ts",
-      "count": 1
-    },
-    {
-      "tool": "prettier",
-      "ruleId": "prettier/format",
-      "path": "apps/portal/RvtPortal.Client/src/components/DataGrid.test.tsx",
-      "count": 1
-    },
-    {
-      "tool": "prettier",
-      "ruleId": "prettier/format",
-      "path": "apps/portal/RvtPortal.Client/src/components/DataGrid.tsx",
-      "count": 1
-    },
-    {
-      "tool": "prettier",
-      "ruleId": "prettier/format",
-      "path": "apps/portal/RvtPortal.Client/src/main.tsx",
-      "count": 1
-    },
-    {
-      "tool": "prettier",
-      "ruleId": "prettier/format",
-      "path": "apps/portal/RvtPortal.Client/src/navigation.ts",
-      "count": 1
-    },
-    {
-      "tool": "prettier",
-      "ruleId": "prettier/format",
-      "path": "apps/portal/RvtPortal.Client/src/safeUrl.test.ts",
-      "count": 1
-    },
-    {
-      "tool": "prettier",
-      "ruleId": "prettier/format",
-      "path": "apps/portal/RvtPortal.Client/tests/e2e/auth-shell.spec.ts",
-      "count": 1
-    },
-    {
-      "tool": "prettier",
-      "ruleId": "prettier/format",
-      "path": "apps/portal/RvtPortal.Client/tsconfig.json",
-      "count": 1
-    },
-    {
-      "tool": "prettier",
-      "ruleId": "prettier/format",
-      "path": "apps/portal/RvtPortal.Client/vite.config.ts",
       "count": 1
     }
   ]

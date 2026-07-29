@@ -15,12 +15,12 @@ namespace Omnidots.Api.UseCases
     public class StoreTracesHandler
     {
         private readonly IOmnidotsVendorGateway _gateway;
-        private readonly OmnidotsMonitorReader monitorReader;
-        private readonly IOmnidotsMeasurementCommands measurementCommands;
-        private readonly IOmnidotsOperationalCommands operationalCommands;
-        private readonly IOmnidotsTraceQueries traceQueries;
-        private readonly OmnidotsTraceCollectionOptions options;
-        private readonly TimeProvider timeProvider;
+        private readonly OmnidotsMonitorReader _monitorReader;
+        private readonly IOmnidotsMeasurementCommands _measurementCommands;
+        private readonly IOmnidotsOperationalCommands _operationalCommands;
+        private readonly IOmnidotsTraceQueries _traceQueries;
+        private readonly OmnidotsTraceCollectionOptions _options;
+        private readonly TimeProvider _timeProvider;
 
         public StoreTracesHandler(
             IOmnidotsVendorGateway gateway,
@@ -32,30 +32,30 @@ namespace Omnidots.Api.UseCases
             TimeProvider timeProvider)
         {
             _gateway = gateway;
-            this.monitorReader = monitorReader;
-            this.measurementCommands = measurementCommands;
-            this.operationalCommands = operationalCommands;
-            this.traceQueries = traceQueries;
-            this.options = options;
-            this.timeProvider = timeProvider;
+            _monitorReader = monitorReader;
+            _measurementCommands = measurementCommands;
+            _operationalCommands = operationalCommands;
+            _traceQueries = traceQueries;
+            _options = options;
+            _timeProvider = timeProvider;
         }
 
         public async Task RunAsync(DateTime last, CancellationToken cancellationToken = default)
         {
-            long startedAt = timeProvider.GetTimestamp();
-            List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors(last);
-            options.Validate();
+            long startedAt = _timeProvider.GetTimestamp();
+            List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors(last);
+            _options.Validate();
             IReadOnlyList<VibrationMonitorDto> eligibleMonitors = EligibleMonitors(monitors);
-            IReadOnlyDictionary<string, DateTime> latestTraceEndTimes = options.Enabled
-                ? traceQueries.ReadLatestTraceEndTimes(
+            IReadOnlyDictionary<string, DateTime> latestTraceEndTimes = _options.Enabled
+                ? _traceQueries.ReadLatestTraceEndTimes(
                     [.. eligibleMonitors.Select(monitor => monitor.SerialId)])
                     ?? new Dictionary<string, DateTime>()
                 : new Dictionary<string, DateTime>();
-            long rotationSlot = timeProvider.GetUtcNow().ToUnixTimeSeconds() / 300;
+            long rotationSlot = _timeProvider.GetUtcNow().ToUnixTimeSeconds() / 300;
             IReadOnlyList<VibrationMonitorDto> selectedMonitors = OmnidotsTraceMonitorSelector.Select(
                 monitors,
                 latestTraceEndTimes,
-                options,
+                _options,
                 rotationSlot);
             int succeeded = 0;
             int tracesStored = 0;
@@ -72,7 +72,7 @@ namespace Omnidots.Api.UseCases
             List<OmnidotsMonitorFailure> failures = await OmnidotsFleetImport.RunAsync(
                 "StoreTraces",
                 selectedMonitors,
-                operationalCommands,
+                _operationalCommands,
                 async monitor =>
                 {
                     TraceReadResult result = await ReadTracesAsync(token, monitor.SerialId, last, null, cancellationToken);
@@ -100,13 +100,20 @@ namespace Omnidots.Api.UseCases
 
             if (tracesList.Traces == null)
             {
-                RvtLogger.Logger.LogInformation("ReadTraces for serialId={Value1} tracelist is empty.",
-                    serialId);
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("ReadTraces for serialId={Value1} tracelist is empty.",
+                        serialId);
+                }
+
                 return new TraceReadResult(0, 0);
             }
 
-            RvtLogger.Logger.LogInformation("ReadTraces for serialId={Value1}  traceslist size={Value2}",
-                serialId, tracesList.Traces.Count);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation("ReadTraces for serialId={Value1}  traceslist size={Value2}",
+                    serialId, tracesList.Traces.Count);
+            }
 
             int traceCount = 0;
             int sampleCount = 0;
@@ -117,8 +124,12 @@ namespace Omnidots.Api.UseCases
 
                 TracesReponse tracesResponse = await _gateway.GetTracesAsync(token, serialId, tStart, tEnd, cancellationToken);
                 List<TraceData> traces = tracesResponse.Traces ?? [];
-                RvtLogger.Logger.LogInformation("Number of traces={Value1}", traces.Count);
-                measurementCommands.WriteTraces(serialId, traces);
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("Number of traces={Value1}", traces.Count);
+                }
+
+                _measurementCommands.WriteTraces(serialId, traces);
                 traceCount += traces.Count;
                 sampleCount += traces.Sum(trace => Math.Max(
                     trace.X?.Count ?? 0,
@@ -131,17 +142,17 @@ namespace Omnidots.Api.UseCases
         private IReadOnlyList<VibrationMonitorDto> EligibleMonitors(
             IReadOnlyCollection<VibrationMonitorDto> monitors)
         {
-            if (!options.Enabled)
+            if (!_options.Enabled)
             {
                 return [];
             }
 
-            if (options.AllowedSerialIds.Length == 0)
+            if (_options.AllowedSerialIds.Length == 0)
             {
                 return [.. monitors];
             }
 
-            HashSet<string> allowedSerialIds = new(options.AllowedSerialIds, StringComparer.OrdinalIgnoreCase);
+            HashSet<string> allowedSerialIds = new(_options.AllowedSerialIds, StringComparer.OrdinalIgnoreCase);
             return [.. monitors.Where(monitor => allowedSerialIds.Contains(monitor.SerialId))];
         }
 
@@ -154,15 +165,18 @@ namespace Omnidots.Api.UseCases
             int samplesStored,
             long startedAt)
         {
-            RvtLogger.Logger.LogInformation(
-                "StoreTraces completed eligible={Eligible} attempted={Attempted} succeeded={Succeeded} failed={Failed} tracesStored={TracesStored} samplesStored={SamplesStored} elapsedMs={ElapsedMs}",
-                eligible,
-                attempted,
-                succeeded,
-                failed,
-                tracesStored,
-                samplesStored,
-                timeProvider.GetElapsedTime(startedAt).TotalMilliseconds);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+            {
+                RvtLogger.Logger.LogInformation(
+                    "StoreTraces completed eligible={Eligible} attempted={Attempted} succeeded={Succeeded} failed={Failed} tracesStored={TracesStored} samplesStored={SamplesStored} elapsedMs={ElapsedMs}",
+                    eligible,
+                    attempted,
+                    succeeded,
+                    failed,
+                    tracesStored,
+                    samplesStored,
+                    _timeProvider.GetElapsedTime(startedAt).TotalMilliseconds);
+            }
         }
 
         private sealed record TraceReadResult(int TraceCount, int SampleCount);

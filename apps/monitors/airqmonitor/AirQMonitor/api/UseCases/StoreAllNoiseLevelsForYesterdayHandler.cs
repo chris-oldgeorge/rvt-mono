@@ -7,17 +7,17 @@ namespace AirQ.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitorsNoiseLevels).
     public class StoreAllNoiseLevelsForYesterdayHandler
     {
-        private readonly StoreNoiseLevelsForDateHandler storeNoiseLevelsForDate;
+        private readonly StoreNoiseLevelsForDateHandler _storeNoiseLevelsForDate;
 
         public StoreAllNoiseLevelsForYesterdayHandler(StoreNoiseLevelsForDateHandler storeNoiseLevelsForDate)
         {
-            this.storeNoiseLevelsForDate = storeNoiseLevelsForDate;
+            _storeNoiseLevelsForDate = storeNoiseLevelsForDate;
         }
 
         public Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
         {
             string dateStr = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            return storeNoiseLevelsForDate.RunAsync(userId, userAuth, dateStr, cancellationToken);
+            return _storeNoiseLevelsForDate.RunAsync(userId, userAuth, dateStr, cancellationToken);
         }
     }
 }

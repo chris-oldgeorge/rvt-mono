@@ -13,15 +13,15 @@ namespace Omnidots.Api.Http
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApi, OmnidotsApiMonitors, OmnidotsApiVibrationLevels, OmnidotsApiTraces, OmnidotsApiConfiguration).
     public class OmnidotsHttpGateway : IOmnidotsVendorGateway
     {
-        private readonly IHttpClient httpClient;
-        private readonly string userId;
-        private readonly string userAuth;
+        private readonly IHttpClient _httpClient;
+        private readonly string _userId;
+        private readonly string _userAuth;
 
         public OmnidotsHttpGateway(IHttpClient httpClient, string userId, string userAuth)
         {
-            this.httpClient = httpClient;
-            this.userId = userId;
-            this.userAuth = userAuth;
+            _httpClient = httpClient;
+            _userId = userId;
+            _userAuth = userAuth;
         }
 
         public async Task<TokenResponse> AuthenticateAsync(CancellationToken cancellationToken = default)
@@ -29,8 +29,8 @@ namespace Omnidots.Api.Http
             using MultipartFormDataContent content = new();
             KeyValuePair<string, string>[] values =
             [
-                new KeyValuePair<string, string>("username", userId),
-                new KeyValuePair<string, string>("password", userAuth)
+                new KeyValuePair<string, string>("username", _userId),
+                new KeyValuePair<string, string>("password", _userAuth)
             ];
 
             foreach (KeyValuePair<string, string> keyValuePair in values)
@@ -42,7 +42,11 @@ namespace Omnidots.Api.Http
             // The token flows into the request itself rather than being awaited
             // around it, so a shutdown cancels the call instead of abandoning it.
             string response = await DoAuthenticate(content, cancellationToken);
-            RvtLogger.Logger.LogDebug("Authenticate response={Value1}", SensitiveLogRedactor.RedactJson(response));
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+            {
+                RvtLogger.Logger.LogDebug("Authenticate response={Value1}", SensitiveLogRedactor.RedactJson(response));
+            }
+
             return ParseJson<TokenResponse>(response);
         }
 
@@ -109,20 +113,23 @@ namespace Omnidots.Api.Http
 
         private async Task<string> DoAuthenticate(MultipartFormDataContent content, CancellationToken cancellationToken)
         {
-            return await httpClient.PostAsync("/api/v1/user/authenticate", content, cancellationToken);
+            return await _httpClient.PostAsync("/api/v1/user/authenticate", content, cancellationToken);
         }
 
         private async Task<string> DoListMeasuringPoints(string token, CancellationToken cancellationToken)
         {
-            return await httpClient.GetAsync(string.Format("/api/v1/list_measuring_points?token={0}", token), cancellationToken);
+            return await _httpClient.GetAsync(string.Format("/api/v1/list_measuring_points?token={0}", token), cancellationToken);
         }
 
         private async Task<string> DoGet(string path, string token,
                                          DateTime startTime, DateTime? endTime, string measuringPointId,
                                          CancellationToken cancellationToken)
         {
-            RvtLogger.Logger.LogDebug("DoGet path={Value1} startTime={Value2} endTime={Value3} measuringPointId={Value4}",
-                                  path, startTime, endTime, measuringPointId);
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+            {
+                RvtLogger.Logger.LogDebug("DoGet path={Value1} startTime={Value2} endTime={Value3} measuringPointId={Value4}",
+                                      path, startTime, endTime, measuringPointId);
+            }
 
             StringBuilder sb = new StringBuilder(path)
               .Append("?token=")
@@ -138,7 +145,7 @@ namespace Omnidots.Api.Http
                 .Append(DateTimeUtil.GetMillis((DateTime)endTime!));
             }
             string url = sb.ToString();
-            string response = await httpClient.GetAsync(url, cancellationToken);
+            string response = await _httpClient.GetAsync(url, cancellationToken);
             return response;
         }
 
@@ -147,7 +154,7 @@ namespace Omnidots.Api.Http
             string path = string.Format("/api/v1/configure_measuring_point?token={0}&measuring_point_id={1}",
                                      token, measuringPointId);
             StringContent httpContent = new(json, Encoding.UTF8, "application/json");
-            return await httpClient.PostAsync(path, httpContent, cancellationToken);
+            return await _httpClient.PostAsync(path, httpContent, cancellationToken);
         }
 
         private static T ParseJson<T>(string json, bool isResponse = true)

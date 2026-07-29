@@ -20,12 +20,12 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
         ["image/webp"] = ".webp"
     };
     private static readonly string[] _knownExtensions = [".png", ".jpg", ".jpeg", ".webp"];
-    private readonly IWebHostEnvironment environment;
+    private readonly IWebHostEnvironment _environment;
 
     // Function summary: Initializes this type with the host paths needed for application-content storage.
     public CustomerLogoStorage(IWebHostEnvironment environment)
     {
-        this.environment = environment;
+        _environment = environment;
     }
 
     public async Task SaveAsync(Guid siteId, IUploadedContent logo, CancellationToken cancellationToken)
@@ -112,9 +112,9 @@ public sealed class CustomerLogoStorage : ICustomerLogoStorage
 
     private string ContentRoot()
     {
-        return string.IsNullOrWhiteSpace(environment.ContentRootPath)
+        return string.IsNullOrWhiteSpace(_environment.ContentRootPath)
             ? AppContext.BaseDirectory
-            : environment.ContentRootPath;
+            : _environment.ContentRootPath;
     }
 
     private string? FindExistingPath(Guid siteId)

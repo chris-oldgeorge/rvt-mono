@@ -6,11 +6,11 @@ namespace MyAtm.Api;
 // Summary: Records only terminal shared-delivery failures in the MyAtm operational error log.
 public sealed class MyAtmDeliveryFailureSink : IMonitorDeliveryFailureSink
 {
-    private readonly IMyAtmOperationalCommands operationalCommands;
+    private readonly IMyAtmOperationalCommands _operationalCommands;
 
     public MyAtmDeliveryFailureSink(IMyAtmOperationalCommands operationalCommands)
     {
-        this.operationalCommands = operationalCommands ?? throw new ArgumentNullException(nameof(operationalCommands));
+        _operationalCommands = operationalCommands ?? throw new ArgumentNullException(nameof(operationalCommands));
     }
 
     public Task RecordFailureAsync(
@@ -24,7 +24,7 @@ public sealed class MyAtmDeliveryFailureSink : IMonitorDeliveryFailureSink
             return Task.CompletedTask;
         }
 
-        operationalCommands.HandleException(
+        _operationalCommands.HandleException(
             "Outbox delivery dead-lettered",
             new InvalidOperationException(error));
         return Task.CompletedTask;

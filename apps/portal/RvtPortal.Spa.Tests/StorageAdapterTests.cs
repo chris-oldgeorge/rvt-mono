@@ -109,51 +109,51 @@ public sealed class StorageAdapterTests
 
     private sealed class MemoryUploadedContent : IUploadedContent
     {
-        private readonly byte[] bytes;
+        private readonly byte[] _bytes;
 
         public MemoryUploadedContent(string fileName, string contentType, byte[] bytes)
         {
             FileName = fileName;
             ContentType = contentType;
-            this.bytes = bytes;
+            _bytes = bytes;
         }
 
         public string FileName { get; }
         public string ContentType { get; }
-        public long Length => bytes.Length;
+        public long Length => _bytes.Length;
 
         // Function summary: Opens the in-memory upload payload for storage validation.
         public Stream OpenReadStream()
         {
-            return new MemoryStream(bytes, writable: false);
+            return new MemoryStream(_bytes, writable: false);
         }
 
         // Function summary: Copies the in-memory upload payload to adapter-owned storage.
         public Task CopyToAsync(Stream target, CancellationToken cancellationToken)
         {
-            return target.WriteAsync(bytes, cancellationToken).AsTask();
+            return target.WriteAsync(_bytes, cancellationToken).AsTask();
         }
     }
 
     private sealed class ThrowingUploadedContent : IUploadedContent
     {
-        private readonly byte[] bytes;
+        private readonly byte[] _bytes;
 
         public ThrowingUploadedContent(string fileName, string contentType, byte[] bytes)
         {
             FileName = fileName;
             ContentType = contentType;
-            this.bytes = bytes;
+            _bytes = bytes;
         }
 
         public string FileName { get; }
         public string ContentType { get; }
-        public long Length => bytes.Length;
+        public long Length => _bytes.Length;
 
         // Function summary: Opens a valid image header so the test reaches the copy failure boundary.
         public Stream OpenReadStream()
         {
-            return new MemoryStream(bytes, writable: false);
+            return new MemoryStream(_bytes, writable: false);
         }
 
         // Function summary: Simulates a storage write failure after validation succeeds.

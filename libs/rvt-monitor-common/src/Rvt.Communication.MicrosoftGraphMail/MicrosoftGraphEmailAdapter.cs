@@ -11,6 +11,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
     internal const long SmallAttachmentLimit = 3L * 1024 * 1024;
     internal const long MaximumAttachmentLength = 150L * 1024 * 1024;
     private const int UploadChunkLength = 3 * 1024 * 1024;
+    private const string _providerName = "MicrosoftGraph";
     private static readonly Uri GraphBaseUri = new("https://graph.microsoft.com/v1.0/");
 
     private readonly HttpClient? httpClient;
@@ -48,7 +49,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
             string.IsNullOrWhiteSpace(options.SenderAddress))
         {
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 DeliveryFailureKind.Configuration,
                 "Configuration");
         }
@@ -56,7 +57,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         if (request.Attachments.Any(attachment => !IsAttachmentSizeSupported(attachment.Length)))
         {
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 DeliveryFailureKind.Permanent,
                 "AttachmentTooLarge");
         }
@@ -131,7 +132,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         catch (JsonException)
         {
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 DeliveryFailureKind.Permanent,
                 "InvalidDraftResponse");
         }
@@ -139,7 +140,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         if (string.IsNullOrWhiteSpace(draftResponse?.Id))
         {
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 DeliveryFailureKind.Permanent,
                 "InvalidDraftResponse");
         }
@@ -206,7 +207,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         catch (JsonException)
         {
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 DeliveryFailureKind.Permanent,
                 "InvalidUploadSession");
         }
@@ -215,7 +216,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
             uploadUri.Scheme != Uri.UriSchemeHttps)
         {
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 DeliveryFailureKind.Permanent,
                 "InvalidUploadSession");
         }
@@ -243,7 +244,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
                 if (current == 0)
                 {
                     throw new EmailDeliveryException(
-                        "MicrosoftGraph",
+                        _providerName,
                         DeliveryFailureKind.Permanent,
                         "AttachmentRead");
                 }
@@ -280,14 +281,14 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         catch (OperationCanceledException)
         {
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 DeliveryFailureKind.Transient,
                 "Timeout");
         }
         catch (HttpRequestException)
         {
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 DeliveryFailureKind.Transient,
                 "Network");
         }
@@ -346,7 +347,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
                 ? DeliveryFailureKind.Transient
                 : DeliveryFailureKind.Permanent;
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 kind,
                 "Authentication");
         }
@@ -366,14 +367,14 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         catch (OperationCanceledException)
         {
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 DeliveryFailureKind.Transient,
                 "Timeout");
         }
         catch (HttpRequestException)
         {
             throw new EmailDeliveryException(
-                "MicrosoftGraph",
+                _providerName,
                 DeliveryFailureKind.Transient,
                 "Network");
         }
@@ -401,7 +402,7 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
 
     private static EmailDeliveryException CreateStatusException(HttpResponseMessage response) =>
         new(
-            "MicrosoftGraph",
+            _providerName,
             Classify(response.StatusCode),
             ((int)response.StatusCode).ToString(),
             response.Headers.RetryAfter?.Delta);

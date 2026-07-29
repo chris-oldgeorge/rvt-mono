@@ -2,6 +2,7 @@
 // Major updates:
 // - 2026-07-14 pending Added so the search context's time-series tables can be built by EF migrations.
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using RVT.DataAccess.Configuration;
@@ -16,6 +17,7 @@ namespace RVT.DataAccess.Context;
 /// respect: it points the context at its own migrations-history table, because both contexts migrate disjoint
 /// halves of a single database.
 /// </summary>
+[SuppressMessage("Naming", "S101:Types should be named in PascalCase", Justification = "Legacy EF design-time factory name matches the established search context and migration tooling contract.")]
 public sealed class RVTSearchContextDesignTimeFactory : IDesignTimeDbContextFactory<RVTSearchContext>
 {
     // Function summary: Creates the search context for EF tooling without relying on runtime appsettings files.

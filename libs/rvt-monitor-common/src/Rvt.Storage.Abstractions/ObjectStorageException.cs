@@ -1,24 +1,16 @@
 namespace Rvt.Storage;
 
-public sealed class ObjectStorageException : Exception
+public sealed class ObjectStorageException(
+    StorageFailureKind kind,
+    string resourceName,
+    StorageObjectKey? key,
+    Exception? innerException = null) : Exception(BuildMessage(kind, resourceName, key), innerException)
 {
-    public ObjectStorageException(
-        StorageFailureKind kind,
-        string resourceName,
-        StorageObjectKey? key,
-        Exception? innerException = null)
-        : base(BuildMessage(kind, resourceName, key), innerException)
-    {
-        Kind = kind;
-        ResourceName = resourceName;
-        Key = key;
-    }
+    public StorageFailureKind Kind { get; } = kind;
 
-    public StorageFailureKind Kind { get; }
+    public string ResourceName { get; } = resourceName;
 
-    public string ResourceName { get; }
-
-    public StorageObjectKey? Key { get; }
+    public StorageObjectKey? Key { get; } = key;
 
     private static string BuildMessage(
         StorageFailureKind kind,

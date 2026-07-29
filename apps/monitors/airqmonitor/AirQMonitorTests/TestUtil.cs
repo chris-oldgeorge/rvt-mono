@@ -114,5 +114,4 @@ namespace AirQMonitorTests
             return true;
         }
     }
-
 }

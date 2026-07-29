@@ -11,6 +11,9 @@ namespace Rvt.Monitor.CommonTests.Scheduling;
 [DoNotParallelize]
 public sealed class MonitorJobCatalogTests
 {
+    private static readonly string[] _expectedCatalogJobs = ["ClearOlderErrorMessages", "StoreMonitors"];
+    private static readonly string[] _expectedStoreMonitorInvocation = ["StoreMonitors"];
+
     [TestMethod]
     public void JobNames_AreExactlyTheCatalogKeys()
     {
@@ -23,7 +26,7 @@ public sealed class MonitorJobCatalogTests
             });
 
         CollectionAssert.AreEqual(
-            new[] { "ClearOlderErrorMessages", "StoreMonitors" },
+            _expectedCatalogJobs,
             catalog.JobNames.Order(StringComparer.Ordinal).ToArray());
     }
 
@@ -36,7 +39,7 @@ public sealed class MonitorJobCatalogTests
         int exitCode = await catalog.RunAsync("StoreMonitors", recorder, CancellationToken.None);
 
         Assert.AreEqual(0, exitCode);
-        CollectionAssert.AreEqual(new[] { "StoreMonitors" }, recorder.Invoked.ToArray());
+        CollectionAssert.AreEqual(_expectedStoreMonitorInvocation, recorder.Invoked.ToArray());
     }
 
     [TestMethod]
@@ -48,7 +51,7 @@ public sealed class MonitorJobCatalogTests
         int exitCode = await catalog.RunAsync("  StoreMonitors\t", recorder, CancellationToken.None);
 
         Assert.AreEqual(0, exitCode);
-        CollectionAssert.AreEqual(new[] { "StoreMonitors" }, recorder.Invoked.ToArray());
+        CollectionAssert.AreEqual(_expectedStoreMonitorInvocation, recorder.Invoked.ToArray());
     }
 
     [TestMethod]

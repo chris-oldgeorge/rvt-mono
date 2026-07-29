@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Rvt.Reporting.Core.Models;
 using Rvt.Reporting.Core.Scheduling;
@@ -8,45 +9,34 @@ namespace Rvt.Reporting.Core.Reports;
 /// Coordinates report data loading, rendering, storage, notification, and persistence.
 /// Major updates: 2026-06-24 introduced ACS/Quartz orchestration and one-time report path; added optional customer-logo rendering handoff; 2026-06-25 added executive insight narrative hydration; 2026-06-29 moved generated-report metadata writes behind an atomic repository transaction.
 /// </summary>
-public sealed class ReportGenerationService : IReportGenerationService
+[method: SuppressMessage(
+    "Maintainability",
+    "S107:Methods should not have too many parameters",
+    Justification = "Constructor injection keeps report workflow ports explicit and independently replaceable.")]
+public sealed class ReportGenerationService(
+    IReportingRuleQueries ruleQueries,
+    IReportingDataQueries dataQueries,
+    IReportingGenerationLocks generationLocks,
+    IReportingGenerationCommands generationCommands,
+    IReportPdfRenderer renderer,
+    IReportStorage storage,
+    IReportMessageSender messageSender,
+    ICustomerLogoProvider customerLogoProvider,
+    IReportNarrativeProvider narrativeProvider,
+    TimeProvider timeProvider,
+    ILogger<ReportGenerationService> logger) : IReportGenerationService
 {
-    private readonly IReportingRuleQueries _ruleQueries;
-    private readonly IReportingDataQueries _dataQueries;
-    private readonly IReportingGenerationLocks _generationLocks;
-    private readonly IReportingGenerationCommands _generationCommands;
-    private readonly IReportPdfRenderer _renderer;
-    private readonly IReportStorage _storage;
-    private readonly IReportMessageSender _messageSender;
-    private readonly ICustomerLogoProvider _customerLogoProvider;
-    private readonly IReportNarrativeProvider _narrativeProvider;
-    private readonly TimeProvider _timeProvider;
-    private readonly ILogger<ReportGenerationService> _logger;
-
-    public ReportGenerationService(
-        IReportingRuleQueries ruleQueries,
-        IReportingDataQueries dataQueries,
-        IReportingGenerationLocks generationLocks,
-        IReportingGenerationCommands generationCommands,
-        IReportPdfRenderer renderer,
-        IReportStorage storage,
-        IReportMessageSender messageSender,
-        ICustomerLogoProvider customerLogoProvider,
-        IReportNarrativeProvider narrativeProvider,
-        TimeProvider timeProvider,
-        ILogger<ReportGenerationService> logger)
-    {
-        _ruleQueries = ruleQueries;
-        _dataQueries = dataQueries;
-        _generationLocks = generationLocks;
-        _generationCommands = generationCommands;
-        _renderer = renderer;
-        _storage = storage;
-        _messageSender = messageSender;
-        _customerLogoProvider = customerLogoProvider;
-        _narrativeProvider = narrativeProvider;
-        _timeProvider = timeProvider;
-        _logger = logger;
-    }
+    private readonly IReportingRuleQueries _ruleQueries = ruleQueries;
+    private readonly IReportingDataQueries _dataQueries = dataQueries;
+    private readonly IReportingGenerationLocks _generationLocks = generationLocks;
+    private readonly IReportingGenerationCommands _generationCommands = generationCommands;
+    private readonly IReportPdfRenderer _renderer = renderer;
+    private readonly IReportStorage _storage = storage;
+    private readonly IReportMessageSender _messageSender = messageSender;
+    private readonly ICustomerLogoProvider _customerLogoProvider = customerLogoProvider;
+    private readonly IReportNarrativeProvider _narrativeProvider = narrativeProvider;
+    private readonly TimeProvider _timeProvider = timeProvider;
+    private readonly ILogger<ReportGenerationService> _logger = logger;
 
     public async Task<IReadOnlyList<GeneratedReport>> GenerateScheduledReportsAsync(DateTimeOffset triggerUtc, CancellationToken cancellationToken)
     {
@@ -224,13 +214,7 @@ public sealed class ReportGenerationService : IReportGenerationService
     }
 }
 
-public sealed class OneTimeReportValidationException : ArgumentException
+public sealed class OneTimeReportValidationException(IReadOnlyList<ValidationError> errors) : ArgumentException(string.Join("; ", errors.Select(static error => $"{error.Field}: {error.Message}")))
 {
-    public OneTimeReportValidationException(IReadOnlyList<ValidationError> errors)
-        : base(string.Join("; ", errors.Select(static error => $"{error.Field}: {error.Message}")))
-    {
-        Errors = errors;
-    }
-
-    public IReadOnlyList<ValidationError> Errors { get; }
+    public IReadOnlyList<ValidationError> Errors { get; } = errors;
 }

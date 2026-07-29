@@ -70,7 +70,7 @@ public class TestSvantekApi
         httpClient.Setup(c => c.PostAsync("stations-get-list.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>())).
                 ReturnsAsync(_stationsJson);
 
-        await testObj.StoreMonitorsAsync();
+        await testObj.StoreMonitorsAsync(TestContext.CancellationToken);
 
         httpClient.Verify(c => c.PostAsync("projects-get-data.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
         httpClient.Verify(c => c.PostAsync("stations-get-list.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -101,7 +101,7 @@ public class TestSvantekApi
         dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
             ReturnsAsync([]);
 
-        await testObj.CheckForOfflineMonitorsAsync();
+        await testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken);
 
         httpClient.VerifyNoOtherCalls();
 
@@ -129,7 +129,7 @@ public class TestSvantekApi
         dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
             ReturnsAsync(monitors);
 
-        await testObj.CheckForOfflineMonitorsAsync();
+        await testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken);
 
         httpClient.VerifyNoOtherCalls();
 
@@ -171,7 +171,7 @@ public class TestSvantekApi
         dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
             ReturnsAsync([monitor]);
 
-        await testObj.NotifyBatteryLevelsAsync();
+        await testObj.NotifyBatteryLevelsAsync(TestContext.CancellationToken);
 
         httpClient.VerifyNoOtherCalls();
 
@@ -207,7 +207,7 @@ public class TestSvantekApi
         dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
             ReturnsAsync([monitor]);
 
-        await testObj.NotifyBatteryLevelsAsync();
+        await testObj.NotifyBatteryLevelsAsync(TestContext.CancellationToken);
 
         httpClient.VerifyNoOtherCalls();
 
@@ -232,7 +232,7 @@ public class TestSvantekApi
         dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
             ReturnsAsync([monitor]);
 
-        await testObj.NotifyBatteryLevelsAsync();
+        await testObj.NotifyBatteryLevelsAsync(TestContext.CancellationToken);
 
         httpClient.VerifyNoOtherCalls();
 
@@ -273,7 +273,7 @@ public class TestSvantekApi
         dbClient.Setup(c => c.GetAverageNoiseLevel("Device1", "LAeq", date + monitor.StartTime!.Value, date + monitor.EndTime!.Value)).
             Returns(level);
 
-        await testObj.NotifySiteAveragesAsync(date);
+        await testObj.NotifySiteAveragesAsync(date, TestContext.CancellationToken);
 
         httpClient.VerifyNoOtherCalls();
 
@@ -301,4 +301,6 @@ public class TestSvantekApi
 
         mqttClient.VerifyNoOtherCalls();
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

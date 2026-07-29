@@ -31,13 +31,13 @@ public sealed class PostgreSqlIntegrationDatabaseTests
     public async Task CreateAsync_UsesGeneratedSchemaAsTheOnlySearchPath()
     {
         await using PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(
-            "CREATE TABLE probe (id integer PRIMARY KEY);", "TRUNCATE TABLE probe;");
+            "CREATE TABLE probe (id integer PRIMARY KEY);", "TRUNCATE TABLE probe;", TestContext.CancellationToken);
 
         await using NpgsqlConnection connection = database.OpenConnection();
-        await connection.OpenAsync();
+        await connection.OpenAsync(TestContext.CancellationToken);
         await using NpgsqlCommand command = new("SHOW search_path;", connection);
 
-        Assert.AreEqual(database.SchemaName, (string?)await command.ExecuteScalarAsync());
+        Assert.AreEqual(database.SchemaName, (string?)await command.ExecuteScalarAsync(TestContext.CancellationToken));
     }
 
     [TestMethod]
@@ -45,19 +45,19 @@ public sealed class PostgreSqlIntegrationDatabaseTests
     {
         string schemaName;
         await using (PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(
-            "CREATE TABLE probe (id integer PRIMARY KEY);", "TRUNCATE TABLE probe;"))
+            "CREATE TABLE probe (id integer PRIMARY KEY);", "TRUNCATE TABLE probe;", TestContext.CancellationToken))
         {
             schemaName = database.SchemaName;
         }
 
         await using NpgsqlConnection connection = new(
             PostgreSqlIntegrationDatabase.GetAdminConnectionString());
-        await connection.OpenAsync();
+        await connection.OpenAsync(TestContext.CancellationToken);
         await using NpgsqlCommand command = new(
             "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = @schema);", connection);
         command.Parameters.AddWithValue("schema", schemaName);
 
-        Assert.IsFalse((bool)(await command.ExecuteScalarAsync())!);
+        Assert.IsFalse((bool)(await command.ExecuteScalarAsync(TestContext.CancellationToken))!);
     }
 
     [TestMethod]
@@ -65,19 +65,19 @@ public sealed class PostgreSqlIntegrationDatabaseTests
     {
         string schemaName;
         await using (PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(
-            "CREATE TABLE probe (id integer PRIMARY KEY);", "TRUNCATE TABLE probe;"))
+            "CREATE TABLE probe (id integer PRIMARY KEY);", "TRUNCATE TABLE probe;", TestContext.CancellationToken))
         {
             schemaName = database.SchemaName;
         }
 
         await using NpgsqlConnection connection = new(
             PostgreSqlIntegrationDatabase.GetAdminConnectionString());
-        await connection.OpenAsync();
+        await connection.OpenAsync(TestContext.CancellationToken);
         await using NpgsqlCommand command = new(
             "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = @schema);", connection);
         command.Parameters.AddWithValue("schema", schemaName);
 
-        Assert.IsFalse((bool)(await command.ExecuteScalarAsync())!);
+        Assert.IsFalse((bool)(await command.ExecuteScalarAsync(TestContext.CancellationToken))!);
     }
 
     [TestMethod]
@@ -96,8 +96,10 @@ public sealed class PostgreSqlIntegrationDatabaseTests
 
         InvalidOperationException exception = await Assert.ThrowsExactlyAsync<InvalidOperationException>(database.DisposeAsync().AsTask);
 
-        StringAssert.Contains(exception.Message, schemaName);
+        Assert.Contains(schemaName, exception.Message);
         await database.DisposeAsync();
         Assert.AreEqual(2, attempts);
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

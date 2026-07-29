@@ -61,7 +61,7 @@ public sealed record MicrosoftGraphMailOptions
         throw new InvalidOperationException($"RVT__{name} must be true or false.");
     }
 
-    private static void Require(string value, string settingName, ICollection<string> missing)
+    private static void Require(string value, string settingName, List<string> missing)
     {
         if (string.IsNullOrWhiteSpace(value))
         {

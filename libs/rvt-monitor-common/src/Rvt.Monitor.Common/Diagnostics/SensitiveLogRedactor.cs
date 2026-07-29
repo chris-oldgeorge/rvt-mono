@@ -102,12 +102,9 @@ public static class SensitiveLogRedactor
 
         if (node is JsonArray arrayNode)
         {
-            foreach (JsonNode? item in arrayNode)
+            foreach (JsonNode item in arrayNode.OfType<JsonNode>())
             {
-                if (item is not null)
-                {
-                    RedactSensitiveProperties(item);
-                }
+                RedactSensitiveProperties(item);
             }
         }
     }

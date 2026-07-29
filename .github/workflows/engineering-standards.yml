@@ -45,6 +45,11 @@ jobs:
       - name: Verify engineering configuration
         run: tests/verify-engineering-configuration.test.sh
 
+      - name: Verify shell conditional safety
+        run: |
+          tests/verify-shell-conditionals.test.sh
+          scripts/verify-shell-conditionals.sh .
+
       - name: Verify automatic workflow contract
         run: tests/verify-engineering-standards-workflow.test.sh
 

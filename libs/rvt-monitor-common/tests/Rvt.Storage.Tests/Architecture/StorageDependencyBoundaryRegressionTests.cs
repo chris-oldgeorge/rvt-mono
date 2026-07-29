@@ -6,6 +6,8 @@ namespace Rvt.Storage.Tests.Architecture;
 [TestClass]
 public sealed class StorageDependencyBoundaryRegressionTests
 {
+    private static readonly string[] _expected = ["Allowed.Package", "Updated.Package"];
+
     [TestMethod]
     public void ProjectDependencyReader_RecognizesUpdateAndHonorsRemove()
     {
@@ -26,7 +28,7 @@ public sealed class StorageDependencyBoundaryRegressionTests
             "PackageReference");
 
         CollectionAssert.AreEquivalent(
-            new[] { "Allowed.Package", "Updated.Package" },
+            _expected,
             identities.ToArray());
     }
 
@@ -218,25 +220,9 @@ internal sealed class CSharpDependencyAnalysis(
                     StringComparison.Ordinal);
 }
 
-internal static class CSharpDependencyAnalyzer
+internal static partial class CSharpDependencyAnalyzer
 {
-    private static readonly Regex AliasUsingPattern = new(
-        @"(?m)^[ \t]*(?<global>global[ \t]+)?using[ \t]+(?<alias>[A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(?:global::)?(?<target>[A-Za-z_][A-Za-z0-9_]*(?:[ \t]*\.[ \t]*[A-Za-z_][A-Za-z0-9_]*)*)[ \t]*;",
-        RegexOptions.CultureInvariant);
-
-    private static readonly Regex NamespaceUsingPattern = new(
-        @"(?m)^[ \t]*(?:global[ \t]+)?using[ \t]+(?:global::)?(?<target>[A-Za-z_][A-Za-z0-9_]*(?:[ \t]*\.[ \t]*[A-Za-z_][A-Za-z0-9_]*)*)[ \t]*;",
-        RegexOptions.CultureInvariant);
-
-    private static readonly Regex QualifiedNamePattern = new(
-        @"(?<![A-Za-z0-9_])(?:global::)?(?<name>[A-Za-z_][A-Za-z0-9_]*(?:[ \t\r\n]*\.[ \t\r\n]*[A-Za-z_][A-Za-z0-9_]*)+)",
-        RegexOptions.CultureInvariant);
-
-    private static readonly Regex DeclaredTypePattern = new(
-        @"\b(?:class|struct|interface|enum|record(?:[ \t]+(?:class|struct))?|delegate)[ \t]+(?<name>[A-Za-z_][A-Za-z0-9_]*)\b",
-        RegexOptions.CultureInvariant);
-
-    private static readonly string[] ImplicitSystemIoTypes =
+    private static readonly string[] _implicitSystemIoTypes =
         ["File", "Directory", "FileStream"];
 
     public static CSharpDependencyAnalysis Analyze(string source) =>
@@ -256,7 +242,7 @@ internal static class CSharpDependencyAnalyzer
                 source => Sanitize(source.Value),
                 StringComparer.Ordinal);
         AliasDefinition[] aliases = [.. sanitizedSources
-            .SelectMany(source => AliasUsingPattern
+            .SelectMany(source => AliasUsingPattern()
                 .Matches(source.Value)
                 .Select(match => new AliasDefinition(
                     match.Groups["alias"].Value,
@@ -270,7 +256,7 @@ internal static class CSharpDependencyAnalyzer
                 alias => alias.Target,
                 StringComparer.Ordinal);
         HashSet<string> declaredTypes = sanitizedSources.Values
-            .SelectMany(source => DeclaredTypePattern
+            .SelectMany(source => DeclaredTypePattern()
                 .Matches(source)
                 .Select(match => match.Groups["name"].Value))
             .ToHashSet(StringComparer.Ordinal);
@@ -291,7 +277,7 @@ internal static class CSharpDependencyAnalyzer
                 RecordDependency(alias.Target, source.Key, filesByDependency);
             }
 
-            foreach (Match match in NamespaceUsingPattern.Matches(source.Value))
+            foreach (Match match in NamespaceUsingPattern().Matches(source.Value))
             {
                 RecordDependency(
                     NormalizeName(match.Groups["target"].Value),
@@ -299,7 +285,7 @@ internal static class CSharpDependencyAnalyzer
                     filesByDependency);
             }
 
-            foreach (Match match in QualifiedNamePattern.Matches(source.Value))
+            foreach (Match match in QualifiedNamePattern().Matches(source.Value))
             {
                 string dependency = NormalizeName(match.Groups["name"].Value);
                 int separator = dependency.IndexOf('.');
@@ -314,7 +300,7 @@ internal static class CSharpDependencyAnalyzer
                 RecordDependency(dependency, source.Key, filesByDependency);
             }
 
-            foreach (string implicitType in ImplicitSystemIoTypes)
+            foreach (string implicitType in _implicitSystemIoTypes)
             {
                 if (!declaredTypes.Contains(implicitType)
                     && Regex.IsMatch(
@@ -340,7 +326,7 @@ internal static class CSharpDependencyAnalyzer
     private static void RecordDependency(
         string dependency,
         string sourcePath,
-        IDictionary<string, HashSet<string>> filesByDependency)
+        Dictionary<string, HashSet<string>> filesByDependency)
     {
         if (dependency.Length == 0)
         {
@@ -357,11 +343,8 @@ internal static class CSharpDependencyAnalyzer
     }
 
     private static string NormalizeName(string value) =>
-        Regex.Replace(
-                value,
-                @"[ \t\r\n]",
-                string.Empty,
-                RegexOptions.CultureInvariant)
+        WhitespacePattern()
+            .Replace(value, string.Empty)
             .Replace("global::", string.Empty, StringComparison.Ordinal);
 
     private static string Sanitize(string source)
@@ -685,4 +668,27 @@ internal static class CSharpDependencyAnalyzer
         string Target,
         bool IsGlobal,
         string SourcePath);
+
+    [GeneratedRegex(
+        @"(?m)^[ \t]*(?<global>global[ \t]+)?using[ \t]+(?<alias>[A-Za-z_][A-Za-z0-9_]*)[ \t]*=[ \t]*(?:global::)?(?<target>[A-Za-z_][A-Za-z0-9_]*(?:[ \t]*\.[ \t]*[A-Za-z_][A-Za-z0-9_]*)*)[ \t]*;",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex AliasUsingPattern();
+
+    [GeneratedRegex(
+        @"(?m)^[ \t]*(?:global[ \t]+)?using[ \t]+(?:global::)?(?<target>[A-Za-z_][A-Za-z0-9_]*(?:[ \t]*\.[ \t]*[A-Za-z_][A-Za-z0-9_]*)*)[ \t]*;",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex NamespaceUsingPattern();
+
+    [GeneratedRegex(
+        @"(?<![A-Za-z0-9_])(?:global::)?(?<name>[A-Za-z_][A-Za-z0-9_]*(?:[ \t\r\n]*\.[ \t\r\n]*[A-Za-z_][A-Za-z0-9_]*)+)",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex QualifiedNamePattern();
+
+    [GeneratedRegex(
+        @"\b(?:class|struct|interface|enum|record(?:[ \t]+(?:class|struct))?|delegate)[ \t]+(?<name>[A-Za-z_][A-Za-z0-9_]*)\b",
+        RegexOptions.CultureInvariant)]
+    private static partial Regex DeclaredTypePattern();
+
+    [GeneratedRegex(@"[ \t\r\n]", RegexOptions.CultureInvariant)]
+    private static partial Regex WhitespacePattern();
 }

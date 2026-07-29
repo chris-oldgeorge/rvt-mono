@@ -5,6 +5,11 @@ namespace Rvt.Monitor.Common.Configuration;
 
 public sealed class RvtConfig
 {
+    private const string _airQKind = "airq";
+    private const string _myAtmKind = "myatm";
+    private const string _omnidotsKind = "omnidots";
+    private const string _svantekKind = "svantek";
+
     private RvtConfig()
     {
     }
@@ -53,29 +58,29 @@ public sealed class RvtConfig
         string normalized = NormalizeMonitorKind(monitorKind, baseDirectory, entryAssemblyName);
         return normalized switch
         {
-            "airq" => new MonitorRuntimeDefaults(
-                "airq",
+            _airQKind => new MonitorRuntimeDefaults(
+                _airQKind,
                 "AirQMonitor noise monitor data collector running ",
                 "https://datacollector.airqweb.com",
                 "rvt/noise/inserted",
                 "rvt/noise/alerted",
                 "https://www.rvtcloud.com/"),
-            "myatm" => new MonitorRuntimeDefaults(
-                "myatm",
+            _myAtmKind => new MonitorRuntimeDefaults(
+                _myAtmKind,
                 "MyAtmMonitor dust monitor data collector running ",
                 "https://api.my-atmosphere.cloud/api/",
                 "rvt/dust/inserted",
                 "rvt/dust/alerted",
                 ""),
-            "omnidots" => new MonitorRuntimeDefaults(
-                "omnidots",
+            _omnidotsKind => new MonitorRuntimeDefaults(
+                _omnidotsKind,
                 "OmnidotsMonitor vibration monitor data collector running ",
                 "https://honeycomb.omnidots.com",
                 "rvt/vibration/inserted",
                 "rvt/vibration/alerted",
                 ""),
-            "svantek" => new MonitorRuntimeDefaults(
-                "svantek",
+            _svantekKind => new MonitorRuntimeDefaults(
+                _svantekKind,
                 "SvantekMonitor noise monitor data collector running ",
                 "https://svannet.com/api/v2.3/",
                 "rvt/noise/inserted",
@@ -116,24 +121,24 @@ public sealed class RvtConfig
                 .Replace(".", "", StringComparison.OrdinalIgnoreCase)
                 .ToLowerInvariant();
 
-            if (normalized.Contains("airq", StringComparison.Ordinal))
+            if (normalized.Contains(_airQKind, StringComparison.Ordinal))
             {
-                return "airq";
+                return _airQKind;
             }
 
-            if (normalized.Contains("myatm", StringComparison.Ordinal))
+            if (normalized.Contains(_myAtmKind, StringComparison.Ordinal))
             {
-                return "myatm";
+                return _myAtmKind;
             }
 
-            if (normalized.Contains("omnidots", StringComparison.Ordinal))
+            if (normalized.Contains(_omnidotsKind, StringComparison.Ordinal))
             {
-                return "omnidots";
+                return _omnidotsKind;
             }
 
-            if (normalized.Contains("svantek", StringComparison.Ordinal))
+            if (normalized.Contains(_svantekKind, StringComparison.Ordinal))
             {
-                return "svantek";
+                return _svantekKind;
             }
         }
 
@@ -149,19 +154,19 @@ public sealed class RvtConfig
 
         return NormalizeMonitorKind(monitorKind, "", "") switch
         {
-            "airq" => new MonitorCredentialSettings(
+            _airQKind => new MonitorCredentialSettings(
                 UserId: Get(getOptionalSetting, "RVT__AIRQ_USER_ID"),
                 UserAuth: Get(getOptionalSetting, "RVT__AIRQ_USER_AUTH"),
                 Token: string.Empty),
-            "myatm" => new MonitorCredentialSettings(
+            _myAtmKind => new MonitorCredentialSettings(
                 UserId: string.Empty,
                 UserAuth: string.Empty,
                 Token: Get(getOptionalSetting, "RVT__MYATM_TOKEN")),
-            "omnidots" => new MonitorCredentialSettings(
+            _omnidotsKind => new MonitorCredentialSettings(
                 UserId: Get(getOptionalSetting, "RVT__OMNIDOTS_USER_ID"),
                 UserAuth: Get(getOptionalSetting, "RVT__OMNIDOTS_USER_AUTH"),
                 Token: Get(getOptionalSetting, "RVT__OMNIDOTS_TOKEN")),
-            "svantek" => new MonitorCredentialSettings(
+            _svantekKind => new MonitorCredentialSettings(
                 UserId: string.Empty,
                 UserAuth: string.Empty,
                 Token: string.Empty),

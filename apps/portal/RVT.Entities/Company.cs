@@ -5,14 +5,13 @@
 
 using System.ComponentModel.DataAnnotations;
 
-namespace RVT.Entities
+namespace RVT.Entities;
+
+public class Company : BaseEntity
 {
-    public class Company : BaseEntity
-    {
-        [StringLength(50)]
-        public string CompanyName { get; set; } = null!;
+    [StringLength(50)]
+    public string CompanyName { get; set; } = null!;
 
-        public List<Contract> Contracts { get; set; } = new List<Contract>();
+    public List<Contract> Contracts { get; set; } = new List<Contract>();
 
-    }
 }

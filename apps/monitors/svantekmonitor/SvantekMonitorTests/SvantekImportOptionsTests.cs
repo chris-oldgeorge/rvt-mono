@@ -139,6 +139,8 @@ public sealed class SvantekImportOptionsTests
             })
             .Build();
 
-        await Assert.ThrowsExactlyAsync<OptionsValidationException>(() => host.StartAsync());
+        await Assert.ThrowsExactlyAsync<OptionsValidationException>(() => host.StartAsync(TestContext.CancellationToken));
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

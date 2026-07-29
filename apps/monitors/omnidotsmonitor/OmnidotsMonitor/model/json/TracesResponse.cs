@@ -31,5 +31,4 @@ namespace Omnidots.Model.Json
         public List<double>? Z { get; set; }
 
     }
-
 }

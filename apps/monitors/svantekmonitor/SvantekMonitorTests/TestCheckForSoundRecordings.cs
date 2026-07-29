@@ -3,7 +3,6 @@ using Rvt.Monitor.Common.Alerts;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
-using SvantekMonitor.model.dto;
 
 namespace SvantekMonitorTests
 {
@@ -13,7 +12,7 @@ namespace SvantekMonitorTests
     [TestClass]
     public class TestCheckForSoundRecordings
     {
-        private const string EmptyFilesResponse = "{\"status\":\"ok\",\"files\":[],\"files_size\":0}";
+        private const string _emptyFilesResponse = "{\"status\":\"ok\",\"files\":[],\"files_size\":0}";
 
         [TestMethod]
         public async Task TestCheckForSoundRecordings_FileListRefetchedEachRun_CachedWithinRun()
@@ -43,13 +42,13 @@ namespace SvantekMonitorTests
                     It.IsAny<string>(),
                     It.IsAny<HttpContent>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(EmptyFilesResponse);
+                .ReturnsAsync(_emptyFilesResponse);
 
             // Two consecutive runs on the same (singleton) api instance: the file list must be fetched
             // once per run - not served from a process-lifetime cache - or recordings uploaded to the
             // vendor between runs would never be found.
-            await testObj.CheckForSoundRecordingsAsync();
-            await testObj.CheckForSoundRecordingsAsync();
+            await testObj.CheckForSoundRecordingsAsync(TestContext.CancellationToken);
+            await testObj.CheckForSoundRecordingsAsync(TestContext.CancellationToken);
 
             httpClient.Verify(c => c.PostAsync(
                 It.IsAny<string>(),
@@ -66,5 +65,7 @@ namespace SvantekMonitorTests
                 Times.Never);
             Assert.IsEmpty(storage.Writes);
         }
+
+        public TestContext TestContext { get; set; } = null!;
     }
 }

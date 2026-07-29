@@ -18,30 +18,30 @@ using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Hosting;
 using Rvt.Monitor.IntegrationTesting;
 
-namespace OmnidotsMonitorTests.EntityFramework;
+namespace OmnidotsAdapterTests;
 
 [TestClass]
 [TestCategory("PostgreSqlIntegration")]
 [DoNotParallelize]
 public sealed class OmnidotsWebhookEndToEndTests
 {
-    private const string SerialId = "23423";
-    private const string WebhookSecret = "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww";
-    private const string ConfigSecret = "cccccccccccccccccccccccccccccccc";
-    private const string Email = "ops@example.test";
-    private const string Phone = "+15550001111";
-    private static readonly Guid SiteId = Guid.Parse("22222222-2222-2222-2222-222222222222");
-    private static readonly Guid MonitorId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
-    private static readonly Guid UserId = Guid.Parse("44444444-4444-4444-4444-444444444444");
-    private static readonly DateTime EventTime = new(2024, 7, 15, 10, 0, 0, DateTimeKind.Utc);
+    private const string _serialId = "23423";
+    private const string _webhookSecret = "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww";
+    private const string _configSecret = "cccccccccccccccccccccccccccccccc";
+    private const string _email = "ops@example.test";
+    private const string _phone = "+15550001111";
+    private static readonly Guid _siteId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid _monitorId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+    private static readonly Guid _userId = Guid.Parse("44444444-4444-4444-4444-444444444444");
+    private static readonly DateTime _eventTime = new(2024, 7, 15, 10, 0, 0, DateTimeKind.Utc);
 
-    private static PostgreSqlIntegrationDatabase? database;
+    private static PostgreSqlIntegrationDatabase? _database;
 
     [ClassInitialize]
     public static async Task ClassInitialize(TestContext _)
     {
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
-        database = await PostgreSqlIntegrationDatabase.CreateAsync(
+        _database = await PostgreSqlIntegrationDatabase.CreateAsync(
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/create.postgres.sql"),
             OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
             timeout.Token);
@@ -50,17 +50,18 @@ public sealed class OmnidotsWebhookEndToEndTests
     [ClassCleanup]
     public static async Task ClassCleanup()
     {
-        if (database is not null)
+        if (_database is not null)
         {
-            await database.DisposeAsync();
+            await _database.DisposeAsync();
         }
     }
 
     [TestInitialize]
     public async Task TestInitialize()
     {
-        await database!.ResetAsync(
-            OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"));
+        await _database!.ResetAsync(
+            OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
+            TestContext.CancellationToken);
         await SeedMonitorAndContactsAsync();
     }
 
@@ -79,7 +80,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         Assert.IsTrue(responses.All(response => response.StatusCode == HttpStatusCode.OK));
         foreach (HttpResponseMessage? response in responses)
         {
-            Assert.AreEqual("{\"processed\":true}", await response.Content.ReadAsStringAsync());
+            Assert.AreEqual("{\"processed\":true}", await response.Content.ReadAsStringAsync(TestContext.CancellationToken));
             response.Dispose();
         }
 
@@ -88,7 +89,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         using HttpResponseMessage replay = await PostWebhookAsync(client, body, signature);
 
         Assert.AreEqual(HttpStatusCode.OK, replay.StatusCode);
-        Assert.AreEqual("{\"processed\":true}", await replay.Content.ReadAsStringAsync());
+        Assert.AreEqual("{\"processed\":true}", await replay.Content.ReadAsStringAsync(TestContext.CancellationToken));
         await AssertSingleDurableDeliverySetAsync();
     }
 
@@ -111,8 +112,8 @@ public sealed class OmnidotsWebhookEndToEndTests
             [$"{OmnidotsTraceCollectionOptions.SectionName}:Enabled"] = "false",
             [$"{OmnidotsTraceCollectionOptions.SectionName}:MaxMonitorsPerRun"] = "1",
             [$"{OmnidotsApiSecurityOptions.SectionName}:WebhookUrl"] = "https://alerts.example.test/omnidots",
-            [$"{OmnidotsApiSecurityOptions.SectionName}:WebhookSecret"] = WebhookSecret,
-            [$"{OmnidotsApiSecurityOptions.SectionName}:ConfigSecret"] = ConfigSecret,
+            [$"{OmnidotsApiSecurityOptions.SectionName}:WebhookSecret"] = _webhookSecret,
+            [$"{OmnidotsApiSecurityOptions.SectionName}:ConfigSecret"] = _configSecret,
             [$"{OmnidotsApiSecurityOptions.SectionName}:NotificationDelayMinutes"] = "5",
             [$"{OmnidotsApiSecurityOptions.SectionName}:WebhookConcurrencyLimit"] = "8",
             [$"{OmnidotsApiSecurityOptions.SectionName}:ConfigureConcurrencyLimit"] = "2"
@@ -121,7 +122,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         builder.Services.AddOmnidotsMonitor(builder.Configuration);
         builder.Services.Replace(ServiceDescriptor.Singleton<IMonitorDbContextFactory<OmnidotsMonitorContext>>(
             new OmnidotsMonitorContextFactory(
-                database!.ConnectionString,
+                _database!.ConnectionString,
                 new MonitorDbOptions(new Dictionary<string, string>()))));
         builder.Services.PostConfigure<DurableAlertOptions>(options =>
             options.PortalBaseUrl = "https://portal.example.test/");
@@ -150,7 +151,7 @@ public sealed class OmnidotsWebhookEndToEndTests
 
     private static string Signature(ReadOnlySpan<byte> body)
     {
-        byte[] digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(WebhookSecret), body);
+        byte[] digest = HMACSHA256.HashData(Encoding.UTF8.GetBytes(_webhookSecret), body);
         return $"sha256={Convert.ToHexStringLower(digest)}";
     }
 
@@ -160,12 +161,7 @@ public sealed class OmnidotsWebhookEndToEndTests
         Assert.AreEqual(1, await CountAsync("notification"));
         Assert.AreEqual(3, await CountAsync("alert_delivery_outbox"));
         CollectionAssert.AreEquivalent(
-            new[]
-            {
-                "Email:OPS@EXAMPLE.TEST",
-                "MqttAlert:alert",
-                "Sms:+15550001111"
-            },
+            _expected,
             await ReadDeliveryDestinationsAsync());
     }
 
@@ -195,20 +191,20 @@ public sealed class OmnidotsWebhookEndToEndTests
             VALUES (@setting_id, true, true, NULL, NULL, @site_user_id);
             """;
 
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(sql, connection);
-        command.Parameters.AddWithValue("site_id", SiteId);
-        command.Parameters.AddWithValue("created_at", EventTime.AddYears(-1));
-        command.Parameters.AddWithValue("monitor_id", MonitorId);
-        command.Parameters.AddWithValue("serial_id", SerialId);
-        command.Parameters.AddWithValue("listed_at", EventTime.AddYears(-1));
-        command.Parameters.AddWithValue("user_id_text", UserId.ToString("D"));
-        command.Parameters.AddWithValue("email", $" {Email.ToUpperInvariant()} ");
-        command.Parameters.AddWithValue("phone", $" {Phone} ");
+        command.Parameters.AddWithValue("site_id", _siteId);
+        command.Parameters.AddWithValue("created_at", _eventTime.AddYears(-1));
+        command.Parameters.AddWithValue("monitor_id", _monitorId);
+        command.Parameters.AddWithValue("serial_id", _serialId);
+        command.Parameters.AddWithValue("listed_at", _eventTime.AddYears(-1));
+        command.Parameters.AddWithValue("user_id_text", _userId.ToString("D"));
+        command.Parameters.AddWithValue("email", $" {_email.ToUpperInvariant()} ");
+        command.Parameters.AddWithValue("phone", $" {_phone} ");
         command.Parameters.AddWithValue("site_user_id", Guid.Parse("55555555-5555-5555-5555-555555555555"));
-        command.Parameters.AddWithValue("start_date", EventTime.AddYears(-1));
-        command.Parameters.AddWithValue("user_id", UserId);
+        command.Parameters.AddWithValue("start_date", _eventTime.AddYears(-1));
+        command.Parameters.AddWithValue("user_id", _userId);
         command.Parameters.AddWithValue("setting_id", Guid.Parse("66666666-6666-6666-6666-666666666666"));
         await command.ExecuteNonQueryAsync();
     }
@@ -222,7 +218,7 @@ public sealed class OmnidotsWebhookEndToEndTests
             "alert_delivery_outbox" => "alert_delivery_outbox",
             _ => throw new ArgumentOutOfRangeException(nameof(table))
         };
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new($"SELECT COUNT(*) FROM {allowedTable};", connection);
         return Convert.ToInt32(await command.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
@@ -231,7 +227,7 @@ public sealed class OmnidotsWebhookEndToEndTests
     private static async Task<string[]> ReadDeliveryDestinationsAsync()
     {
         List<string> values = [];
-        await using NpgsqlConnection connection = database!.OpenConnection();
+        await using NpgsqlConnection connection = _database!.OpenConnection();
         await connection.OpenAsync();
         await using NpgsqlCommand command = new(
             "SELECT kind || ':' || destination FROM alert_delivery_outbox ORDER BY kind, destination;",
@@ -244,4 +240,13 @@ public sealed class OmnidotsWebhookEndToEndTests
 
         return [.. values];
     }
+
+    public TestContext TestContext { get; set; } = null!;
+
+    private static readonly string[] _expected =
+            [
+                "Email:OPS@EXAMPLE.TEST",
+                "MqttAlert:alert",
+                "Sms:+15550001111"
+            ];
 }

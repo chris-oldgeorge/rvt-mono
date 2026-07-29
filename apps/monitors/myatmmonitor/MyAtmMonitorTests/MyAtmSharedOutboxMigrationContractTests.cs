@@ -4,7 +4,7 @@ using Rvt.Monitor.IntegrationTesting;
 namespace MyAtmMonitorTests;
 
 [TestClass]
-public sealed class MyAtmSharedOutboxMigrationContractTests
+public sealed partial class MyAtmSharedOutboxMigrationContractTests
 {
     private const string AddDurableOutbox = "2026-07-14-add-durable-outbox.postgres.sql";
     private const string AddHardening = "2026-07-14-add-myatm-hardening.postgres.sql";
@@ -56,8 +56,8 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     {
         string sql = MigrationText(file);
 
-        StringAssert.Contains(sql, firstRerunGuard);
-        StringAssert.Contains(sql, secondRerunGuard);
+        Assert.Contains(firstRerunGuard, sql);
+        Assert.Contains(secondRerunGuard, sql);
     }
 
     [TestMethod]
@@ -66,10 +66,10 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
         string forward = MigrationText(AddHardening);
         string rollback = MigrationText(RemoveHardening);
 
-        StringAssert.Contains(forward, "ADD COLUMN IF NOT EXISTS lease_id uuid NULL");
-        StringAssert.Contains(rollback, "DROP COLUMN IF EXISTS lease_id");
-        StringAssert.Contains(forward, "CREATE INDEX IF NOT EXISTS ix_my_atm_alert_occurrence_recent_lookup");
-        StringAssert.Contains(rollback, "DROP INDEX IF EXISTS ix_my_atm_alert_occurrence_recent_lookup");
+        Assert.Contains("ADD COLUMN IF NOT EXISTS lease_id uuid NULL", forward);
+        Assert.Contains("DROP COLUMN IF EXISTS lease_id", rollback);
+        Assert.Contains("CREATE INDEX IF NOT EXISTS ix_my_atm_alert_occurrence_recent_lookup", forward);
+        Assert.Contains("DROP INDEX IF EXISTS ix_my_atm_alert_occurrence_recent_lookup", rollback);
     }
 
     [TestMethod]
@@ -77,9 +77,9 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     {
         string sql = MigrationText(ForwardSharedOutbox);
 
-        StringAssert.Contains(sql, "'Leased' THEN 'InProgress'");
-        StringAssert.Contains(sql, "MyAtm");
-        StringAssert.Contains(sql, "PayloadVersion");
+        Assert.Contains("'Leased' THEN 'InProgress'", sql);
+        Assert.Contains("MyAtm", sql);
+        Assert.Contains("PayloadVersion", sql);
         Assert.IsFalse(sql.Contains("DROP TABLE", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -88,10 +88,10 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     {
         string sql = MigrationText(ForwardSharedOutbox);
 
-        StringAssert.Contains(sql, "to_regclass('monitor_delivery_outbox') IS NULL");
-        StringAssert.Contains(sql, "RAISE EXCEPTION");
-        StringAssert.Contains(sql, "status NOT IN ('Pending', 'Leased', 'Completed', 'DeadLetter')");
-        StringAssert.Contains(sql, "kind NOT IN ('MqttDataInserted', 'MqttAlert', 'Email', 'Sms')");
+        Assert.Contains("to_regclass('monitor_delivery_outbox') IS NULL", sql);
+        Assert.Contains("RAISE EXCEPTION", sql);
+        Assert.Contains("status NOT IN ('Pending', 'Leased', 'Completed', 'DeadLetter')", sql);
+        Assert.Contains("kind NOT IN ('MqttDataInserted', 'MqttAlert', 'Email', 'Sms')", sql);
     }
 
     [TestMethod]
@@ -99,10 +99,10 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     {
         string sql = MigrationText(ForwardSharedOutbox);
 
-        StringAssert.Contains(sql, "'MyAtm',");
-        StringAssert.Contains(sql, "1,");
-        StringAssert.Contains(sql, "legacy.occurrence_key");
-        StringAssert.Contains(sql, "legacy.delivery_key");
+        Assert.Contains("'MyAtm',", sql);
+        Assert.Contains("1,", sql);
+        Assert.Contains("legacy.occurrence_key", sql);
+        Assert.Contains("legacy.delivery_key", sql);
     }
 
     [TestMethod]
@@ -110,11 +110,11 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     {
         string sql = MigrationText(ForwardSharedOutbox);
 
-        StringAssert.Contains(sql, "LEFT JOIN my_atm_alert_occurrence");
-        StringAssert.Contains(sql, "LEFT JOIN notification");
-        StringAssert.Contains(sql, "occurrence.notification_id = notification.id");
-        StringAssert.Contains(sql, "legacy.payload");
-        StringAssert.Contains(sql, "NULL, -- dead_lettered_at");
+        Assert.Contains("LEFT JOIN my_atm_alert_occurrence", sql);
+        Assert.Contains("LEFT JOIN notification", sql);
+        Assert.Contains("occurrence.notification_id = notification.id", sql);
+        Assert.Contains("legacy.payload", sql);
+        Assert.Contains("NULL, -- dead_lettered_at", sql);
     }
 
     [TestMethod]
@@ -122,10 +122,10 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     {
         string sql = MigrationText(ForwardSharedOutbox);
 
-        StringAssert.Contains(sql, "ON CONFLICT (producer, delivery_key)");
-        StringAssert.Contains(sql, "shared.attempt_count < EXCLUDED.attempt_count");
-        StringAssert.Contains(sql, "shared.status IN ('Completed', 'DeadLetter')");
-        StringAssert.Contains(sql, "EXCLUDED.status NOT IN ('Completed', 'DeadLetter')");
+        Assert.Contains("ON CONFLICT (producer, delivery_key)", sql);
+        Assert.Contains("shared.attempt_count < EXCLUDED.attempt_count", sql);
+        Assert.Contains("shared.status IN ('Completed', 'DeadLetter')", sql);
+        Assert.Contains("EXCLUDED.status NOT IN ('Completed', 'DeadLetter')", sql);
     }
 
     [TestMethod]
@@ -133,11 +133,11 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     {
         string sql = MigrationText(ForwardSharedOutbox);
 
-        StringAssert.Contains(sql, "shared.attempt_count < EXCLUDED.attempt_count");
-        StringAssert.Contains(sql, "shared.status = 'Completed'");
-        StringAssert.Contains(sql, "EXCLUDED.status = 'Completed'");
-        StringAssert.Contains(sql, "shared.completed_at IS NOT NULL");
-        StringAssert.Contains(sql, "EXCLUDED.completed_at IS NULL OR shared.completed_at > EXCLUDED.completed_at");
+        Assert.Contains("shared.attempt_count < EXCLUDED.attempt_count", sql);
+        Assert.Contains("shared.status = 'Completed'", sql);
+        Assert.Contains("EXCLUDED.status = 'Completed'", sql);
+        Assert.Contains("shared.completed_at IS NOT NULL", sql);
+        Assert.Contains("EXCLUDED.completed_at IS NULL OR shared.completed_at > EXCLUDED.completed_at", sql);
     }
 
     [TestMethod]
@@ -145,15 +145,12 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     {
         string sql = MigrationText(RollbackSharedOutbox);
 
-        StringAssert.Contains(sql, "producer = 'MyAtm'");
-        StringAssert.Contains(sql, "payload_version = 1");
-        StringAssert.Contains(sql, "'InProgress' THEN 'Leased'");
-        StringAssert.Contains(sql, "LEFT JOIN my_atm_alert_occurrence");
-        StringAssert.Contains(sql, "ON CONFLICT (delivery_key)");
-        Assert.IsFalse(Regex.IsMatch(
-            sql,
-            @"\b(?:DELETE\s+FROM|UPDATE)\s+monitor_delivery_outbox",
-            RegexOptions.IgnoreCase));
+        Assert.Contains("producer = 'MyAtm'", sql);
+        Assert.Contains("payload_version = 1", sql);
+        Assert.Contains("'InProgress' THEN 'Leased'", sql);
+        Assert.Contains("LEFT JOIN my_atm_alert_occurrence", sql);
+        Assert.Contains("ON CONFLICT (delivery_key)", sql);
+        Assert.IsFalse(DestructiveOutboxMutationPattern().IsMatch(sql));
         Assert.IsFalse(sql.Contains("DROP TABLE", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -162,9 +159,9 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
     {
         string sql = MigrationText(RollbackSharedOutbox);
 
-        StringAssert.Contains(sql, "to_regclass('monitor_delivery_outbox') IS NULL");
-        StringAssert.Contains(sql, "to_regclass('my_atm_outbox_message') IS NULL");
-        StringAssert.Contains(sql, "RAISE EXCEPTION");
+        Assert.Contains("to_regclass('monitor_delivery_outbox') IS NULL", sql);
+        Assert.Contains("to_regclass('my_atm_outbox_message') IS NULL", sql);
+        Assert.Contains("RAISE EXCEPTION", sql);
     }
 
     private static string MigrationText(string file)
@@ -185,4 +182,8 @@ public sealed class MyAtmSharedOutboxMigrationContractTests
             "myatmmonitor",
             "database",
             "migrations");
+    [GeneratedRegex(
+        @"\b(?:DELETE\s+FROM|UPDATE)\s+monitor_delivery_outbox",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex DestructiveOutboxMutationPattern();
 }

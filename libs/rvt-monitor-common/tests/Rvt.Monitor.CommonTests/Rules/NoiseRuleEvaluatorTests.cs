@@ -30,7 +30,7 @@ public sealed class NoiseRuleEvaluatorTests
 
         RvtAlertRuleDto rule = CreateRule(AlertType.Caution, isActive: true);
 
-        AlertType result = await evaluator.EvaluateAsync(CreateRequest(), rule, level: 12, previousAlert: AlertType.Alert);
+        AlertType result = await evaluator.EvaluateAsync(CreateRequest(), rule, level: 12, previousAlert: AlertType.Alert, TestContext.CancellationToken);
 
         Assert.AreEqual(AlertType.Alert, result);
         Assert.IsTrue(rule.IsActive);
@@ -52,7 +52,7 @@ public sealed class NoiseRuleEvaluatorTests
         RvtAlertRuleDto rule = CreateRule(AlertType.Alert, isActive: false);
         RuleEvaluationRequest request = CreateRequest();
 
-        AlertType result = await evaluator.EvaluateAsync(request, rule, level: 12, previousAlert: AlertType.Ignore);
+        AlertType result = await evaluator.EvaluateAsync(request, rule, level: 12, previousAlert: AlertType.Ignore, TestContext.CancellationToken);
 
         Assert.AreEqual(AlertType.Alert, result);
         Assert.IsTrue(rule.IsActive);
@@ -113,4 +113,6 @@ public sealed class NoiseRuleEvaluatorTests
             isDeleted: false,
             created: DateTime.UtcNow,
             accessed: null);
+
+    public TestContext TestContext { get; set; } = null!;
 }

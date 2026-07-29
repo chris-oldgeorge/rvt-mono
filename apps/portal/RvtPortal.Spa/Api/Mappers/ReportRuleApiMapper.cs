@@ -16,7 +16,7 @@ public static class ReportRuleApiMapper
     {
         return new QueryReportRulesResponse
         {
-            Results = result.Results.Select(ToListItem).ToList(),
+            Results = [.. result.Results.Select(ToListItem)],
             Total = result.Total,
             Page = result.Page,
             PageSize = result.PageSize,
@@ -34,10 +34,10 @@ public static class ReportRuleApiMapper
     {
         return new ReportRuleOptionsResponse
         {
-            Sites = model.Sites.Select(ToOptionItem).ToList(),
-            Frequencies = model.Frequencies.Select(ToOptionItem).ToList(),
-            DaysOfWeek = model.DaysOfWeek.Select(ToOptionItem).ToList(),
-            AlertRuleGuidelines = model.AlertRuleGuidelines.Select(ToGuidelineItem).ToList()
+            Sites = [.. model.Sites.Select(ToOptionItem)],
+            Frequencies = [.. model.Frequencies.Select(ToOptionItem)],
+            DaysOfWeek = [.. model.DaysOfWeek.Select(ToOptionItem)],
+            AlertRuleGuidelines = [.. model.AlertRuleGuidelines.Select(ToGuidelineItem)]
         };
     }
 
@@ -56,10 +56,10 @@ public static class ReportRuleApiMapper
             ReportName = model.ReportName,
             LastGenerated = model.LastGenerated,
             CanManage = model.CanManage,
-            Sites = model.Sites.Select(ToOptionItem).ToList(),
-            Frequencies = model.Frequencies.Select(ToOptionItem).ToList(),
-            DaysOfWeek = model.DaysOfWeek.Select(ToOptionItem).ToList(),
-            AlertRuleGuidelines = model.AlertRuleGuidelines.Select(ToGuidelineItem).ToList(),
+            Sites = [.. model.Sites.Select(ToOptionItem)],
+            Frequencies = [.. model.Frequencies.Select(ToOptionItem)],
+            DaysOfWeek = [.. model.DaysOfWeek.Select(ToOptionItem)],
+            AlertRuleGuidelines = [.. model.AlertRuleGuidelines.Select(ToGuidelineItem)],
             AssignedUserCount = model.AssignedUserCount
         };
     }
@@ -85,8 +85,8 @@ public static class ReportRuleApiMapper
             SiteName = model.SiteName,
             CompanyId = model.CompanyId,
             CompanyName = model.CompanyName,
-            AvailableUsers = model.AvailableUsers.Select(ToUserListItem).ToList(),
-            AssignedUsers = model.AssignedUsers.Select(ToUserListItem).ToList()
+            AvailableUsers = [.. model.AvailableUsers.Select(ToUserListItem)],
+            AssignedUsers = [.. model.AssignedUsers.Select(ToUserListItem)]
         };
     }
 
@@ -101,7 +101,7 @@ public static class ReportRuleApiMapper
             CompanyId = model.CompanyId,
             CompanyName = model.CompanyName,
             AssignedUserCount = model.AssignedUserCount,
-            Results = model.Page.Results.Select(ToUserListItem).ToList(),
+            Results = [.. model.Page.Results.Select(ToUserListItem)],
             Total = model.Page.Total,
             Page = model.Page.Page,
             PageSize = model.Page.PageSize,

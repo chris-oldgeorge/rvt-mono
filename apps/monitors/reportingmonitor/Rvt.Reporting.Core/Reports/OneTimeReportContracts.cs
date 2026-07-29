@@ -55,12 +55,9 @@ public sealed class OneTimeReportValidator
             errors.Add(new ValidationError(nameof(request.RecipientEmails), "At least one recipient is required."));
         }
 
-        foreach (string email in request.RecipientEmails)
+        foreach (string email in request.RecipientEmails.Where(email => !EmailValidator.IsValid(email)))
         {
-            if (!EmailValidator.IsValid(email))
-            {
-                errors.Add(new ValidationError(nameof(request.RecipientEmails), $"Invalid recipient email: {email}"));
-            }
+            errors.Add(new ValidationError(nameof(request.RecipientEmails), $"Invalid recipient email: {email}"));
         }
 
         return errors;

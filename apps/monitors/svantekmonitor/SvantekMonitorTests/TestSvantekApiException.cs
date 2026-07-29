@@ -41,7 +41,7 @@ public class TestSvantekApiException
                 ThrowsAsync(new IOException());
 
         AdapterException exception =
-            await Assert.ThrowsExactlyAsync<AdapterException>(() => testObj.StoreNoiseLevelsAsync());
+            await Assert.ThrowsExactlyAsync<AdapterException>(() => testObj.StoreNoiseLevelsAsync(TestContext.CancellationToken));
 
         Assert.IsInstanceOfType<IOException>(exception.InnerException);
         dbClient.Verify(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -68,7 +68,7 @@ public class TestSvantekApiException
                 ThrowsAsync(new IOException());
 
         SvantekJobAggregateException aggregate =
-            await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(() => testObj.StoreNoiseLevelsAsync());
+            await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(() => testObj.StoreNoiseLevelsAsync(TestContext.CancellationToken));
 
         Assert.AreEqual("StoreNoiseLevels", aggregate.JobName);
         Assert.HasCount(1, aggregate.Failures);
@@ -98,7 +98,7 @@ public class TestSvantekApiException
                 ThrowsAsync(new IOException());
 
         SvantekJobAggregateException aggregate =
-            await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(() => testObj.CheckForOfflineMonitorsAsync());
+            await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(() => testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken));
 
         Assert.AreEqual("CheckForOfflineMonitors", aggregate.JobName);
         Assert.HasCount(1, aggregate.Failures);
@@ -124,4 +124,6 @@ public class TestSvantekApiException
         mqttClient.VerifyNoOtherCalls();
         messageClient.VerifyNoOtherCalls();
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

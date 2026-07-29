@@ -164,14 +164,14 @@ namespace OmnidotsAdapterTests
         {
             AlarmDataV2? missingData = JsonSerializer.Deserialize<AlarmDataV2>("{}");
             AlarmDataV2? missingAlarmAndAxes = JsonSerializer.Deserialize<AlarmDataV2>("""
-                {"data":{}}
-                """);
+            {"data":{}}
+            """);
             AlarmDataV2? missingAxes = JsonSerializer.Deserialize<AlarmDataV2>("""
-                {"data":{"alarms":{},"axes":{}}}
-                """);
+            {"data":{"alarms":{},"axes":{}}}
+            """);
             AlarmDataV2? missingVtop = JsonSerializer.Deserialize<AlarmDataV2>("""
-                {"data":{"alarms":{},"axes":{"x":{},"y":{},"z":{}}}}
-                """);
+            {"data":{"alarms":{},"axes":{"x":{},"y":{},"z":{}}}}
+            """);
 
             Assert.IsNotNull(missingData);
             Assert.IsNull(missingData.Data1);

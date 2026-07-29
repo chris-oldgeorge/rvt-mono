@@ -13,5 +13,4 @@ namespace Omnidots.Model.Json
         [JsonPropertyName("longitude")]
         public double Longitude { get; set; }
     }
-
 }

@@ -32,7 +32,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
-import type { ErrorInfo, FormEvent, ReactNode } from 'react';
+import type { ErrorInfo, ReactNode, SubmitEvent } from 'react';
 import {
   changePassword,
   confirmEmail,
@@ -734,7 +734,7 @@ function LoginPage({ onAuthenticated, onNavigate }: LoginPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setError(null);
@@ -817,7 +817,7 @@ function ForgotPasswordPage({ onNavigate }: PublicPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
@@ -870,7 +870,7 @@ function ResetPasswordPage({ onNavigate }: PublicPageProps) {
   const [error, setError] = useState<string | null>(code ? null : 'A code must be supplied for password reset.');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
@@ -955,7 +955,7 @@ function ConfirmEmailPage({ onAuthenticated, onNavigate }: ConfirmEmailPageProps
       });
   }, [confirmationCode, parameterError, userId]);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     if (!confirmation) {
       return;
@@ -1447,7 +1447,7 @@ function ProfileForm({ profile, status, onProfileChanged, onProfileFeedbackDismi
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     onProfileFeedbackDismiss();
@@ -1514,7 +1514,7 @@ function PasswordForm() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     setIsSubmitting(true);
     setStatus(null);

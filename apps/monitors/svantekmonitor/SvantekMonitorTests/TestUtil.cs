@@ -81,5 +81,4 @@ namespace SvantekMonitorTests
             return true;
         }
     }
-
 }

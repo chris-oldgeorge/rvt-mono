@@ -27,7 +27,7 @@ public sealed class RvtConfigTests
         string insertTopic,
         string alertTopic)
     {
-        MonitorRuntimeDefaults defaults = RvtConfig.ResolveMonitorDefaults(monitorKind, baseDirectory: "", entryAssemblyName: "");
+        MonitorRuntimeDefaults defaults = RvtConfig.ResolveMonitorDefaults(monitorKind);
 
         Assert.AreEqual(serviceName, defaults.ServiceName);
         Assert.AreEqual(baseUrl, defaults.BaseUrl);
@@ -36,15 +36,18 @@ public sealed class RvtConfigTests
     }
 
     [TestMethod]
-    [DataRow("/tmp/rvt/airqmonitor/AirQMonitor/bin/Debug/net10.0", "AirQMonitor noise monitor data collector running ")]
-    [DataRow("/tmp/rvt/myatmmonitor/MyAtmMonitor/bin/Debug/net10.0", "MyAtmMonitor dust monitor data collector running ")]
-    [DataRow("/tmp/rvt/omnidotsmonitor/OmnidotsMonitor/bin/Debug/net10.0", "OmnidotsMonitor vibration monitor data collector running ")]
-    [DataRow("/tmp/rvt/svantekmonitor/SvantekMonitor/bin/Debug/net10.0", "SvantekMonitor noise monitor data collector running ")]
-    public void ResolveMonitorDefaultsCanInferMonitorKindFromBaseDirectory(string baseDirectory, string serviceName)
+    [DataRow(null)]
+    [DataRow("")]
+    [DataRow("unknown-monitor")]
+    public void ResolveMonitorDefaultsFallsToNeutralDefaultsWithoutAKnownKind(string? monitorKind)
     {
-        MonitorRuntimeDefaults defaults = RvtConfig.ResolveMonitorDefaults(monitorKind: "", baseDirectory, entryAssemblyName: "");
+        // The entry-assembly and base-directory sniffing was deleted by
+        // legacy-retirement step 7; RVT__MONITOR_KIND is the only signal.
+        MonitorRuntimeDefaults defaults = RvtConfig.ResolveMonitorDefaults(monitorKind);
 
-        Assert.AreEqual(serviceName, defaults.ServiceName);
+        Assert.AreEqual("", defaults.Kind);
+        Assert.AreEqual("RVT monitor data collector running ", defaults.ServiceName);
+        Assert.AreEqual("", defaults.BaseUrl);
     }
 
     [TestMethod]
@@ -64,7 +67,9 @@ public sealed class RvtConfigTests
 
         Assert.AreEqual("omnidots-user", credentials.UserId);
         Assert.AreEqual("omnidots-auth", credentials.UserAuth);
-        Assert.AreEqual("omnidots-token", credentials.Token);
+        // The static-token escape hatch was removed by product ruling on
+        // 2026-07-29; Omnidots always authenticates against the vendor.
+        Assert.AreEqual(string.Empty, credentials.Token);
     }
 
     [TestMethod]

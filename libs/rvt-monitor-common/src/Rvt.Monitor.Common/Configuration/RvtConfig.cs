@@ -1,4 +1,3 @@
-using System.Reflection;
 using Microsoft.Extensions.Configuration;
 
 namespace Rvt.Monitor.Common.Configuration;
@@ -16,12 +15,13 @@ public sealed class RvtConfig
 
     private static readonly IConfigurationRoot Configuration = BuildConfiguration();
 
-    private static readonly MonitorRuntimeDefaults LegacyDefaults = ResolveMonitorDefaults(
-        Environment.GetEnvironmentVariable("RVT__MONITOR_KIND"),
-        AppContext.BaseDirectory,
-        Assembly.GetEntryAssembly()?.GetName().Name ?? "");
+    // Lazy so the kind is read on first use, not when an unrelated static
+    // field first touches this type — test hosts set RVT__MONITOR_KIND in an
+    // assembly initializer that must win that race.
+    private static readonly Lazy<MonitorRuntimeDefaults> _resolvedDefaults =
+        new(() => ResolveMonitorDefaults(Environment.GetEnvironmentVariable("RVT__MONITOR_KIND")));
 
-    private static MonitorRuntimeDefaults Defaults => LegacyDefaults;
+    private static MonitorRuntimeDefaults Defaults => _resolvedDefaults.Value;
 
     private static string GetSetting(string name, string defaultValue = "")
     {
@@ -50,12 +50,9 @@ public sealed class RvtConfig
             .Build();
     }
 
-    internal static MonitorRuntimeDefaults ResolveMonitorDefaults(
-        string? monitorKind,
-        string baseDirectory,
-        string entryAssemblyName)
+    internal static MonitorRuntimeDefaults ResolveMonitorDefaults(string? monitorKind)
     {
-        string normalized = NormalizeMonitorKind(monitorKind, baseDirectory, entryAssemblyName);
+        string normalized = NormalizeMonitorKind(monitorKind);
         return normalized switch
         {
             _airQKind => new MonitorRuntimeDefaults(
@@ -100,46 +97,41 @@ public sealed class RvtConfig
     /// Resolves which monitor the process is running as.
     /// </summary>
     /// <remarks>
-    /// <c>RVT__MONITOR_KIND</c> is the supported signal and every deployed
-    /// monitor declares it. The entry-assembly and base-directory fallbacks are
-    /// a legacy last resort for hosts that predate that variable: they make the
-    /// library's behaviour depend on what the executable is named, which is
-    /// why nothing new should rely on them.
+    /// <c>RVT__MONITOR_KIND</c> is the only signal; every deployed monitor
+    /// declares it. The entry-assembly and base-directory sniffing that once
+    /// backed this up was deleted on 2026-07-29 (legacy-retirement step 7) —
+    /// library behaviour no longer depends on what the executable is named.
     /// </remarks>
-    private static string NormalizeMonitorKind(string? monitorKind, string baseDirectory, string entryAssemblyName)
+    private static string NormalizeMonitorKind(string? monitorKind)
     {
-        string?[] candidates = [monitorKind, entryAssemblyName, baseDirectory];
-        foreach (string? candidate in candidates)
+        if (string.IsNullOrWhiteSpace(monitorKind))
         {
-            if (string.IsNullOrWhiteSpace(candidate))
-            {
-                continue;
-            }
+            return "";
+        }
 
-            string normalized = candidate.Replace("-", "", StringComparison.OrdinalIgnoreCase)
-                .Replace("_", "", StringComparison.OrdinalIgnoreCase)
-                .Replace(".", "", StringComparison.OrdinalIgnoreCase)
-                .ToLowerInvariant();
+        string normalized = monitorKind.Replace("-", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("_", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(".", "", StringComparison.OrdinalIgnoreCase)
+            .ToLowerInvariant();
 
-            if (normalized.Contains(_airQKind, StringComparison.Ordinal))
-            {
-                return _airQKind;
-            }
+        if (normalized.Contains(_airQKind, StringComparison.Ordinal))
+        {
+            return _airQKind;
+        }
 
-            if (normalized.Contains(_myAtmKind, StringComparison.Ordinal))
-            {
-                return _myAtmKind;
-            }
+        if (normalized.Contains(_myAtmKind, StringComparison.Ordinal))
+        {
+            return _myAtmKind;
+        }
 
-            if (normalized.Contains(_omnidotsKind, StringComparison.Ordinal))
-            {
-                return _omnidotsKind;
-            }
+        if (normalized.Contains(_omnidotsKind, StringComparison.Ordinal))
+        {
+            return _omnidotsKind;
+        }
 
-            if (normalized.Contains(_svantekKind, StringComparison.Ordinal))
-            {
-                return _svantekKind;
-            }
+        if (normalized.Contains(_svantekKind, StringComparison.Ordinal))
+        {
+            return _svantekKind;
         }
 
         return "";
@@ -152,7 +144,7 @@ public sealed class RvtConfig
         static string Get(Func<string, string?> getOptionalSetting, string name) =>
             getOptionalSetting(name) ?? string.Empty;
 
-        return NormalizeMonitorKind(monitorKind, "", "") switch
+        return NormalizeMonitorKind(monitorKind) switch
         {
             _airQKind => new MonitorCredentialSettings(
                 UserId: Get(getOptionalSetting, "RVT__AIRQ_USER_ID"),
@@ -165,7 +157,7 @@ public sealed class RvtConfig
             _omnidotsKind => new MonitorCredentialSettings(
                 UserId: Get(getOptionalSetting, "RVT__OMNIDOTS_USER_ID"),
                 UserAuth: Get(getOptionalSetting, "RVT__OMNIDOTS_USER_AUTH"),
-                Token: Get(getOptionalSetting, "RVT__OMNIDOTS_TOKEN")),
+                Token: string.Empty),
             _svantekKind => new MonitorCredentialSettings(
                 UserId: string.Empty,
                 UserAuth: string.Empty,
@@ -209,7 +201,6 @@ public sealed class RvtConfig
     public static string USER_ID => Credentials.UserId;
     public static string USER_AUTH => Credentials.UserAuth;
     public static string TOKEN => Credentials.Token;
-    public static readonly bool USE_TOKEN = GetBoolSetting("RVT__OMNIDOTS_USE_TOKEN", true);
 
     public static readonly string API_KEY = GetSetting("RVT__SVANTEK_API_KEY");
 }

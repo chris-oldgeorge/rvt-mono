@@ -12,10 +12,10 @@ namespace Omnidots.Api
     // - 2026-07-12 God-class split: extracted from the OmnidotsApi partials (OmnidotsApiWebhook).
     public class OmnidotsRuleProcessor
     {
-        private readonly IOmnidotsRuleQueries ruleQueries;
-        private readonly IOmnidotsOperationalCommands operationalCommands;
-        private readonly IMessageService messageService;
-        private readonly string portalBaseUrl;
+        private readonly IOmnidotsRuleQueries _ruleQueries;
+        private readonly IOmnidotsOperationalCommands _operationalCommands;
+        private readonly IMessageService _messageService;
+        private readonly string _portalBaseUrl;
 
         public OmnidotsRuleProcessor(
             IOmnidotsRuleQueries ruleQueries,
@@ -23,16 +23,16 @@ namespace Omnidots.Api
             IMessageService messageService,
             string portalBaseUrl)
         {
-            this.ruleQueries = ruleQueries;
-            this.operationalCommands = operationalCommands;
-            this.messageService = messageService;
-            this.portalBaseUrl = portalBaseUrl;
+            _ruleQueries = ruleQueries;
+            _operationalCommands = operationalCommands;
+            _messageService = messageService;
+            _portalBaseUrl = portalBaseUrl;
         }
 
         public void ProcessAlertForContacts(VibrationMonitorDto monitor, NotificationDto notification)
         {
-            operationalCommands.WriteNotification(notification);
-            List<RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id);
+            _operationalCommands.WriteNotification(notification);
+            List<RvtContactDto> contacts = _ruleQueries.ReadAlertContacts(monitor.Id);
 
             if (contacts != null && contacts.Count() > 0)
             {
@@ -59,7 +59,7 @@ namespace Omnidots.Api
                 string notificationUrl = "";
                 if (notification.AlertType == AlertType.Alert || notification.AlertType == AlertType.Caution)
                 {
-                    notificationUrl = $"{portalBaseUrl}Notification/View/{notification.Id}";
+                    notificationUrl = $"{_portalBaseUrl}Notification/View/{notification.Id}";
                 }
 
                 foreach (RvtContactDto? contact in contacts.Where(x => x.Email))
@@ -68,20 +68,26 @@ namespace Omnidots.Api
                     {
                         if (contact.ShouldSendAtTime(notification.NotificationTime))
                         {
-                            RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
-                                SensitiveLogRedactor.Redact(contact.EmailAddress));
-                            messageService.Sendmessage(messageToSend, LegacyMessageChannel.Email, contact, monitor.FleetNr!, notificationUrl);
-                            operationalCommands.WriteNotificationAudit(notification.Id, contact.EmailAddress, NotificationConstants.SENT_OK);
+                            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                            {
+                                RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact email={Value1}",
+                                    SensitiveLogRedactor.Redact(contact.EmailAddress));
+                            }
+                            _messageService.Sendmessage(messageToSend, LegacyMessageChannel.Email, contact, monitor.FleetNr!, notificationUrl);
+                            _operationalCommands.WriteNotificationAudit(notification.Id, contact.EmailAddress, NotificationConstants.SENT_OK);
                         }
                         else
                         {
-                            RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
-                                SensitiveLogRedactor.Redact(contact.ToString()));
+                            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                            {
+                                RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
+                                    SensitiveLogRedactor.Redact(contact.ToString()));
+                            }
                         }
                     }
                     catch (CommsException e)
                     {
-                        operationalCommands.WriteNotificationAudit(notification.Id, e.Address, e.Message);
+                        _operationalCommands.WriteNotificationAudit(notification.Id, e.Address, e.Message);
                     }
                 }
                 foreach (RvtContactDto? contact in contacts.Where(x => x.SMS))
@@ -90,20 +96,26 @@ namespace Omnidots.Api
                     {
                         if (contact.ShouldSendAtTime(notification.NotificationTime))
                         {
-                            RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
-                                SensitiveLogRedactor.Redact(contact.PhoneNumber));
-                            messageService.Sendmessage(messageToSend, LegacyMessageChannel.SMS, contact, monitor.FleetNr!, notificationUrl);
-                            operationalCommands.WriteNotificationAudit(notification.Id, contact.PhoneNumber!, NotificationConstants.SENT_OK);
+                            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                            {
+                                RvtLogger.Logger.LogInformation("ProcessAlertForContacts sendMessage for contact phoneNumber={Value1}",
+                                    SensitiveLogRedactor.Redact(contact.PhoneNumber));
+                            }
+                            _messageService.Sendmessage(messageToSend, LegacyMessageChannel.SMS, contact, monitor.FleetNr!, notificationUrl);
+                            _operationalCommands.WriteNotificationAudit(notification.Id, contact.PhoneNumber!, NotificationConstants.SENT_OK);
                         }
                         else
                         {
-                            RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
-                                SensitiveLogRedactor.Redact(contact.ToString()));
+                            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                            {
+                                RvtLogger.Logger.LogInformation("Contact ShouldSendAtTime skipped sending message contact={Value1}",
+                                    SensitiveLogRedactor.Redact(contact.ToString()));
+                            }
                         }
                     }
                     catch (CommsException e)
                     {
-                        operationalCommands.WriteNotificationAudit(notification.Id, e.Address, e.Message);
+                        _operationalCommands.WriteNotificationAudit(notification.Id, e.Address, e.Message);
                     }
 
                 }

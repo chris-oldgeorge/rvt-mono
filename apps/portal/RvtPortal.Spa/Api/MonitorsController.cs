@@ -364,13 +364,8 @@ public class MonitorsController : ControllerBase
     }
 
     // Function summary: Builds the existing invalid-sort problem response for monitor endpoints.
-    private ObjectResult InvalidSort(string sort, IEnumerable<string> validSorts)
-    {
-        return Problem(
-            detail: $"Sort '{sort}' is not supported. Use one of: {string.Join(", ", validSorts)}.",
-            statusCode: StatusCodes.Status400BadRequest,
-            title: "Invalid sort field");
-    }
+    private BadRequestObjectResult InvalidSort(string sort, IEnumerable<string> validSorts) =>
+        ApiProblems.InvalidSort(HttpContext, sort, validSorts, "monitors");
 
     // Function summary: Builds the existing not-found response for missing or unauthorized monitors.
     private NotFoundObjectResult MonitorNotFound(Guid id)

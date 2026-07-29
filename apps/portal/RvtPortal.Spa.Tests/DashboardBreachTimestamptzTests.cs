@@ -24,7 +24,7 @@ public sealed class DashboardBreachTimestamptzTests
     public async Task QueryAsync_WithDefaultDate_ExecutesAgainstRealPostgres()
     {
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>().UseNpgsql(connectionString).Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.Npgsql<RVTDbContext>(connectionString);
         await using RVTDbContext context = new(options);
 
         RvtDateTimeProvider provider = new(Options.Create(new RvtTimeZoneOptions { Local = "Europe/London" }));

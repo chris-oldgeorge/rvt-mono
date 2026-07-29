@@ -43,9 +43,13 @@ import {
   updateReportRule,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
-import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
+import type { DataGridColumn } from '../components/DataGrid';
 import { FormField, Notice, SubmitButton } from '../components/FormControls';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
+import { formatDate, formatDateTime } from '../format';
+import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
+import { useRequestLifecycle } from '../requestLifecycle';
+import { safeHref } from '../safeUrl';
 import type {
   QueryCompaniesRequest,
   QueryReportRulesRequest,
@@ -94,22 +98,6 @@ type UserGridState = Readonly<{
   error: string | null;
   isLoading: boolean;
 }>;
-
-// Function summary: Applies grid sort handler to the current configuration.
-function useGridSortHandler(
-  setSortKey: (key: string) => void,
-  setSortDir: (direction: SortDirection) => void,
-  setPage: (page: number) => void,
-) {
-  return useCallback(
-    (key: string, direction: GridSortDirection) => {
-      setSortKey(key);
-      setSortDir(direction);
-      setPage(1);
-    },
-    [setPage, setSortDir, setSortKey],
-  );
-}
 
 // Function summary: Renders the ReportsPanel React component and wires its local UI behavior.
 export function ReportsPanel({ locationPath, onNavigate, onRequestError }: ReportsPanelProps) {
@@ -280,7 +268,7 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
             label: 'Open report',
             icon: <Download size={16} aria-hidden="true" />,
             onClick: openReport,
-            disabled: (report) => !safeReportLink(report.reportLink),
+            disabled: (report) => !safeHref(report.reportLink),
           },
           {
             label: 'Edit report rule',
@@ -308,8 +296,7 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   const [error, setError] = useState<string | null>(null);
   const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryReportRulesRequest> | null>(null);
   const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryReportRulesRequest> | null>(null);
-  const activeRequestController = useRef<AbortController | null>(null);
-  const requestGeneration = useRef(0);
+  const { claimRequest, ownsRequest, currentGeneration } = useRequestLifecycle();
 
   const query = useMemo<QueryReportRulesRequest>(
     () => ({
@@ -324,23 +311,6 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   const effectExecution = useMemo<ListExecution<QueryReportRulesRequest>>(() => ({ query }), [query]);
   const currentExecution = refreshExecution?.query === query ? refreshExecution : effectExecution;
   const isLoading = completedExecution !== currentExecution;
-
-  const claimRequest = useCallback(() => {
-    activeRequestController.current?.abort();
-    const controller = new AbortController();
-    const generation = requestGeneration.current + 1;
-    requestGeneration.current = generation;
-    activeRequestController.current = controller;
-    return { controller, generation };
-  }, []);
-
-  const ownsRequest = useCallback(
-    (controller: AbortController, generation: number) =>
-      activeRequestController.current === controller &&
-      requestGeneration.current === generation &&
-      !controller.signal.aborted,
-    [],
-  );
 
   const columns = useMemo<DataGridColumn<ReportRuleListItem>[]>(
     () => [
@@ -422,13 +392,13 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
     if (!globalThis.confirm(`Delete ${rule.reportName || rule.frequencyLabel} report rule?`)) {
       return;
     }
-    const deleteGeneration = requestGeneration.current;
+    const deleteGeneration = currentGeneration();
     setNotice(null);
     setError(null);
     try {
       await deleteReportRule(rule.id);
       setNotice('Report rule has been deleted.');
-      if (requestGeneration.current !== deleteGeneration) {
+      if (currentGeneration() !== deleteGeneration) {
         return;
       }
       await refreshRules();
@@ -1167,32 +1137,12 @@ function DetailItem({ label, value }: Readonly<{ label: string; value: string }>
 
 // Function summary: Handles the open report workflow for this module.
 function openReport(report: ReportListItem) {
-  const link = safeReportLink(report.reportLink);
+  const link = safeHref(report.reportLink);
   if (!link) {
     return;
   }
 
   globalThis.open(link, '_blank', 'noopener,noreferrer');
-}
-
-// Function summary: Handles the safe report link workflow for this module.
-function safeReportLink(value: string) {
-  if (!value.trim()) {
-    return null;
-  }
-
-  let url: URL;
-  try {
-    url = new URL(value, globalThis.location.origin);
-  } catch {
-    return null;
-  }
-
-  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
-    return null;
-  }
-
-  return url.toString();
 }
 
 // Function summary: Handles the parse reports route workflow for this module.
@@ -1245,17 +1195,6 @@ function buildRulesUrl({
     params.set('q', searchText.trim());
   }
   return `/reports/rules?${params.toString()}`;
-}
-
-// Function summary: Handles the normalize sort direction workflow for this module.
-function normalizeSortDirection(value: string | null, fallback: SortDirection = 'Ascending'): SortDirection {
-  return value === 'Descending' || value === 'desc' ? 'Descending' : fallback;
-}
-
-// Function summary: Handles the parse positive int workflow for this module.
-function parsePositiveInt(value: string | null, fallback: number) {
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 // Function summary: Handles the empty rule form workflow for this module.
@@ -1321,25 +1260,6 @@ function dayOfMonthLabel(value?: number | null) {
 // Function summary: Handles the format period workflow for this module.
 function formatPeriod(from: string, to: string) {
   return `${formatDate(from)} to ${formatDate(to)}`;
-}
-
-// Function summary: Handles the format date workflow for this module.
-function formatDate(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value));
-}
-
-// Function summary: Handles the format date time workflow for this module.
-function formatDateTime(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value));
 }
 
 const dayOptions: ReadonlyArray<{ value: number; label: string }> = [

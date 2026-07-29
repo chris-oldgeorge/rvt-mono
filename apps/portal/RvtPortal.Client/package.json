@@ -16,7 +16,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage --coverage.reporter=lcov",
     "test:e2e": "playwright test",
-    "openapi": "npx openapi-typescript@latest http://localhost:5178/swagger/v1/swagger.json -o src/api/schema.d.ts"
+    "openapi": "npx openapi-typescript@7.13.0 http://localhost:5178/swagger/v1/swagger.json -o src/api/schema.d.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",

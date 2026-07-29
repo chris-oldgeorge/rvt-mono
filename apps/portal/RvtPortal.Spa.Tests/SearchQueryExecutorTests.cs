@@ -8,6 +8,7 @@ using RVT.DataAccess.Context;
 using RVT.Entities;
 using RVT.Entities.Querying;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class SearchQueryExecutorTests
@@ -118,9 +119,7 @@ public sealed class SearchQueryExecutorTests
     // Function summary: Creates an isolated in-memory domain context for read-path tests.
     private static RVTDbContext CreateContext()
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.InMemory<RVTDbContext>();
 
         return new RVTDbContext(options);
     }

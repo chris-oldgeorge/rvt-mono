@@ -99,10 +99,7 @@ public class ContractSiteOperationsTests
     public async Task CreateContractCommand_PersistsCalendarDateAgainstRealPostgres()
     {
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseNpgsql(connectionString)
-            .AddInterceptors(UtcTimestampGuardInterceptor.Instance)
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.Npgsql<RVTDbContext>(connectionString, UtcTimestampGuardInterceptor.Instance);
         await using RVTDbContext context = new(options);
         await using IDbContextTransaction transaction = await context.Database.BeginTransactionAsync();
         Company company = new() { Id = Guid.NewGuid(), CompanyName = "T5 Contract Date Company" };
@@ -213,9 +210,7 @@ public class ContractSiteOperationsTests
     // Function summary: Builds the PostgreSQL model without opening a connection so timestamp guards see actual provider types.
     private static RVTDbContext NpgsqlDomainContext()
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.ModelOnlyNpgsql<RVTDbContext>();
         return new RVTDbContext(options);
     }
     [Fact]

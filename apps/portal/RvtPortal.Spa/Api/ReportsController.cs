@@ -56,16 +56,8 @@ public class ReportsController : ControllerBase
     }
 
     // Function summary: Builds the invalid-sort problem response while preserving the existing report API contract.
-    private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
-    {
-        ProblemDetails problem = ApiProblems.Create(
-            HttpContext,
-            StatusCodes.Status400BadRequest,
-            "Invalid sort field",
-            $"Sort field '{requestedSort}' is not supported for reports.");
-        problem.Extensions["allowedSortFields"] = allowedSortFields.OrderBy(field => field, StringComparer.OrdinalIgnoreCase).ToArray();
-        return BadRequest(problem);
-    }
+    private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields) =>
+        ApiProblems.InvalidSort(HttpContext, requestedSort, allowedSortFields, "reports");
 
     // Function summary: Builds the report not-found response.
     private NotFoundObjectResult ReportNotFound(Guid id)

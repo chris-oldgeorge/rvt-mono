@@ -9,7 +9,6 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
 using RVT.DataAccess.Context;
@@ -18,6 +17,7 @@ using RvtPortal.Spa.Adapters.Archive;
 using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Adapters.Storage;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class SiteArchiveServiceSecurityTests
@@ -262,9 +262,7 @@ public sealed class SiteArchiveServiceSecurityTests
     // Function summary: Builds a domain context the archive executor only needs to hold, never to query.
     private static RVTDbContext NoOpDomainContext()
     {
-        return new RVTDbContext(new DbContextOptionsBuilder<RVTDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options);
+        return new RVTDbContext(TestDbContexts.InMemory<RVTDbContext>());
     }
 
     private static SiteArchiveService CreateArchiveService(string blobConnectionString)

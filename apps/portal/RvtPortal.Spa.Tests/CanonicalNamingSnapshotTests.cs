@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using RVT.DataAccess.Context;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 /// <summary>
@@ -68,10 +69,8 @@ public sealed class CanonicalNamingSnapshotTests
         SortedSet<string> lines = new(StringComparer.Ordinal);
 
         // A relational provider is required to resolve table/column names; no connection is ever opened.
-        using RVTDbContext domain = new(new DbContextOptionsBuilder<RVTDbContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused").Options);
-        using RVTSearchContext search = new(new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused").Options);
+        using RVTDbContext domain = new(TestDbContexts.ModelOnlyNpgsql<RVTDbContext>());
+        using RVTSearchContext search = new(TestDbContexts.ModelOnlyNpgsql<RVTSearchContext>());
 
         foreach (DbContext context in new DbContext[] { domain, search })
         {

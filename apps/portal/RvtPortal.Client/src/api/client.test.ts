@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ApiError, createHelpArticle, downloadFile, getHealth, queryCompanies } from './client';
+import { ApiError, createHelpArticle, downloadFile, getHealth, queryAdminHelp, queryCompanies } from './client';
 
 const apiDirectory = dirname(fileURLToPath(import.meta.url));
 
@@ -154,6 +154,19 @@ describe('API client infrastructure', () => {
     expect(dtoSource).toContain("ApiSchema<'ReportRuleMutationRequest'>");
     expect(dtoSource).not.toContain('export type CompanyListItem = {');
     expect(dtoSource).not.toContain('export type ReportRuleMutationRequest = {');
+  });
+
+  it('sends the Help admin filters that the shared whitelist used to drop', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ items: [] }, 200));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await queryAdminHelp({ searchText: 'guide', status: 'draft', contentType: 'faq' });
+
+    const requested = new URL(String(fetchMock.mock.calls[0]?.[0]), 'https://rvt.local');
+    expect(requested.pathname).toBe('/api/help/admin');
+    expect(requested.searchParams.get('searchText')).toBe('guide');
+    expect(requested.searchParams.get('status')).toBe('draft');
+    expect(requested.searchParams.get('contentType')).toBe('faq');
   });
 });
 

@@ -341,16 +341,8 @@ public class SitesController : ControllerBase
     }
 
     // Function summary: Builds the existing invalid-sort problem response for site endpoints.
-    private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields)
-    {
-        ProblemDetails problem = ApiProblems.Create(
-            HttpContext,
-            StatusCodes.Status400BadRequest,
-            "Invalid sort field",
-            $"Sort field '{requestedSort}' is not supported for sites.");
-        problem.Extensions["allowedSortFields"] = allowedSortFields.OrderBy(field => field, StringComparer.OrdinalIgnoreCase).ToArray();
-        return BadRequest(problem);
-    }
+    private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields) =>
+        ApiProblems.InvalidSort(HttpContext, requestedSort, allowedSortFields, "sites");
     // Function summary: Builds the existing not-found response for missing or unauthorized sites.
     private NotFoundObjectResult SiteNotFound(Guid id)
     {

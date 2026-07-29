@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class SchemaValidatorTests
@@ -105,8 +106,6 @@ public sealed class SchemaValidatorTests
     // Function summary: Builds a relational context; no connection is opened because nothing is executed.
     private static RVTDbContext RelationalContext()
     {
-        return new RVTDbContext(new DbContextOptionsBuilder<RVTDbContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-            .Options);
+        return new RVTDbContext(TestDbContexts.ModelOnlyNpgsql<RVTDbContext>());
     }
 }

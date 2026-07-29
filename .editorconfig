@@ -31,6 +31,7 @@ dotnet_diagnostic.IDE0028.severity = error
 dotnet_diagnostic.CA1873.severity = error
 dotnet_diagnostic.CA1861.severity = error
 dotnet_diagnostic.S6667.severity = error
+dotnet_diagnostic.S8949.severity = error
 
 dotnet_naming_symbols.private_instance_fields.applicable_kinds = field
 dotnet_naming_symbols.private_instance_fields.applicable_accessibilities = private

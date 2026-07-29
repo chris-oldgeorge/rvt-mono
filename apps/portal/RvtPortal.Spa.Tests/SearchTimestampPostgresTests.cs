@@ -43,9 +43,7 @@ public sealed class SearchTimestampPostgresTests
     // Function summary: Enumerates every search SampleTime property and compares its PostgreSQL store type to the approved table.
     public void SearchModel_SampleTimeMappings_MatchApprovedPostgresContract()
     {
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-            .Options;
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.ModelOnlyNpgsql<RVTSearchContext>();
         using RVTSearchContext context = new(options);
 
         Dictionary<string, string> actual = context.Model.GetEntityTypes()
@@ -63,9 +61,7 @@ public sealed class SearchTimestampPostgresTests
     // Function summary: Verifies both trace-index bounds use the PostgreSQL UTC-naive timestamp contract in runtime and snapshot metadata.
     public void SearchModel_TraceIndexTimeMappings_MatchApprovedPostgresContract()
     {
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-            .Options;
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.ModelOnlyNpgsql<RVTSearchContext>();
         using RVTSearchContext context = new(options);
         IEntityType? entity = context.Model.FindEntityType(typeof(OmnidotsTracesIndex));
         Assert.NotNull(entity);
@@ -93,9 +89,7 @@ public sealed class SearchTimestampPostgresTests
     // Function summary: Verifies the EF view metadata and checked-in PostgreSQL definitions agree on UTC-naive aggregate timestamps.
     public void SearchModel_AggregateViewMappings_MatchCheckedInPostgresDefinitions()
     {
-        DbContextOptions<RVTSearchContext> options = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused")
-            .Options;
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.ModelOnlyNpgsql<RVTSearchContext>();
         using RVTSearchContext context = new(options);
         string sql = File.ReadAllText(Path.Combine(
             FindRepositoryRoot(),
@@ -191,9 +185,7 @@ public sealed class SearchTimestampPostgresTests
             ["omnidots_peak_level_1_day_peak"] = "date"
         };
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql(connectionString)
-            .Options;
+        DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Npgsql<RVTSearchContext>(connectionString);
         await using RVTSearchContext context = new(searchOptions);
         DbConnection connection = context.Database.GetDbConnection();
         await connection.OpenAsync();
@@ -239,9 +231,7 @@ public sealed class SearchTimestampPostgresTests
     public async Task DustTelemetry_UtcBounds_QuerySuccessfullyAndReturnUtcJson()
     {
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql(connectionString)
-            .Options;
+        DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Npgsql<RVTSearchContext>(connectionString);
         await using RVTSearchContext searchContext = new(searchOptions);
         await using IDbContextTransaction transaction = await searchContext.Database.BeginTransactionAsync();
         string serialId = $"T5{Guid.NewGuid():N}"[..22];
@@ -318,9 +308,7 @@ public sealed class SearchTimestampPostgresTests
     public async Task TraceIndexes_UtcBounds_QuerySuccessfullyAndReturnUtcJson()
     {
         string? connectionString = Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable);
-        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseNpgsql(connectionString)
-            .Options;
+        DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Npgsql<RVTSearchContext>(connectionString);
         await using RVTSearchContext searchContext = new(searchOptions);
         await using IDbContextTransaction transaction = await searchContext.Database.BeginTransactionAsync();
         Guid traceId = Guid.NewGuid();
@@ -405,9 +393,7 @@ public sealed class SearchTimestampPostgresTests
     // Function summary: Creates an isolated domain model that supplies deployment visibility to the API application service.
     private static RVTDbContext CreateDomainContext(Deployment deployment)
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseInMemoryDatabase($"timestamp-contract-{Guid.NewGuid():N}")
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.InMemory<RVTDbContext>($"timestamp-contract-{Guid.NewGuid():N}");
         RVTDbContext context = new(options);
         context.Deployments.Add(deployment);
         context.SaveChanges();

@@ -10,6 +10,7 @@ using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Application.Common;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class SiteWriteAdapterTests
@@ -283,16 +284,10 @@ public sealed class SiteWriteAdapterTests
                 "Data Source=:memory:;Foreign Keys=True");
             await connection.OpenAsync();
 
-            DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
-                .UseSqlite(connection)
-                .Options;
-            DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
-                .UseSqlite(connection)
-                .Options;
+            DbContextOptions<RVTDbContext> domainOptions = TestDbContexts.Sqlite<RVTDbContext>(connection);
+            DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Sqlite<RVTSearchContext>(connection);
             DbContextOptions<ApplicationDbContext> applicationOptions =
-                new DbContextOptionsBuilder<ApplicationDbContext>()
-                    .UseSqlite(connection)
-                    .Options;
+                TestDbContexts.Sqlite<ApplicationDbContext>(connection);
             await CreateTablesAsync(new RVTDbContext(domainOptions));
             await CreateTablesAsync(new RVTSearchContext(searchOptions));
             await CreateTablesAsync(

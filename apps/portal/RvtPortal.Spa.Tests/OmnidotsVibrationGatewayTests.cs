@@ -14,6 +14,7 @@ using RvtPortal.Spa.Adapters.Vendors;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.AlertLevels;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class OmnidotsVibrationGatewayTests
@@ -150,9 +151,7 @@ public sealed class OmnidotsVibrationGatewayTests
 
     private static async Task<RVTDbContext> CreateVibrationMonitorContextAsync(Guid monitorId)
     {
-        DbContextOptions<RVTDbContext> options = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseInMemoryDatabase($"vibration-gateway-{Guid.NewGuid():N}")
-            .Options;
+        DbContextOptions<RVTDbContext> options = TestDbContexts.InMemory<RVTDbContext>($"vibration-gateway-{Guid.NewGuid():N}");
         RVTDbContext context = new(options);
         context.MonitorsList.Add(TestData.Monitor(MonitorTypeEnum.Vibration, id: monitorId, serialId: "VIB-001"));
         await context.SaveChangesAsync();

@@ -14,6 +14,7 @@ using RVT.Entities;
 using RvtPortal.Spa.Application.Common;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class EfCoreUnitOfWorkTests
@@ -211,11 +212,11 @@ public sealed class EfCoreUnitOfWorkTests
         await otherConnection.OpenAsync();
 
         await using RVTDbContext domainContext = new(
-            new DbContextOptionsBuilder<RVTDbContext>().UseSqlite(domainConnection).Options);
+            TestDbContexts.Sqlite<RVTDbContext>(domainConnection));
         await using RVTSearchContext searchContext = new(
-            new DbContextOptionsBuilder<RVTSearchContext>().UseSqlite(otherConnection).Options);
+            TestDbContexts.Sqlite<RVTSearchContext>(otherConnection));
         await using ApplicationDbContext applicationContext = new(
-            new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(otherConnection).Options);
+            TestDbContexts.Sqlite<ApplicationDbContext>(otherConnection));
         EfCoreUnitOfWork unitOfWork = new(domainContext, searchContext, applicationContext);
 
         InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => unitOfWork.ExecuteInTransactionAsync(
@@ -238,17 +239,10 @@ public sealed class EfCoreUnitOfWorkTests
             commitFailure,
             rollbackFailure,
             requestCancellation);
-        DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseSqlite(connection)
-            .AddInterceptors(interceptor)
-            .Options;
-        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseSqlite(connection)
-            .Options;
+        DbContextOptions<RVTDbContext> domainOptions = TestDbContexts.Sqlite<RVTDbContext>(connection, interceptor);
+        DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Sqlite<RVTSearchContext>(connection);
         DbContextOptions<ApplicationDbContext> applicationOptions =
-            new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseSqlite(connection)
-                .Options;
+            TestDbContexts.Sqlite<ApplicationDbContext>(connection);
 
         await using RVTDbContext domainContext = new(domainOptions);
         await using RVTSearchContext searchContext = new(searchOptions);
@@ -293,17 +287,10 @@ public sealed class EfCoreUnitOfWorkTests
         FailingCommitAndRollbackInterceptor interceptor = new(
             commitFailure,
             rollbackFailure);
-        DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>()
-            .UseSqlite(connection)
-            .AddInterceptors(interceptor)
-            .Options;
-        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>()
-            .UseSqlite(connection)
-            .Options;
+        DbContextOptions<RVTDbContext> domainOptions = TestDbContexts.Sqlite<RVTDbContext>(connection, interceptor);
+        DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Sqlite<RVTSearchContext>(connection);
         DbContextOptions<ApplicationDbContext> applicationOptions =
-            new DbContextOptionsBuilder<ApplicationDbContext>()
-                .UseSqlite(connection)
-                .Options;
+            TestDbContexts.Sqlite<ApplicationDbContext>(connection);
 
         await using RVTDbContext domainContext = new(domainOptions);
         await using RVTSearchContext searchContext = new(searchOptions);
@@ -339,8 +326,8 @@ public sealed class EfCoreUnitOfWorkTests
             .UseSqlite(connection, sqlite => sqlite.ExecutionStrategy(dependencies => new RetryOnMarkerStrategy(dependencies)))
             .AddInterceptors(interceptor)
             .Options;
-        DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>().UseSqlite(connection).Options;
-        DbContextOptions<ApplicationDbContext> applicationOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options;
+        DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Sqlite<RVTSearchContext>(connection);
+        DbContextOptions<ApplicationDbContext> applicationOptions = TestDbContexts.Sqlite<ApplicationDbContext>(connection);
 
         await using RVTDbContext domainContext = new(domainOptions);
         await using RVTSearchContext searchContext = new(searchOptions);
@@ -547,9 +534,9 @@ public sealed class EfCoreUnitOfWorkTests
             await connection.OpenAsync();
             await EnableForeignKeysAsync(connection);
 
-            DbContextOptions<RVTDbContext> domainOptions = new DbContextOptionsBuilder<RVTDbContext>().UseSqlite(connection).Options;
-            DbContextOptions<RVTSearchContext> searchOptions = new DbContextOptionsBuilder<RVTSearchContext>().UseSqlite(connection).Options;
-            DbContextOptions<ApplicationDbContext> applicationOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(connection).Options;
+            DbContextOptions<RVTDbContext> domainOptions = TestDbContexts.Sqlite<RVTDbContext>(connection);
+            DbContextOptions<RVTSearchContext> searchOptions = TestDbContexts.Sqlite<RVTSearchContext>(connection);
+            DbContextOptions<ApplicationDbContext> applicationOptions = TestDbContexts.Sqlite<ApplicationDbContext>(connection);
             await CreateTablesAsync(new RVTDbContext(domainOptions));
             await CreateTablesAsync(new RVTSearchContext(searchOptions));
             await CreateTablesAsync(new ApplicationDbContext(applicationOptions));

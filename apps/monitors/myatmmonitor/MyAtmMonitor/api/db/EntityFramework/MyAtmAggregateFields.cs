@@ -5,7 +5,7 @@ namespace MyAtm.Api.Db.EntityFramework;
 public static class MyAtmAggregateFields
 {
     private static readonly Dictionary<string, MonitorAggregateField<MyAtmDustLevelEntity>> _fields =
-        new Dictionary<string, MonitorAggregateField<MyAtmDustLevelEntity>>(StringComparer.Ordinal)
+        new(StringComparer.Ordinal)
         {
             ["Pm1"] = MonitorAggregateField<MyAtmDustLevelEntity>.Average("Pm1", row => row.Pm1),
             ["Pm2_5"] = MonitorAggregateField<MyAtmDustLevelEntity>.Average("Pm2_5", row => row.Pm2_5),

@@ -5,7 +5,7 @@ namespace AirQ.Api.Db.EntityFramework;
 public static class AirQAggregateFields
 {
     private static readonly Dictionary<string, MonitorAggregateField<AirQNoiseLevelEntity>> _fields =
-        new Dictionary<string, MonitorAggregateField<AirQNoiseLevelEntity>>(StringComparer.Ordinal)
+        new(StringComparer.Ordinal)
         {
             ["LAeq"] = MonitorAggregateField<AirQNoiseLevelEntity>.Average("LAeq", row => row.LAeq),
             ["LAmax"] = MonitorAggregateField<AirQNoiseLevelEntity>.Average("LAmax", row => row.LAmax),

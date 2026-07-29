@@ -25,7 +25,7 @@ import {
   UsersRound,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { SyntheticEvent } from 'react';
 import {
   addReportRuleUser,
   createReportRule,
@@ -538,7 +538,7 @@ function ReportRuleForm({
       });
   }, [onRequestError, ruleId]);
 
-  async function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: SyntheticEvent) {
     event.preventDefault();
     if (selectedSiteDisabled) {
       setError(selectedSiteError);

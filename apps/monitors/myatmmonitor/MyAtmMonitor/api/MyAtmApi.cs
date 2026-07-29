@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
+using MyAtm.Api.Ports;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
 using MyAtm.Model.Json;
@@ -77,7 +78,7 @@ namespace MyAtm.Api
             MonitorDeliveryDispatcher outboxDispatcher)
         {
             options.Validate();
-            MyAtmHttpGateway gateway = new(
+            IMyAtmVendorGateway gateway = new MyAtmHttpGateway(
                 httpClient,
                 options.DevicePageSize,
                 options.MeasurementPageSize,

@@ -57,7 +57,6 @@ namespace Omnidots.Api.UseCases
                 latestTraceEndTimes,
                 options,
                 rotationSlot);
-            List<OmnidotsMonitorFailure> failures = [];
             int succeeded = 0;
             int tracesStored = 0;
             int samplesStored = 0;
@@ -70,24 +69,18 @@ namespace Omnidots.Api.UseCases
 
             string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
 
-            foreach (VibrationMonitorDto monitor in selectedMonitors)
-            {
-                try
+            List<OmnidotsMonitorFailure> failures = await OmnidotsFleetImport.RunAsync(
+                "StoreTraces",
+                selectedMonitors,
+                operationalCommands,
+                async monitor =>
                 {
                     TraceReadResult result = await ReadTracesAsync(token, monitor.SerialId, last, null, cancellationToken);
                     succeeded++;
                     tracesStored += result.TraceCount;
                     samplesStored += result.SampleCount;
-                }
-                catch (Exception e)
-                {
-                    string msg = string.Format("Failed to read traces for serialId={0}", monitor.SerialId!);
-                    failures.Add(OmnidotsMonitorFailure.Record(
-                        monitor.SerialId,
-                        e,
-                        () => operationalCommands.HandleException(msg, e)));
-                }
-            }
+                },
+                cancellationToken);
 
             LogSummary(
                 eligibleMonitors.Count,
@@ -98,10 +91,7 @@ namespace Omnidots.Api.UseCases
                 samplesStored,
                 startedAt);
 
-            if (failures.Count > 0)
-            {
-                throw new OmnidotsImportException("StoreTraces", failures);
-            }
+            OmnidotsFleetImport.ThrowIfAny("StoreTraces", failures);
         }
 
         private async Task<TraceReadResult> ReadTracesAsync(string token, string serialId, DateTime start, DateTime? end, CancellationToken cancellationToken)

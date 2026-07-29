@@ -11,9 +11,9 @@ namespace AirQ.Api;
 //   switch, which were two hand-maintained lists of the same job names.
 internal static class AirQMonitorJobs
 {
-    public static readonly MonitorJobCatalog<AirQService> Catalog = new(
+    public static readonly MonitorJobCatalog<IAirQMonitorJobs> Catalog = new(
         "AirQ monitor",
-        new Dictionary<string, Func<AirQService, CancellationToken, Task>>(StringComparer.Ordinal)
+        new Dictionary<string, Func<IAirQMonitorJobs, CancellationToken, Task>>(StringComparer.Ordinal)
         {
             ["StoreMonitors"] = (service, cancellationToken) => service.StoreMonitorsAsync(cancellationToken),
             ["CheckForOfflineMonitors"] = (service, cancellationToken) => service.CheckForOfflineMonitorsAsync(cancellationToken),

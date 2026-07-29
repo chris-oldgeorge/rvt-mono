@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Rules;
@@ -5,6 +6,10 @@ using Rvt.Monitor.Common.Utilities;
 
 namespace Rvt.Monitor.Common.Notifications;
 
+[method: SuppressMessage(
+    "Maintainability",
+    "S107:Methods should not have too many parameters",
+    Justification = "The primary constructor is the explicit materialization contract for the immutable notification DTO.")]
 public class NotificationDto(Guid id, DateTime notificationTime, double limitOn, int averagingPeriod, double level,
                        DateTime? closedTime, Guid? closedByUser, AlertType alertType, string alertField, Guid monitorId)
 {

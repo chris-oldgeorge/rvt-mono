@@ -1,7 +1,12 @@
+using System.Diagnostics.CodeAnalysis;
 using Rvt.Monitor.Common.Notifications;
 
 namespace Rvt.Monitor.Common.Rules;
 
+[method: SuppressMessage(
+    "Maintainability",
+    "S107:Methods should not have too many parameters",
+    Justification = "The primary constructor is the explicit materialization contract for the immutable alert-rule DTO.")]
 public class RvtAlertRuleDto(Guid ruleId, string? serialId, string field, double limitOn, double limitOff,
                     int averagingPeriod, AlertActivityTimeDto ruleActivityTime,
                     AlertType alertType, bool isActive, bool isDeleted,

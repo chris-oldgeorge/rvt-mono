@@ -11,6 +11,18 @@ namespace Rvt.Monitor.Common.Alerts.Persistence;
 public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
     where TContext : MonitorDbContextBase
 {
+    private sealed record DeliveryBatch(
+        TContext Context,
+        AlertCommitRequest Request,
+        Guid OccurrenceId,
+        string Payload,
+        HashSet<string> Planned);
+
+    private sealed record DeliveryTarget(
+        string Kind,
+        string Destination,
+        string CanonicalDestination);
+
     private const string MqttKind = "MqttAlert";
     private const string EmailKind = "Email";
     private const string SmsKind = "Sms";
@@ -144,18 +156,13 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             request.Signal.Message);
         string payload = JsonSerializer.Serialize(envelope);
         HashSet<string> planned = new(StringComparer.Ordinal);
+        DeliveryBatch batch = new(context, request, occurrenceId, payload, planned);
 
         if (request.Signal.DeliveryChannels.HasFlag(AlertDeliveryChannels.Mqtt))
         {
             AddDelivery(
-                context,
-                request,
-                occurrenceId,
-                MqttKind,
-                MqttDestination,
-                MqttDestination,
-                payload,
-                planned);
+                batch,
+                new DeliveryTarget(MqttKind, MqttDestination, MqttDestination));
         }
 
         if ((request.Signal.DeliveryChannels & (AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms)) == 0)
@@ -194,7 +201,6 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             .Where(user => userIds.Contains(user.Id.ToLower()))
             .ToListAsync(cancellationToken);
         Dictionary<string, AspNetUserEntity> usersById = users.ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
-
         foreach (ContactSetting? contact in contactRows)
         {
             if (!ShouldSendAtEventTime(eventTime, contact.StartTime, contact.EndTime) ||
@@ -209,14 +215,11 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             {
                 string destination = user.Email.Trim();
                 AddDelivery(
-                    context,
-                    request,
-                    occurrenceId,
-                    EmailKind,
-                    destination,
-                    AlertDeliveryIdentity.CanonicalEmail(destination),
-                    payload,
-                    planned);
+                    batch,
+                    new DeliveryTarget(
+                        EmailKind,
+                        destination,
+                        AlertDeliveryIdentity.CanonicalEmail(destination)));
             }
 
             if (request.Signal.DeliveryChannels.HasFlag(AlertDeliveryChannels.Sms) &&
@@ -225,49 +228,40 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             {
                 string destination = user.PhoneNumber.Trim();
                 AddDelivery(
-                    context,
-                    request,
-                    occurrenceId,
-                    SmsKind,
-                    destination,
-                    AlertDeliveryIdentity.CanonicalSms(destination),
-                    payload,
-                    planned);
+                    batch,
+                    new DeliveryTarget(
+                        SmsKind,
+                        destination,
+                        AlertDeliveryIdentity.CanonicalSms(destination)));
             }
         }
     }
 
     private static void AddDelivery(
-        TContext context,
-        AlertCommitRequest request,
-        Guid occurrenceId,
-        string kind,
-        string destination,
-        string canonicalDestination,
-        string payload,
-        HashSet<string> planned)
+        DeliveryBatch batch,
+        DeliveryTarget target)
     {
         string deliveryKey = AlertDeliveryIdentity.Create(
-            occurrenceId,
-            kind,
-            canonicalDestination);
-        if (!planned.Add(deliveryKey))
+            batch.OccurrenceId,
+            target.Kind,
+            target.CanonicalDestination);
+        if (!batch.Planned.Add(deliveryKey))
         {
             return;
         }
 
-        context.AlertDeliveryOutbox.Add(new AlertDeliveryOutboxEntity
+        batch.Context.AlertDeliveryOutbox.Add(new AlertDeliveryOutboxEntity
         {
             Id = Guid.NewGuid(),
-            OccurrenceId = occurrenceId,
+            OccurrenceId = batch.OccurrenceId,
             DeliveryKey = deliveryKey,
-            Kind = kind,
-            Destination = destination,
-            Payload = payload,
+            Kind = target.Kind,
+            Destination = target.Destination,
+            Payload = batch.Payload,
             Status = PendingStatus,
             AttemptCount = 0,
-            NextAttemptAt = request.CreatedAt,
-            CreatedAt = request.CreatedAt
+            NextAttemptAt = batch.Request.CreatedAt,
+            CreatedAt = batch.Request.CreatedAt
         });
     }
 

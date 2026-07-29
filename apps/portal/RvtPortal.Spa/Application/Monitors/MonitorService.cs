@@ -11,6 +11,7 @@
 // - 2026-06-10 pending Removed redundant async/await from repository pass-through service methods.
 // - 2026-06-10 pending Removed stale commented-out search methods for Sonar maintainability.
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using RVT.BusinessLogic;
 using RVT.DataAccess;
@@ -42,16 +43,23 @@ public interface IMonitorService
 
 
     //Dust data
+    [SuppressMessage("Maintainability", "S107:Methods should not have too many parameters", Justification = "The interface preserves the established monitor search contract used by portal workflows.")]
     Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels(string serialId, DateTime fromDate, DateTime toDate, int avrgDuration, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    [SuppressMessage("Maintainability", "S107:Methods should not have too many parameters", Justification = "The interface preserves the established monitor search contract used by portal workflows.")]
     Task<SearchQueryResult<MyAtmDustLevel>> GetMyAtmDustLevels8hourAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
 
     //Noise data
+    [SuppressMessage("Maintainability", "S107:Methods should not have too many parameters", Justification = "The interface preserves the established monitor search contract used by portal workflows.")]
     Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    [SuppressMessage("Maintainability", "S107:Methods should not have too many parameters", Justification = "The interface preserves the established monitor search contract used by portal workflows.")]
     Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1hourAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    [SuppressMessage("Maintainability", "S107:Methods should not have too many parameters", Justification = "The interface preserves the established monitor search contract used by portal workflows.")]
     Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevels1dayAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
+    [SuppressMessage("Maintainability", "S107:Methods should not have too many parameters", Justification = "The interface preserves the established monitor search contract used by portal workflows.")]
     Task<SearchQueryResult<NoiseLevel15minAvg>> GetAirQnoiseLevelsSiteAvg(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
 
     //Vibration data
+    [SuppressMessage("Maintainability", "S107:Methods should not have too many parameters", Justification = "The interface preserves the established monitor search contract used by portal workflows.")]
     Task<SearchQueryResult<OmnidotsPeakLevel>> GetOmnidotsPeakLevels(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
     Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string serialId);
     Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid traceId, CancellationToken cancellationToken = default);

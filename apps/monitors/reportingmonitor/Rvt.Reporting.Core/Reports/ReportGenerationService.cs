@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Rvt.Reporting.Core.Models;
 using Rvt.Reporting.Core.Scheduling;
@@ -8,6 +9,10 @@ namespace Rvt.Reporting.Core.Reports;
 /// Coordinates report data loading, rendering, storage, notification, and persistence.
 /// Major updates: 2026-06-24 introduced ACS/Quartz orchestration and one-time report path; added optional customer-logo rendering handoff; 2026-06-25 added executive insight narrative hydration; 2026-06-29 moved generated-report metadata writes behind an atomic repository transaction.
 /// </summary>
+[method: SuppressMessage(
+    "Maintainability",
+    "S107:Methods should not have too many parameters",
+    Justification = "Constructor injection keeps report workflow ports explicit and independently replaceable.")]
 public sealed class ReportGenerationService(
     IReportingRuleQueries ruleQueries,
     IReportingDataQueries dataQueries,

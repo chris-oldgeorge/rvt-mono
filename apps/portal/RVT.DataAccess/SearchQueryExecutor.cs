@@ -3,6 +3,7 @@
 // - 2026-07-14 pending Made the shared read path async and no-tracking; replaced PagedList with SQL count+skip/take.
 // - 2026-07-09 pending Extracted the generic repository's ReadFiltered core so the time-series reader can reuse it.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using RVT.Entities.Querying;
@@ -14,6 +15,10 @@ namespace RVT.DataAccess;
 internal static class SearchQueryExecutor
 {
     // Function summary: Retrieves filtered rows for a set on the supplied context without tracking them.
+    [SuppressMessage(
+        "Maintainability",
+        "S107:Methods should not have too many parameters",
+        Justification = "This compatibility seam mirrors the established repository search contract while centralizing its execution in one implementation.")]
     internal static async Task<SearchQueryResult<TEntity>> ReadFilteredAsync<TEntity>(
         DbContext context,
         List<Filter> whereFilter,

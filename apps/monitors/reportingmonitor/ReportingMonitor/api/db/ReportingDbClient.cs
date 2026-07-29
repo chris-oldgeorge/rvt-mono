@@ -250,7 +250,7 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
     }
 
     private async Task<IReadOnlyList<ReportRule>> MapRulesAsync(
-        IReadOnlyList<ReportRuleEntity> rules,
+        List<ReportRuleEntity> rules,
         CancellationToken cancellationToken)
     {
         if (rules.Count == 0)
@@ -510,7 +510,7 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
         return offHireUtc.AddDays(1);
     }
 
-    private static IReadOnlyDictionary<string, IReadOnlyList<MeasurementPoint>> PointsBySerial<T>(
+    private static Dictionary<string, MeasurementPoint[]> PointsBySerial<T>(
         IEnumerable<T> rows,
         Func<T, string> serialId,
         Func<T, double> value,
@@ -520,17 +520,17 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
         return rows.GroupBy(serialId, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
                 static group => group.Key,
-                group => (IReadOnlyList<MeasurementPoint>)[.. group
+                group => (MeasurementPoint[])[.. group
                     .OrderBy(measuredAt)
                     .Select(row => new MeasurementPoint(measuredAt(row), ToDecimal(value(row))))],
                 StringComparer.OrdinalIgnoreCase);
     }
 
-    private static IReadOnlyList<MeasurementPoint> PointsForMonitor(
-        IReadOnlyDictionary<string, IReadOnlyList<MeasurementPoint>> pointsBySerial,
+    private static MeasurementPoint[] PointsForMonitor(
+        Dictionary<string, MeasurementPoint[]> pointsBySerial,
         MonitorWindow monitor) =>
-        pointsBySerial.TryGetValue(monitor.Row.SerialId, out IReadOnlyList<MeasurementPoint>? points)
-            ? points.Where(point => IsWithinWindow(monitor, point.MeasuredAt)).ToArray()
+        pointsBySerial.TryGetValue(monitor.Row.SerialId, out MeasurementPoint[]? points)
+            ? [.. points.Where(point => IsWithinWindow(monitor, point.MeasuredAt))]
             : [];
 
     private static bool IsWithinWindow(MonitorWindow monitor, DateTimeOffset value) =>
@@ -557,10 +557,10 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
     private sealed record MonitorWindow(MonitorReportRow Row, DateTimeOffset EffectiveFrom, DateTimeOffset EffectiveTo);
 
     private sealed record Telemetry(
-        IReadOnlyDictionary<string, IReadOnlyList<MeasurementPoint>> DustHourly,
-        IReadOnlyDictionary<string, IReadOnlyList<MeasurementPoint>> DustDaily,
-        IReadOnlyDictionary<string, IReadOnlyList<MeasurementPoint>> NoiseHourly,
-        IReadOnlyDictionary<string, IReadOnlyList<MeasurementPoint>> NoiseDaily,
-        IReadOnlyDictionary<string, IReadOnlyList<MeasurementPoint>> NoiseSite,
-        IReadOnlyDictionary<string, IReadOnlyList<MeasurementPoint>> VibrationDailyPeak);
+        Dictionary<string, MeasurementPoint[]> DustHourly,
+        Dictionary<string, MeasurementPoint[]> DustDaily,
+        Dictionary<string, MeasurementPoint[]> NoiseHourly,
+        Dictionary<string, MeasurementPoint[]> NoiseDaily,
+        Dictionary<string, MeasurementPoint[]> NoiseSite,
+        Dictionary<string, MeasurementPoint[]> VibrationDailyPeak);
 }

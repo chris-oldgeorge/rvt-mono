@@ -52,40 +52,57 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<AuthStateResponse>> Login(LoginRequest request)
     {
         AuthWorkflowResult<AuthStateResponse> result = await auth.LoginAsync(request, User.Identity?.IsAuthenticated == true);
-        return result.Status switch
+        if (result.Status == AuthWorkflowStatus.Success)
         {
-            AuthWorkflowStatus.Success => result.Value!,
-            AuthWorkflowStatus.AlreadySignedIn => BadRequest(new ProblemDetails
+            return result.Value!;
+        }
+
+        if (result.Status == AuthWorkflowStatus.AlreadySignedIn)
+        {
+            return BadRequest(new ProblemDetails
             {
                 Title = "Already signed in",
                 Detail = "You are already logged in.",
                 Status = StatusCodes.Status400BadRequest
-            }),
-            AuthWorkflowStatus.AccountDisabled => StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            });
+        }
+
+        if (result.Status == AuthWorkflowStatus.AccountDisabled)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
             {
                 Title = "Account disabled",
                 Detail = "Your account has been disabled.",
                 Status = StatusCodes.Status403Forbidden
-            }),
-            AuthWorkflowStatus.LockedOut => StatusCode(StatusCodes.Status423Locked, new ProblemDetails
+            });
+        }
+
+        if (result.Status == AuthWorkflowStatus.LockedOut)
+        {
+            return StatusCode(StatusCodes.Status423Locked, new ProblemDetails
             {
                 Title = "User locked out",
                 Detail = "User Locked out.",
                 Status = StatusCodes.Status423Locked
-            }),
-            AuthWorkflowStatus.SignInNotAllowed => Unauthorized(new ProblemDetails
+            });
+        }
+
+        if (result.Status == AuthWorkflowStatus.SignInNotAllowed)
+        {
+            return Unauthorized(new ProblemDetails
             {
                 Title = "Sign in failed",
                 Detail = "Unknown error. Contact support",
                 Status = StatusCodes.Status401Unauthorized
-            }),
-            _ => Unauthorized(new ProblemDetails
-            {
-                Title = "Sign in failed",
-                Detail = "We could not find a user with that username and password.",
-                Status = StatusCodes.Status401Unauthorized
-            })
-        };
+            });
+        }
+
+        return Unauthorized(new ProblemDetails
+        {
+            Title = "Sign in failed",
+            Detail = "We could not find a user with that username and password.",
+            Status = StatusCodes.Status401Unauthorized
+        });
     }
 
     [HttpPost("logout")]
@@ -133,23 +150,32 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<ConfirmEmailResponse>> ConfirmEmail([FromQuery] string? userId, [FromQuery] string? code)
     {
         AuthWorkflowResult<ConfirmEmailResponse> result = await auth.ConfirmEmailAsync(userId, code);
-        return result.Status switch
+        if (result.Status == AuthWorkflowStatus.Success)
         {
-            AuthWorkflowStatus.Success => result.Value!,
-            AuthWorkflowStatus.MissingConfirmationValues => BadRequest(new ProblemDetails
+            return result.Value!;
+        }
+
+        if (result.Status == AuthWorkflowStatus.MissingConfirmationValues)
+        {
+            return BadRequest(new ProblemDetails
             {
                 Title = InvalidConfirmationLinkTitle,
                 Detail = "A user and confirmation code must be supplied.",
                 Status = StatusCodes.Status400BadRequest
-            }),
-            AuthWorkflowStatus.MalformedConfirmationCode => BadRequest(new ProblemDetails
+            });
+        }
+
+        if (result.Status == AuthWorkflowStatus.MalformedConfirmationCode)
+        {
+            return BadRequest(new ProblemDetails
             {
                 Title = InvalidConfirmationLinkTitle,
                 Detail = "The confirmation code is malformed.",
                 Status = StatusCodes.Status400BadRequest
-            }),
-            _ => ConfirmationFailed()
-        };
+            });
+        }
+
+        return ConfirmationFailed();
     }
 
     [HttpGet("change-email")]
@@ -164,24 +190,34 @@ public class AuthController : ControllerBase
         [FromQuery] string? code)
     {
         AuthWorkflowResult<ConfirmEmailResponse> result = await auth.ConfirmEmailChangeAsync(userId, email, code);
-        return result.Status switch
+        if (result.Status == AuthWorkflowStatus.Success)
         {
-            AuthWorkflowStatus.Success => result.Value!,
-            AuthWorkflowStatus.MissingConfirmationValues => BadRequest(new ProblemDetails
+            return result.Value!;
+        }
+
+        if (result.Status == AuthWorkflowStatus.MissingConfirmationValues)
+        {
+            return BadRequest(new ProblemDetails
             {
                 Title = InvalidConfirmationLinkTitle,
                 Detail = "A user, email, and confirmation code must be supplied.",
                 Status = StatusCodes.Status400BadRequest
-            }),
-            AuthWorkflowStatus.MalformedConfirmationCode => BadRequest(new ProblemDetails
+            });
+        }
+
+        if (result.Status == AuthWorkflowStatus.MalformedConfirmationCode)
+        {
+            return BadRequest(new ProblemDetails
             {
                 Title = InvalidConfirmationLinkTitle,
                 Detail = "The confirmation code is malformed.",
                 Status = StatusCodes.Status400BadRequest
-            }),
-            AuthWorkflowStatus.ValidationFailed => IdentityErrors("Email change failed", result.Errors),
-            _ => ConfirmationFailed()
-        };
+            });
+        }
+
+        return result.Status == AuthWorkflowStatus.ValidationFailed
+            ? IdentityErrors("Email change failed", result.Errors)
+            : ConfirmationFailed();
     }
 
     [HttpPost("confirm-email")]
@@ -192,41 +228,62 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<AuthStateResponse>> SetInitialPassword(SetInitialPasswordRequest request)
     {
         AuthWorkflowResult<AuthStateResponse> result = await auth.SetInitialPasswordAsync(request);
-        return result.Status switch
+        if (result.Status == AuthWorkflowStatus.Success)
         {
-            AuthWorkflowStatus.Success => result.Value!,
-            AuthWorkflowStatus.InitialPasswordUserNotFound => BadRequest(new ProblemDetails
+            return result.Value!;
+        }
+
+        if (result.Status == AuthWorkflowStatus.InitialPasswordUserNotFound)
+        {
+            return BadRequest(new ProblemDetails
             {
                 Title = "User not found",
                 Detail = "Unable to load the confirmed user.",
                 Status = StatusCodes.Status400BadRequest
-            }),
-            AuthWorkflowStatus.EmailNotConfirmed => BadRequest(new ProblemDetails
+            });
+        }
+
+        if (result.Status == AuthWorkflowStatus.EmailNotConfirmed)
+        {
+            return BadRequest(new ProblemDetails
             {
                 Title = "Email not confirmed",
                 Detail = "The user's email must be confirmed before a password can be set.",
                 Status = StatusCodes.Status400BadRequest
-            }),
-            AuthWorkflowStatus.MalformedConfirmationCode => BadRequest(new ProblemDetails
+            });
+        }
+
+        if (result.Status == AuthWorkflowStatus.MalformedConfirmationCode)
+        {
+            return BadRequest(new ProblemDetails
             {
                 Title = InvalidConfirmationLinkTitle,
                 Detail = "The confirmation code is malformed.",
                 Status = StatusCodes.Status400BadRequest
-            }),
-            AuthWorkflowStatus.ConfirmationCouldNotBeVerified => BadRequest(new ProblemDetails
+            });
+        }
+
+        if (result.Status == AuthWorkflowStatus.ConfirmationCouldNotBeVerified)
+        {
+            return BadRequest(new ProblemDetails
             {
                 Title = InvalidConfirmationLinkTitle,
                 Detail = "The confirmation link could not be verified.",
                 Status = StatusCodes.Status400BadRequest
-            }),
-            AuthWorkflowStatus.PasswordAlreadySet => BadRequest(new ProblemDetails
+            });
+        }
+
+        if (result.Status == AuthWorkflowStatus.PasswordAlreadySet)
+        {
+            return BadRequest(new ProblemDetails
             {
                 Title = "Password already set",
                 Detail = "The user's password has already been set.",
                 Status = StatusCodes.Status400BadRequest
-            }),
-            _ => IdentityErrors("Could not set password", result.Errors)
-        };
+            });
+        }
+
+        return IdentityErrors("Could not set password", result.Errors);
     }
 
     [HttpPost("password")]
@@ -237,12 +294,14 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<MessageResponse>> ChangePassword(ChangePasswordRequest request)
     {
         AuthWorkflowResult<MessageResponse> result = await auth.ChangePasswordAsync(User, request);
-        return result.Status switch
+        if (result.Status == AuthWorkflowStatus.Success)
         {
-            AuthWorkflowStatus.Success => result.Value!,
-            AuthWorkflowStatus.Unauthorized => Unauthorized(),
-            _ => IdentityErrors("Password change failed", result.Errors)
-        };
+            return result.Value!;
+        }
+
+        return result.Status == AuthWorkflowStatus.Unauthorized
+            ? Unauthorized()
+            : IdentityErrors("Password change failed", result.Errors);
     }
 
     [HttpGet("profile")]
@@ -263,12 +322,14 @@ public class AuthController : ControllerBase
     public async Task<ActionResult<ProfileResponse>> UpdateProfile(UpdateProfileRequest request)
     {
         AuthWorkflowResult<ProfileResponse> result = await auth.UpdateProfileAsync(User, request);
-        return result.Status switch
+        if (result.Status == AuthWorkflowStatus.Success)
         {
-            AuthWorkflowStatus.Success => result.Value!,
-            AuthWorkflowStatus.Unauthorized => Unauthorized(),
-            _ => IdentityErrors("Profile update failed", result.Errors)
-        };
+            return result.Value!;
+        }
+
+        return result.Status == AuthWorkflowStatus.Unauthorized
+            ? Unauthorized()
+            : IdentityErrors("Profile update failed", result.Errors);
     }
 
     // Function summary: Captures the current request origin for auth links without passing HTTP types into application services.

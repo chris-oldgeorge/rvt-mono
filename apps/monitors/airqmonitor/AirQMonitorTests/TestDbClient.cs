@@ -26,9 +26,9 @@ namespace AirQMonitorTests
     public class TestDBClient
     {
 
-        private static PostgreSqlIntegrationDatabase? database;
+        private static PostgreSqlIntegrationDatabase? _database;
 
-        private static DBClient? testObj;
+        private static DBClient? _testObj;
 
         public TestDBClient()
         {
@@ -42,11 +42,11 @@ namespace AirQMonitorTests
         [TestMethod]
         public void TestScopedPostgresConnectionUsesFixtureSchema()
         {
-            using NpgsqlConnection connection = database!.OpenConnection();
+            using NpgsqlConnection connection = _database!.OpenConnection();
             connection.Open();
             using NpgsqlCommand command = new("SELECT current_schema();", connection);
 
-            Assert.AreEqual(database.SchemaName, command.ExecuteScalar());
+            Assert.AreEqual(_database.SchemaName, command.ExecuteScalar());
         }
 
         [ClassInitialize]
@@ -54,23 +54,25 @@ namespace AirQMonitorTests
         {
             string setupSql = TestUtil.ReadTextFromFile("testdata/create.postgres.sql");
             string resetSql = TestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
-            database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql);
-            testObj = new DBClient(database.ConnectionString);
+            _database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql, context.CancellationToken);
+            _testObj = new DBClient(_database.ConnectionString);
         }
 
         [ClassCleanup]
         public static async Task TestFixtureCleanup()
         {
-            if (database is not null)
+            if (_database is not null)
             {
-                await database.DisposeAsync();
+                await _database.DisposeAsync();
             }
         }
 
         [TestInitialize]
         public async Task BeforeTest()
         {
-            await database!.ResetAsync(TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"));
+            await _database!.ResetAsync(
+                TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
+                TestContext.CancellationToken);
         }
 
         [DataRow("", "", 5, 5)]
@@ -88,29 +90,29 @@ namespace AirQMonitorTests
             DateTime? queryLastdataTime = String.IsNullOrEmpty(queryDate) ? null : ParseUtc(queryDate);
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(numMonitors);
             Assert.HasCount(numMonitors, monitorsIn);
-            testObj!.WriteMonitorList(monitorsIn);
+            _testObj!.WriteMonitorList(monitorsIn);
 
             if (lastDataTime != null)
             {
                 for (int i = 0; i < monitorsIn.Count; i++)
                 {
                     DateTime dt = ((DateTime)lastDataTime!).AddHours(i);
-                    testObj.WriteLatestTimestamp(monitorsIn[i].SerialId, dt);
+                    _testObj.WriteLatestTimestamp(monitorsIn[i].SerialId, dt);
                 }
             }
 
-            List<NoiseMonitorDto> monitorsOut = testObj.ReadMonitorList(queryLastdataTime);
+            List<NoiseMonitorDto> monitorsOut = _testObj.ReadMonitorList(queryLastdataTime);
             Assert.HasCount(numExpectedMonitors, monitorsOut);
         }
 
         [TestMethod]
         public void TestReadGlobalRules()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(null);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(null);
             Assert.HasCount(1, rules);
 
             RvtAlertRuleDto rule = rules[0];
@@ -137,13 +139,13 @@ namespace AirQMonitorTests
             List<NoiseMonitorDto> monitors = CreateMonitorsList(1, "E123");
             Assert.HasCount(1, monitors);
 
-            testObj!.WriteMonitorList(monitors);
+            _testObj!.WriteMonitorList(monitors);
 
             DateTime lastDataTime = ParseUtc("2023-10-18T14:35:42");
             string serialId = "E1230";
-            testObj.WriteLatestTimestamp(serialId, lastDataTime);
+            _testObj.WriteLatestTimestamp(serialId, lastDataTime);
 
-            monitors = testObj.ReadMonitorList(null);
+            monitors = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitors);
 
             NoiseMonitorDto monitor = monitors[0];
@@ -154,7 +156,7 @@ namespace AirQMonitorTests
         [TestMethod]
         public void TestWriteCommonException()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             string TAG = "MyTestError";
             string MESSAGE = "bang";
 
@@ -195,15 +197,15 @@ namespace AirQMonitorTests
             DateTime actualDt = ParseUtc(actual);
             List<SampleResponse> samples = AirQFixture.SamplesResponseObjects(actualDt);
             string serialId = "E1234";
-            testObj!.InsertNoiseDtos(serialId, [new NoiseDto(samples[0])]);
+            _testObj!.InsertNoiseDtos(serialId, [new NoiseDto(samples[0])]);
 
-            await using NpgsqlConnection connection = database!.OpenConnection();
-            await connection.OpenAsync();
+            await using NpgsqlConnection connection = _database!.OpenConnection();
+            await connection.OpenAsync(TestContext.CancellationToken);
             await using NpgsqlCommand command = new(
                 "SELECT serial_id, sample_time, laeq, lamax, la_90, la_10, lceq, lcmax, lc_90, lc_10 " +
                 "FROM air_q_noise_level ORDER BY sample_time;", connection);
-            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
-            Assert.IsTrue(await reader.ReadAsync());
+            await using NpgsqlDataReader reader = await command.ExecuteReaderAsync(TestContext.CancellationToken);
+            Assert.IsTrue(await reader.ReadAsync(TestContext.CancellationToken));
 
             Assert.AreEqual(serialId, reader.GetString(0));
             DateTime expectedDt = ParseUtc(expected);
@@ -216,7 +218,7 @@ namespace AirQMonitorTests
             Assert.AreEqual(82.81, reader.GetDouble(7));
             Assert.AreEqual(47.56, reader.GetDouble(8));
             Assert.AreEqual(51.22, reader.GetDouble(9));
-            Assert.IsFalse(await reader.ReadAsync());
+            Assert.IsFalse(await reader.ReadAsync(TestContext.CancellationToken));
         }
 
         [TestMethod]
@@ -235,10 +237,10 @@ namespace AirQMonitorTests
                 lC10: 51.22);
             string serialId = "E1234";
 
-            testObj!.InsertNoiseDtos(serialId, [dto, dto]);
-            testObj.InsertNoiseDtos(serialId, [dto]);
+            _testObj!.InsertNoiseDtos(serialId, [dto, dto]);
+            _testObj.InsertNoiseDtos(serialId, [dto]);
 
-            using NpgsqlConnection connection = new(database!.ConnectionString);
+            using NpgsqlConnection connection = new(_database!.ConnectionString);
             connection.Open();
             List<NoiseDto> dtos = ReadNoiseDtos(connection, out string lastSerialId);
 
@@ -249,14 +251,14 @@ namespace AirQMonitorTests
         [TestMethod]
         public void TestReadAlertRules()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E2345";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
 
@@ -274,7 +276,7 @@ namespace AirQMonitorTests
                 InsertAlertRule(connection, i, "99999", monitorId);
             }
 
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(NUM_RULES, rules);
 
             List<RvtAlertRuleDto> orderedRules = [.. rules.OrderBy(o => o.Field)];
@@ -303,20 +305,20 @@ namespace AirQMonitorTests
         [TestMethod]
         public void TestReadAlertContacts()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             int numMonitors = 2;
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(numMonitors);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(numMonitors, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
             string serialId = monitorsOut[0].SerialId;
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 44, serialId, monitorId);
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
             string email = "mytestemail@bbb.com";
             string phoneNo = "01234567890";
@@ -345,7 +347,7 @@ namespace AirQMonitorTests
             List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
             Assert.HasCount(2, contacts);
 
-            List<RvtContactDto> alertContacts = testObj.ReadAlertContacts(rules[0].SerialId!, out Guid siteId);
+            List<RvtContactDto> alertContacts = _testObj.ReadAlertContacts(rules[0].SerialId!, out Guid siteId);
             Assert.HasCount(1, alertContacts);
             Assert.AreNotEqual(Guid.Empty, siteId);
 
@@ -361,21 +363,21 @@ namespace AirQMonitorTests
         [TestMethod]
         public void TestWriteNotification()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E8271";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
 
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId, AlertType.Caution);
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
             string email = "foobob@bbb.com";
             string phoneNo = "01238867890";
@@ -391,8 +393,8 @@ namespace AirQMonitorTests
             Assert.HasCount(1, contacts);
 
 
-            Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
+            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
+            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             DateTime dt = ParseUtc("2023-10-18T11:19:00");
             NotificationDto notifyCaution = new(id: Guid.NewGuid(),
@@ -406,10 +408,10 @@ namespace AirQMonitorTests
                                               alertField: rules[0].Field,
                                               monitorId: monitorId);
 
-            testObj.WriteNotification(notifyCaution);
+            _testObj.WriteNotification(notifyCaution);
 
-            Assert.IsTrue(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
+            Assert.IsTrue(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
+            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
 
             {
@@ -438,10 +440,10 @@ namespace AirQMonitorTests
                                               alertField: rules[0].Field,
                                               monitorId: monitorId);
 
-            testObj.WriteNotification(notifyAlert);
+            _testObj.WriteNotification(notifyAlert);
 
-            Assert.IsTrue(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsTrue(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
+            Assert.IsTrue(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
+            Assert.IsTrue(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             Assert.HasCount(2, ReadNotifications(connection));
         }
@@ -453,15 +455,15 @@ namespace AirQMonitorTests
         [TestMethod]
         public void TestHasOpenNotification(AlertType existing, AlertType alertType, bool expectedResult)
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             string serialId = "E8271";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
 
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
 
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
@@ -469,7 +471,7 @@ namespace AirQMonitorTests
 
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId, alertType);
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
             string email = "foobob@bbb.com";
             string phoneNo = "01238867890";
@@ -484,8 +486,8 @@ namespace AirQMonitorTests
             List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
             Assert.HasCount(1, contacts);
 
-            Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsFalse(testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
+            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
+            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
 
             DateTime dt = ParseUtc("2023-10-18T11:19:00");
             NotificationDto existingNotification = new(id: Guid.NewGuid(),
@@ -499,27 +501,27 @@ namespace AirQMonitorTests
                                               alertField: rules[0].Field,
                                               monitorId: monitorId);
 
-            testObj.WriteNotification(existingNotification);
+            _testObj.WriteNotification(existingNotification);
 
-            Assert.AreEqual(expectedResult, testObj.HasOpenNotification(monitorId, rules[0].Field, alertType));
+            Assert.AreEqual(expectedResult, _testObj.HasOpenNotification(monitorId, rules[0].Field, alertType));
         }
 
 
         [TestMethod]
         public void UpdateAlertRule()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
             string serialId = monitorsOut[0].SerialId;
             InsertAlertRule(connection, 721, serialId, monitorId);
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
 
             RvtAlertRuleDto rule = rules[0];
@@ -527,9 +529,9 @@ namespace AirQMonitorTests
             bool isActive = !rule.IsActive;
             rule.IsActive = isActive;
 
-            testObj.UpdateAlertRule(rules[0]);
+            _testObj.UpdateAlertRule(rules[0]);
 
-            List<RvtAlertRuleDto> updatedRules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> updatedRules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, updatedRules);
             Assert.AreEqual(isActive, updatedRules[0].IsActive);
 
@@ -538,18 +540,18 @@ namespace AirQMonitorTests
         [TestMethod]
         public void TestSetMonitorOffline()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
+            _testObj!.WriteMonitorList(monitorsIn);
 
             foreach (NoiseMonitorDto m in monitorsIn)
             {
                 Assert.IsFalse(m.Offline);
-                testObj.SetMonitorOffline(m.Id, true);
+                _testObj.SetMonitorOffline(m.Id, true);
             }
-            List<NoiseMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            List<NoiseMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             foreach (NoiseMonitorDto m in monitorsOut)
             {
@@ -601,25 +603,25 @@ namespace AirQMonitorTests
                 NoiseDto dto = new(sampleTime: startTime.AddMinutes(i).AddSeconds(1), lAeq: LAeq, lAmax: LAMax, lA90: LA90,
                             lA10: LA10, lCeq: LCeq, lCmax: LCMax, lC90: LC90, lC10: LC10);
 
-                testObj!.InsertNoiseDtos(serialId, [dto]);
+                _testObj!.InsertNoiseDtos(serialId, [dto]);
             }
 
-            double avgLAeq = testObj!.GetAverageNoiseLevel(serialId, "LAeq", startTime, startTime.AddMinutes(15));
+            double avgLAeq = _testObj!.GetAverageNoiseLevel(serialId, "LAeq", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LAeqTotal / numDtos, avgLAeq);
-            double avgLAMax = testObj!.GetAverageNoiseLevel(serialId, "LAMax", startTime, startTime.AddMinutes(15));
+            double avgLAMax = _testObj!.GetAverageNoiseLevel(serialId, "LAMax", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LAMaxTotal / numDtos, avgLAMax);
-            double avgLA90 = testObj!.GetAverageNoiseLevel(serialId, "LA90", startTime, startTime.AddMinutes(15));
+            double avgLA90 = _testObj!.GetAverageNoiseLevel(serialId, "LA90", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LA90Total / numDtos, avgLA90);
-            double avgLA10 = testObj!.GetAverageNoiseLevel(serialId, "LA10", startTime, startTime.AddMinutes(15));
+            double avgLA10 = _testObj!.GetAverageNoiseLevel(serialId, "LA10", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LA10Total / numDtos, avgLA10);
 
-            double avgLCeq = testObj!.GetAverageNoiseLevel(serialId, "LCeq", startTime, startTime.AddMinutes(15));
+            double avgLCeq = _testObj!.GetAverageNoiseLevel(serialId, "LCeq", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LCeqTotal / numDtos, avgLCeq);
-            double avgLCMax = testObj!.GetAverageNoiseLevel(serialId, "LCMax", startTime, startTime.AddMinutes(15));
+            double avgLCMax = _testObj!.GetAverageNoiseLevel(serialId, "LCMax", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LCMaxTotal / numDtos, avgLCMax);
-            double avgLC90 = testObj!.GetAverageNoiseLevel(serialId, "LC90", startTime, startTime.AddMinutes(15));
+            double avgLC90 = _testObj!.GetAverageNoiseLevel(serialId, "LC90", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LC90Total / numDtos, avgLC90);
-            double avgLC10 = testObj!.GetAverageNoiseLevel(serialId, "LC10", startTime, startTime.AddMinutes(15));
+            double avgLC10 = _testObj!.GetAverageNoiseLevel(serialId, "LC10", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LC10Total / numDtos, avgLC10);
 
         }
@@ -630,20 +632,20 @@ namespace AirQMonitorTests
             string serialId = "98231";
             DateTime sampleTime = ParseUtc("2023-10-17T16:00:00");
 
-            testObj!.InsertNoiseDtos(serialId,
+            _testObj!.InsertNoiseDtos(serialId,
             [
                 new(sampleTime.AddHours(-2), lAeq: 10, lAmax: 20, lA90: 30, lA10: 40, lCeq: 50, lCmax: 60, lC90: 70, lC10: 80),
                 new(sampleTime.AddHours(-1), lAeq: 30, lAmax: 40, lA90: 50, lA10: 60, lCeq: 70, lCmax: 80, lC90: 90, lC10: 100)
             ]);
-            testObj.Create8hourAverage(serialId, sampleTime);
+            _testObj.Create8hourAverage(serialId, sampleTime);
 
-            testObj.InsertNoiseDtos(serialId,
+            _testObj.InsertNoiseDtos(serialId,
             [
                 new(sampleTime.AddMinutes(-30), lAeq: 50, lAmax: 60, lA90: 70, lA10: 80, lCeq: 90, lCmax: 100, lC90: 110, lC10: 120)
             ]);
-            testObj.Create8hourAverage(serialId, sampleTime);
+            _testObj.Create8hourAverage(serialId, sampleTime);
 
-            List<Noise8HourAverage> averages = ReadNoise8HourAverages(database!.ConnectionString);
+            List<Noise8HourAverage> averages = ReadNoise8HourAverages(_database!.ConnectionString);
 
             Assert.HasCount(1, averages);
             Assert.AreEqual(serialId, averages[0].SerialId);
@@ -663,7 +665,7 @@ namespace AirQMonitorTests
                                      string? sunStart, string? sunEnd)
         {
 
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             Guid siteId = Guid.NewGuid();
@@ -684,7 +686,7 @@ namespace AirQMonitorTests
                        sunStartTime: sunStartTime,
                        sunEndTime: sunEndTime);
 
-            SiteInfoDto siteInfo = testObj!.ReadSiteInfo(siteId);
+            SiteInfoDto siteInfo = _testObj!.ReadSiteInfo(siteId);
 
             Assert.AreEqual(siteId, siteInfo.SiteId);
             Assert.AreEqual(startTime, siteInfo.StartTime);
@@ -772,18 +774,18 @@ namespace AirQMonitorTests
         [TestMethod]
         public void TestWriteNotificationAudit()
         {
-            string connectionString = database!.ConnectionString;
+            string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             string serialId = "82731";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            testObj!.WriteMonitorList(monitorsIn);
-            List<NoiseMonitorDto> monitorsOut = testObj.ReadMonitorList(null);
+            _testObj!.WriteMonitorList(monitorsIn);
+            List<NoiseMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
             // add an alert and contact as RvtAlertContacts table has foreign key constraints
             InsertAlertRule(connection, 21, serialId, monitorId);
-            List<RvtAlertRuleDto> rules = testObj!.ReadRules(serialId);
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
             Assert.HasCount(1, rules);
             string email = "bad-email";
             string phoneNo = "bad-phonenumber";
@@ -811,8 +813,8 @@ namespace AirQMonitorTests
                                                    alertField: rules[0].Field,
                                                     monitorId: monitorId);
             // Write the parent notification before its audit row.
-            testObj.WriteNotification(notificationIn);
-            testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
+            _testObj.WriteNotification(notificationIn);
+            _testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
             List<NotificationDto> notifications = ReadNotifications(connection);
             Assert.HasCount(1, notifications);
             NotificationDto notificationOut = notifications[0];
@@ -828,15 +830,15 @@ namespace AirQMonitorTests
             List<Dictionary<string, object>> audits = ReadNotificationsSent(connection);
             Assert.HasCount(1, audits);
             Dictionary<string, object> audit = audits[0];
-            Assert.IsInstanceOfType(audit["Id"], typeof(Guid));
-            Assert.IsInstanceOfType(audit["SendTime"], typeof(DateTime));
+            Assert.IsInstanceOfType<Guid>(audit["Id"]);
+            Assert.IsInstanceOfType<DateTime>(audit["SendTime"]);
             DateTime sendTime = (DateTime)audit["SendTime"];
             Assert.IsTrue(sendTime < DateTime.UtcNow.AddSeconds(10) && sendTime > DateTime.UtcNow.AddSeconds(-10));
-            Assert.IsInstanceOfType(audit["Address"], typeof(string));
+            Assert.IsInstanceOfType<string>(audit["Address"]);
             Assert.AreEqual("mytest@email.net", (string)audit["Address"]);
-            Assert.IsInstanceOfType(audit["ErrorMessage"], typeof(string));
+            Assert.IsInstanceOfType<string>(audit["ErrorMessage"]);
             Assert.AreEqual("some error message", (string)audit["ErrorMessage"]);
-            Assert.IsInstanceOfType(audit["NotificationId"], typeof(Guid));
+            Assert.IsInstanceOfType<Guid>(audit["NotificationId"]);
         }
 
 
@@ -849,9 +851,9 @@ namespace AirQMonitorTests
             string field = "foo";
             double level = 99.43;
             DateTime timestamp = DateTime.UtcNow;
-            testObj!.WriteDailyAverage(siteId, monitorId, field, level, timestamp);
+            _testObj!.WriteDailyAverage(siteId, monitorId, field, level, timestamp);
 
-            List<SiteAverage> siteAverages = ReadSiteAverages(database!.ConnectionString);
+            List<SiteAverage> siteAverages = ReadSiteAverages(_database!.ConnectionString);
 
             Assert.HasCount(1, siteAverages);
             SiteAverage sa = siteAverages[0];
@@ -1182,7 +1184,7 @@ namespace AirQMonitorTests
                 string emailAddress = reader.GetString(0);
                 string? phoneNumber = reader.IsDBNull(1) ? null : reader.GetString(1);
                 string id = reader.GetString(2);
-                ContactMethod contactMethod = ReadContactMethod(database!.ConnectionString, siteUserId);
+                ContactMethod contactMethod = ReadContactMethod(_database!.ConnectionString, siteUserId);
                 contacts.Add(new RvtContactDto(contactMethod: contactMethod,
                                                emailAddress: emailAddress,
                                                phoneNumber: phoneNumber,
@@ -1283,5 +1285,7 @@ namespace AirQMonitorTests
 
             return dtos;
         }
+
+        public TestContext TestContext { get; set; } = null!;
     }
 }

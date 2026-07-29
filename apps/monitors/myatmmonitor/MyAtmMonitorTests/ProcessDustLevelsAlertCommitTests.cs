@@ -49,11 +49,20 @@ public sealed class ProcessDustLevelsAlertCommitTests
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
-        await api.ProcessDustLevelsAsync<AvgDeviceMeasurement>(customerId, Period.Hours8);
+        await api.ProcessDustLevelsAsync<AvgDeviceMeasurement>(customerId, Period.Hours8, TestContext.CancellationToken);
 
         Assert.IsNotEmpty(commits);
         Assert.IsTrue(commits.All(commit => commit.Occurrences.Count == 0));
     }
+
+    private static readonly string[] _expected =
+    [
+        "ReadRules",
+        "ReadMonitor",
+        "GetAverageDustLevel",
+        "ReadAlertContacts",
+        "CommitAlertAsync"
+    ];
 
     [TestMethod]
     public async Task CompletedAggregatePeriod_CommitsStateOccurrenceAndAllDurableDeliveriesOnce()
@@ -85,7 +94,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
-        await api.ProcessDustLevelsAsync<AvgDeviceMeasurement>(customerId, Period.Hours8);
+        await api.ProcessDustLevelsAsync<AvgDeviceMeasurement>(customerId, Period.Hours8, TestContext.CancellationToken);
 
         Assert.IsNotNull(commit);
         Assert.HasCount(1, commit.RuleStateMutations);
@@ -126,14 +135,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
         }
         string[] databaseCalls = [.. dbClient.Invocations.Select(invocation => invocation.Method.Name)];
         CollectionAssert.AreEqual(
-            new[]
-            {
-                "ReadRules",
-                "ReadMonitor",
-                "GetAverageDustLevel",
-                "ReadAlertContacts",
-                "CommitAlertAsync"
-            },
+            _expected,
             databaseCalls,
             $"Unexpected active aggregate DB call sequence: {string.Join(", ", databaseCalls)}");
         messageService.VerifyNoOtherCalls();
@@ -162,7 +164,7 @@ public sealed class ProcessDustLevelsAlertCommitTests
 
         MyAtmApi api = new(httpClient.Object, dbClient.Object, mqttClient.Object, messageService.Object, false);
 
-        await api.ProcessDustLevelsAsync<AvgDeviceMeasurement>(customerId, Period.Hours8);
+        await api.ProcessDustLevelsAsync<AvgDeviceMeasurement>(customerId, Period.Hours8, TestContext.CancellationToken);
 
         Assert.IsNotNull(commit);
         Assert.HasCount(1, commit.RuleStateMutations);
@@ -188,4 +190,6 @@ public sealed class ProcessDustLevelsAlertCommitTests
             request.Payload,
             AttemptCount: 1,
             LeaseId: Guid.NewGuid()));
+
+    public TestContext TestContext { get; set; } = null!;
 }

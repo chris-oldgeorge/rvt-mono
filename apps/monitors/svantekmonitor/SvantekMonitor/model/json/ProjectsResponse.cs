@@ -6,7 +6,7 @@ namespace Svantek.Model.Http
     public class ProjectsResponse
     {
         public string status { get; set; } = string.Empty;
-        public List<Project> projects { get; set; } = new();
+        public List<Project> projects { get; set; } = [];
     }
 
     public class Project
@@ -26,7 +26,7 @@ namespace Svantek.Model.Http
         public string afd_download_period { get; set; } = string.Empty;
         public string afd_cleanup_limit { get; set; } = string.Empty;
         public string afd_cleanup_days { get; set; } = string.Empty;
-        public List<ProjectStation> stations { get; set; } = new();
+        public List<ProjectStation> stations { get; set; } = [];
     }
 
     public class ProjectStation

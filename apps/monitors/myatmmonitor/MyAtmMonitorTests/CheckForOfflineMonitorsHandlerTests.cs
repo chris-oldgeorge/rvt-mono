@@ -4,7 +4,6 @@ using MyAtm.Api.Db;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
 using MyAtm.Model.Dto;
-using Rvt.Monitor.Common.Delivery;
 
 namespace MyAtmMonitorTests;
 
@@ -36,7 +35,7 @@ public sealed class CheckForOfflineMonitorsHandlerTests
                     commit.MonitorStateMutation!.MonitorId == valid.Id &&
                     commit.MonitorStateMutation.Offline == true),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new MyAtmAlertCommitResult(true, Array.Empty<MonitorDeliveryRequest>()));
+            .ReturnsAsync(new MyAtmAlertCommitResult(true, []));
         CheckForOfflineMonitorsHandler handler = CreateHandler(
             ruleQueries,
             monitorQueries,
@@ -46,7 +45,7 @@ public sealed class CheckForOfflineMonitorsHandlerTests
             now);
 
         MyAtmJobAggregateException exception = await Assert.ThrowsAsync<MyAtmJobAggregateException>(() =>
-            handler.RunAsync(123));
+            handler.RunAsync(123, TestContext.CancellationToken));
 
         Assert.HasCount(1, exception.Failures);
         Assert.AreEqual("CheckForOfflineMonitors serialId=11111", exception.Failures[0].Identifier);
@@ -85,7 +84,7 @@ public sealed class CheckForOfflineMonitorsHandlerTests
             commits,
             now);
 
-        await handler.RunAsync(123);
+        await handler.RunAsync(123, TestContext.CancellationToken);
 
         Assert.IsFalse(monitor.Offline);
         commits.VerifyNoOtherCalls();
@@ -146,15 +145,12 @@ public sealed class CheckForOfflineMonitorsHandlerTests
         SundayEnd = TimeSpan.FromHours(24)
     };
 
-    private sealed class FixedTimeProvider : TimeProvider
+    private sealed class FixedTimeProvider(DateTime now) : TimeProvider
     {
-        private readonly DateTimeOffset now;
+        private readonly DateTimeOffset _now = new(now);
 
-        public FixedTimeProvider(DateTime now)
-        {
-            this.now = new DateTimeOffset(now);
-        }
-
-        public override DateTimeOffset GetUtcNow() => now;
+        public override DateTimeOffset GetUtcNow() => _now;
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

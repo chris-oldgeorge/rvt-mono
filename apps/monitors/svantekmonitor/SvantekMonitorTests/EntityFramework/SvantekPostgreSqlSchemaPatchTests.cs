@@ -4,7 +4,7 @@ using Rvt.Monitor.IntegrationTesting;
 namespace SvantekMonitorTests.EntityFramework;
 
 [TestClass]
-public sealed class SvantekPostgreSqlSchemaPatchTests
+public sealed partial class SvantekPostgreSqlSchemaPatchTests
 {
     [TestMethod]
     public void IntegrationFixture_UsesCanonicalGeneratedSchemaObjects()
@@ -73,16 +73,14 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
         Assert.Contains("svantek_noise_8_hour_average", sql);
         Assert.Contains("svantek_error_message", sql);
         Assert.Contains("error_log", sql);
-        MatchCollection offlineRuleInserts = Regex.Matches(
-            sql,
-            @"(?is)\bINSERT\s+INTO\s+rvt_alert_rule\b.*?;");
+        MatchCollection offlineRuleInserts = OfflineRuleInsertPattern().Matches(sql);
 
         Assert.HasCount(1, offlineRuleInserts, "The reset script must seed exactly one offline rule.");
 
         string offlineRuleInsert = offlineRuleInserts[0].Value;
         Assert.Contains("'00000000-0000-0000-0000-000000000001'", offlineRuleInsert);
         Assert.Contains("'offline-rule'", offlineRuleInsert);
-        Assert.IsTrue(Regex.IsMatch(offlineRuleInsert, @"(?<!\d)86400(?!\d)"));
+        Assert.IsTrue(AveragingPeriodPattern().IsMatch(offlineRuleInsert));
         Assert.IsFalse(sql.Contains("gen_random_uuid", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(sql.Contains("uuid_generate", StringComparison.OrdinalIgnoreCase));
         Assert.IsFalse(sql.Contains("public.", StringComparison.OrdinalIgnoreCase));
@@ -137,4 +135,11 @@ public sealed class SvantekPostgreSqlSchemaPatchTests
         Assert.Contains("2026-03-15 20:00:00", sql);
     }
 
+    [GeneratedRegex(
+        @"\bINSERT\s+INTO\s+rvt_alert_rule\b.*?;",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.CultureInvariant)]
+    private static partial Regex OfflineRuleInsertPattern();
+
+    [GeneratedRegex(@"(?<!\d)86400(?!\d)", RegexOptions.CultureInvariant)]
+    private static partial Regex AveragingPeriodPattern();
 }

@@ -9,15 +9,17 @@ public sealed class ConsumerMessagingBoundaryTests
     // compat-only direct-delivery route, the last synchronous caller here.
     private static readonly string[] _synchronousCompatibilityCallers = [];
 
+    private static readonly string[] _scannedProductionDirectories =
+    [
+        "apps/monitors/myatmmonitor/MyAtmMonitor",
+        "apps/monitors/omnidotsmonitor/OmnidotsMonitor"
+    ];
+
     [TestMethod]
     public void ObsoleteSynchronousMessageCallsAreLimitedToConsumerCompatibilityAllowlist()
     {
         string root = RepositoryLayout.Root;
-        string[] callers = [.. new[]
-            {
-                "apps/monitors/myatmmonitor/MyAtmMonitor",
-                "apps/monitors/omnidotsmonitor/OmnidotsMonitor"
-            }
+        string[] callers = [.. _scannedProductionDirectories
             .SelectMany(relativeDirectory => ReadProductionSource(root, relativeDirectory))
             .Where(file => file.Text.Contains(".Sendmessage(", StringComparison.Ordinal) ||
                 file.Text.Contains(".SendMessage(", StringComparison.Ordinal))

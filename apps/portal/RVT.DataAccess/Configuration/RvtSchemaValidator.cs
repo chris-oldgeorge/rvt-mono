@@ -6,130 +6,129 @@ using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 
-namespace RVT.DataAccess.Configuration
+namespace RVT.DataAccess.Configuration;
+
+public sealed record SchemaMismatch(string Relation, string? Column, string Problem)
 {
-    public sealed record SchemaMismatch(string Relation, string? Column, string Problem)
+    public override string ToString()
     {
-        public override string ToString()
+        return Column == null
+            ? $"{Relation}: {Problem}"
+            : $"{Relation}.{Column}: {Problem}";
+    }
+}
+
+/// <summary>
+/// Checks that every relation and column the EF model maps to actually exists in the target database.
+///
+/// The canonical naming rules derive physical names from CLR names, so a model change - or a change to the
+/// rules - can silently map an entity onto a table or column that is not there. Nothing catches that until a
+/// query touches it in production, and then it surfaces as an "invalid column name" from deep inside a
+/// request. CanonicalNamingSnapshotTests pins the names the code produces; this pins them against the
+/// schema that actually exists.
+/// </summary>
+public static class RvtSchemaValidator
+{
+    // Function summary: Reads the live schema and reports every relation or column the model expects but lacks.
+    public static async Task<IReadOnlyList<SchemaMismatch>> ValidateAsync(
+        DbContext context,
+        CancellationToken cancellationToken = default)
+    {
+        if (!context.Database.IsRelational())
         {
-            return Column == null
-                ? $"{Relation}: {Problem}"
-                : $"{Relation}.{Column}: {Problem}";
+            return [];
         }
+
+        IReadOnlyDictionary<string, IReadOnlySet<string>> actual = await ReadSchemaAsync(context, cancellationToken);
+        return Compare(context.Model, actual);
     }
 
     /// <summary>
-    /// Checks that every relation and column the EF model maps to actually exists in the target database.
-    ///
-    /// The canonical naming rules derive physical names from CLR names, so a model change - or a change to the
-    /// rules - can silently map an entity onto a table or column that is not there. Nothing catches that until a
-    /// query touches it in production, and then it surfaces as an "invalid column name" from deep inside a
-    /// request. CanonicalNamingSnapshotTests pins the names the code produces; this pins them against the
-    /// schema that actually exists.
+    /// The comparison itself, separated from the database read so it can be tested without one.
     /// </summary>
-    public static class RvtSchemaValidator
+    public static IReadOnlyList<SchemaMismatch> Compare(
+        IModel model,
+        IReadOnlyDictionary<string, IReadOnlySet<string>> actualColumnsByRelation)
     {
-        // Function summary: Reads the live schema and reports every relation or column the model expects but lacks.
-        public static async Task<IReadOnlyList<SchemaMismatch>> ValidateAsync(
-            DbContext context,
-            CancellationToken cancellationToken = default)
+        List<SchemaMismatch> mismatches = new();
+
+        foreach (IEntityType entityType in model.GetEntityTypes())
         {
-            if (!context.Database.IsRelational())
+            StoreObjectIdentifier? store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)
+                ?? StoreObjectIdentifier.Create(entityType, StoreObjectType.View);
+            if (store == null)
             {
-                return [];
+                continue;
             }
 
-            IReadOnlyDictionary<string, IReadOnlySet<string>> actual = await ReadSchemaAsync(context, cancellationToken);
-            return Compare(context.Model, actual);
+            string relation = store.Value.Name;
+            if (!actualColumnsByRelation.TryGetValue(relation, out IReadOnlySet<string>? actualColumns))
+            {
+                mismatches.Add(new SchemaMismatch(relation, null, "mapped by the model but missing from the database"));
+                continue;
+            }
+
+            foreach (IProperty property in entityType.GetProperties())
+            {
+                string? column = property.GetColumnName(store.Value);
+                if (column != null && !actualColumns.Contains(column))
+                {
+                    mismatches.Add(new SchemaMismatch(
+                        relation,
+                        column,
+                        $"mapped from {entityType.ClrType.Name}.{property.Name} but missing from the database"));
+                }
+            }
         }
 
-        /// <summary>
-        /// The comparison itself, separated from the database read so it can be tested without one.
-        /// </summary>
-        public static IReadOnlyList<SchemaMismatch> Compare(
-            IModel model,
-            IReadOnlyDictionary<string, IReadOnlySet<string>> actualColumnsByRelation)
+        return mismatches;
+    }
+
+    // Function summary: Reads relation and column names from the provider's information schema.
+    private static async Task<IReadOnlyDictionary<string, IReadOnlySet<string>>> ReadSchemaAsync(
+        DbContext context,
+        CancellationToken cancellationToken)
+    {
+        DbConnection connection = context.Database.GetDbConnection();
+        bool opened = false;
+        if (connection.State != System.Data.ConnectionState.Open)
         {
-            List<SchemaMismatch> mismatches = new();
-
-            foreach (IEntityType entityType in model.GetEntityTypes())
-            {
-                StoreObjectIdentifier? store = StoreObjectIdentifier.Create(entityType, StoreObjectType.Table)
-                    ?? StoreObjectIdentifier.Create(entityType, StoreObjectType.View);
-                if (store == null)
-                {
-                    continue;
-                }
-
-                string relation = store.Value.Name;
-                if (!actualColumnsByRelation.TryGetValue(relation, out IReadOnlySet<string>? actualColumns))
-                {
-                    mismatches.Add(new SchemaMismatch(relation, null, "mapped by the model but missing from the database"));
-                    continue;
-                }
-
-                foreach (IProperty property in entityType.GetProperties())
-                {
-                    string? column = property.GetColumnName(store.Value);
-                    if (column != null && !actualColumns.Contains(column))
-                    {
-                        mismatches.Add(new SchemaMismatch(
-                            relation,
-                            column,
-                            $"mapped from {entityType.ClrType.Name}.{property.Name} but missing from the database"));
-                    }
-                }
-            }
-
-            return mismatches;
+            await connection.OpenAsync(cancellationToken);
+            opened = true;
         }
 
-        // Function summary: Reads relation and column names from the provider's information schema.
-        private static async Task<IReadOnlyDictionary<string, IReadOnlySet<string>>> ReadSchemaAsync(
-            DbContext context,
-            CancellationToken cancellationToken)
+        try
         {
-            DbConnection connection = context.Database.GetDbConnection();
-            bool opened = false;
-            if (connection.State != System.Data.ConnectionState.Open)
+            using DbCommand command = connection.CreateCommand();
+
+            // information_schema is ANSI and exposes views alongside tables on both providers, so one query
+            // covers everything the model can map to.
+            command.CommandText =
+                "SELECT table_name, column_name FROM information_schema.columns";
+
+            Dictionary<string, IReadOnlySet<string>> result = new(StringComparer.OrdinalIgnoreCase);
+            await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
             {
-                await connection.OpenAsync(cancellationToken);
-                opened = true;
-            }
+                string relation = reader.GetString(0);
+                string column = reader.GetString(1);
 
-            try
-            {
-                using DbCommand command = connection.CreateCommand();
-
-                // information_schema is ANSI and exposes views alongside tables on both providers, so one query
-                // covers everything the model can map to.
-                command.CommandText =
-                    "SELECT table_name, column_name FROM information_schema.columns";
-
-                Dictionary<string, IReadOnlySet<string>> result = new(StringComparer.OrdinalIgnoreCase);
-                await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
-                while (await reader.ReadAsync(cancellationToken))
+                if (!result.TryGetValue(relation, out IReadOnlySet<string>? columns))
                 {
-                    string relation = reader.GetString(0);
-                    string column = reader.GetString(1);
-
-                    if (!result.TryGetValue(relation, out IReadOnlySet<string>? columns))
-                    {
-                        columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                        result[relation] = columns;
-                    }
-
-                    ((HashSet<string>)columns).Add(column);
+                    columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    result[relation] = columns;
                 }
 
-                return result;
+                ((HashSet<string>)columns).Add(column);
             }
-            finally
+
+            return result;
+        }
+        finally
+        {
+            if (opened)
             {
-                if (opened)
-                {
-                    await connection.CloseAsync();
-                }
+                await connection.CloseAsync();
             }
         }
     }

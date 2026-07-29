@@ -2,6 +2,7 @@
 // Major updates:
 // - 2026-07-28 Added the thin process entry point and secret-safe orchestration boundary.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace RVT.ReleaseAudit;
@@ -44,6 +45,10 @@ internal static class ReleaseAuditProgram
     private const string Failure =
         "FAILED: Help asset URL audit did not complete.";
 
+    [SuppressMessage(
+        "Maintainability",
+        "S107:Methods should not have too many parameters",
+        Justification = "The explicit process seams keep the release-audit CLI deterministic and independently testable without global state.")]
     internal static async Task<int> RunAsync(
         IReadOnlyList<string> args,
         Func<string, string?> getEnvironmentVariable,

@@ -4,6 +4,7 @@
 // - 2026-07-22 pending Removed request-host link generation, made reset failures uniform, and added confirmed profile email changes.
 // - 2026-07-22 pending Made confirmed email-and-username changes atomic in an Identity database transaction.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
@@ -134,6 +135,10 @@ public sealed class AuthApplicationService : IAuthApplicationService
     private readonly ILogger<AuthApplicationService> logger;
 
     // Function summary: Initializes auth workflows with Identity, company profile, configuration, and email dependencies.
+    [SuppressMessage(
+        "Maintainability",
+        "S107:Methods should not have too many parameters",
+        Justification = "Constructor injection exposes the independently scoped Identity, persistence, messaging, and observability dependencies.")]
     public AuthApplicationService(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,

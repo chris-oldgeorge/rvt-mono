@@ -14,62 +14,61 @@ using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using RVT.Entities.Querying;
 
-namespace RVT.DataAccess
+namespace RVT.DataAccess;
+
+public class GenericRepository<TEntity> where TEntity : class
 {
-    public class GenericRepository<TEntity> where TEntity : class
+
+    public const int DAO_MAX_RECORDS = 10000;
+    protected DbContext Context { get; }
+    protected DbSet<TEntity> DbSet { get; }
+
+    // Function summary: Initializes this type with the dependencies required by its workflow.
+    protected GenericRepository(DbContext context)
     {
-
-        public const int DAO_MAX_RECORDS = 10000;
-        protected DbContext Context { get; }
-        protected DbSet<TEntity> DbSet { get; }
-
-        // Function summary: Initializes this type with the dependencies required by its workflow.
-        protected GenericRepository(DbContext context)
-        {
-            Context = context ?? throw new ArgumentNullException(nameof(context));
-            DbSet = context.Set<TEntity>();
-        }
-
-        #region Regular Members
-        // Function summary: Retrieves filtered data for callers.
-        internal Task<SearchQueryResult<TEntity>> ReadFilteredAsync(
-            List<Filter> whereFilter,
-            OrderByProperty[] orderBy,
-            int maximumRecords,
-            bool paged,
-            int page,
-            int pageSize,
-            CancellationToken cancellationToken)
-        {
-            return SearchQueryExecutor.ReadFilteredAsync<TEntity>(
-                Context, whereFilter, orderBy, maximumRecords, paged, page, pageSize, cancellationToken);
-        }
-        #endregion
-
-        #region Async Members
-        // Function summary: Retrieves all data for callers.
-        public virtual async Task<IList<TEntity>> ReadAllAsync()
-        {
-            return await this.DbSet.AsNoTracking().ToListAsync();
-        }
-
-        // Function summary: Retrieves by ID data for callers.
-        public virtual async Task<TEntity?> GetByIdAsync(Guid id)
-        {
-            return await DbSet.FindAsync(id);
-        }
-        // Function summary: Retrieves by ID data for callers.
-        public virtual async Task<TEntity?> GetByIdAsync(Guid id, string includeProperties)
-        {
-            List<Filter> query = new() { new SingleFilter { Operation = Op.Equals, PropertyName = "Id", Value = id } };
-
-            Expression<Func<TEntity, bool>> filt = FilterExpression.ExpressionBuilder.GetExpression<TEntity>(query);
-
-            // FirstOrDefaultAsync, not FirstAsync: a missing row is a null result for the caller to handle,
-            // not an InvalidOperationException thrown from inside the data-access layer.
-            return await DbSet.Include(includeProperties).Where(filt).FirstOrDefaultAsync();
-        }
-        #endregion
-
+        Context = context ?? throw new ArgumentNullException(nameof(context));
+        DbSet = context.Set<TEntity>();
     }
+
+    #region Regular Members
+    // Function summary: Retrieves filtered data for callers.
+    internal Task<SearchQueryResult<TEntity>> ReadFilteredAsync(
+        List<Filter> whereFilter,
+        OrderByProperty[] orderBy,
+        int maximumRecords,
+        bool paged,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        return SearchQueryExecutor.ReadFilteredAsync<TEntity>(
+            Context, whereFilter, orderBy, maximumRecords, paged, page, pageSize, cancellationToken);
+    }
+    #endregion
+
+    #region Async Members
+    // Function summary: Retrieves all data for callers.
+    public virtual async Task<IList<TEntity>> ReadAllAsync()
+    {
+        return await DbSet.AsNoTracking().ToListAsync();
+    }
+
+    // Function summary: Retrieves by ID data for callers.
+    public virtual async Task<TEntity?> GetByIdAsync(Guid id)
+    {
+        return await DbSet.FindAsync(id);
+    }
+    // Function summary: Retrieves by ID data for callers.
+    public virtual async Task<TEntity?> GetByIdAsync(Guid id, string includeProperties)
+    {
+        List<Filter> query = new() { new SingleFilter { Operation = Op.Equals, PropertyName = "Id", Value = id } };
+
+        Expression<Func<TEntity, bool>> filt = FilterExpression.ExpressionBuilder.GetExpression<TEntity>(query);
+
+        // FirstOrDefaultAsync, not FirstAsync: a missing row is a null result for the caller to handle,
+        // not an InvalidOperationException thrown from inside the data-access layer.
+        return await DbSet.Include(includeProperties).Where(filt).FirstOrDefaultAsync();
+    }
+    #endregion
+
 }

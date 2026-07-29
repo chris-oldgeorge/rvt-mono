@@ -33,20 +33,13 @@ public interface IMonitorEventPublisher
 // Major updates:
 // - 2026-07-12 MQTT centralization: replaced per-monitor inline PublishAsync calls with one shared publisher.
 // - 2026-07-12 RvtConfig cleanup: topics are injected instead of read from static configuration.
-public class MonitorEventPublisher : IMonitorEventPublisher
+public class MonitorEventPublisher(IMqttClient mqttClient, string insertTopic, string alertTopic) : IMonitorEventPublisher
 {
-    private const string DataInsertedMessage = "Dto Inserted";
+    private const string _dataInsertedMessage = "Dto Inserted";
 
-    private readonly IMqttClient mqttClient;
-    private readonly string insertTopic;
-    private readonly string alertTopic;
-
-    public MonitorEventPublisher(IMqttClient mqttClient, string insertTopic, string alertTopic)
-    {
-        this.mqttClient = mqttClient;
-        this.insertTopic = insertTopic;
-        this.alertTopic = alertTopic;
-    }
+    private readonly IMqttClient _mqttClient = mqttClient;
+    private readonly string _insertTopic = insertTopic;
+    private readonly string _alertTopic = alertTopic;
 
     /// <summary>
     /// Blocking entry point retained only for the legacy synchronous rule
@@ -63,7 +56,7 @@ public class MonitorEventPublisher : IMonitorEventPublisher
         string serialId,
         int? customerId = null,
         CancellationToken cancellationToken = default) =>
-        PublishAsync(insertTopic, timestamp, serialId, DataInsertedMessage, customerId, cancellationToken);
+        PublishAsync(_insertTopic, timestamp, serialId, _dataInsertedMessage, customerId, cancellationToken);
 
     public Task PublishAlertAsync(
         DateTime timestamp,
@@ -71,7 +64,7 @@ public class MonitorEventPublisher : IMonitorEventPublisher
         string message,
         int? customerId = null,
         CancellationToken cancellationToken = default) =>
-        PublishAsync(alertTopic, timestamp, serialId, message, customerId, cancellationToken);
+        PublishAsync(_alertTopic, timestamp, serialId, message, customerId, cancellationToken);
 
     private Task PublishAsync(
         string topic,
@@ -85,6 +78,6 @@ public class MonitorEventPublisher : IMonitorEventPublisher
             ? new RvtMqttMessage(timestamp, customerId.Value, serialId, message)
             : new RvtMqttMessage(timestamp, serialId, message);
 
-        return mqttClient.PublishAsync(topic, JsonSerializer.Serialize(mqttMessage), cancellationToken);
+        return _mqttClient.PublishAsync(topic, JsonSerializer.Serialize(mqttMessage), cancellationToken);
     }
 }

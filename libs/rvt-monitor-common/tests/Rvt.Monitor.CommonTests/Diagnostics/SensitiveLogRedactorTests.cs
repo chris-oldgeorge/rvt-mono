@@ -33,9 +33,9 @@ public sealed class SensitiveLogRedactorTests
         string redacted = SensitiveLogRedactor.RedactJson(
             "{\"token\":\"very-secret-token\",\"payload\":{\"secret\":\"webhook-secret\",\"serialId\":\"14768\"}}");
 
-        StringAssert.Contains(redacted, "\"token\":\"very****\"");
-        StringAssert.Contains(redacted, "\"secret\":\"webh****\"");
-        StringAssert.Contains(redacted, "\"serialId\":\"14768\"");
+        Assert.Contains("\"token\":\"very****\"", redacted);
+        Assert.Contains("\"secret\":\"webh****\"", redacted);
+        Assert.Contains("\"serialId\":\"14768\"", redacted);
         Assert.IsFalse(redacted.Contains("very-secret-token", StringComparison.Ordinal));
         Assert.IsFalse(redacted.Contains("webhook-secret", StringComparison.Ordinal));
     }

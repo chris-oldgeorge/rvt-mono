@@ -56,16 +56,16 @@ public sealed class HostCommunicationsCompositionParityTests
         string method = ExtractEmailProviderMethod(FindRepositoryRoot(), _hostServiceFiles[0]);
 
         // The canonical key, the literal legacy alias, and their precedence.
-        StringAssert.Contains(method, "configuration[\"RVT:EMAIL_PROVIDER\"]");
-        StringAssert.Contains(method, "?? configuration[\"RVT__EMAIL_PROVIDER\"]");
-        StringAssert.Contains(method, "?? \"SendGrid\";");
+        Assert.Contains("configuration[\"RVT:EMAIL_PROVIDER\"]", method);
+        Assert.Contains("?? configuration[\"RVT__EMAIL_PROVIDER\"]", method);
+        Assert.Contains("?? \"SendGrid\";", method);
 
         // Case-insensitive matching for both providers.
-        StringAssert.Contains(method, "string.Equals(configuredProvider, \"SendGrid\", StringComparison.OrdinalIgnoreCase)");
-        StringAssert.Contains(method, "string.Equals(configuredProvider, \"MicrosoftGraph\", StringComparison.OrdinalIgnoreCase)");
+        Assert.Contains("string.Equals(configuredProvider, \"SendGrid\", StringComparison.OrdinalIgnoreCase)", method);
+        Assert.Contains("string.Equals(configuredProvider, \"MicrosoftGraph\", StringComparison.OrdinalIgnoreCase)", method);
 
         // The exact failure message; it must not echo the configured value.
-        StringAssert.Contains(method, "\"RVT__EMAIL_PROVIDER must be SendGrid or MicrosoftGraph.\"");
+        Assert.Contains("\"RVT__EMAIL_PROVIDER must be SendGrid or MicrosoftGraph.\"", method);
         Assert.DoesNotContain("configuredProvider}", method, StringComparison.Ordinal);
     }
 
@@ -76,9 +76,9 @@ public sealed class HostCommunicationsCompositionParityTests
         foreach (string relativePath in _hostServiceFiles)
         {
             string source = ReadNormalized(root, relativePath);
-            StringAssert.Contains(
-                source,
+            Assert.Contains(
                 _registrationBlock,
+                source,
                 $"{relativePath} must register AddRvtCommunication, AddEmailProvider, and " +
                 "AddTransmitSms together, in that order.");
         }

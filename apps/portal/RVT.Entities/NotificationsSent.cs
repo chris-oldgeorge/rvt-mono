@@ -6,18 +6,17 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace RVT.Entities
-{
-    public class NotificationsSent : BaseEntity
-    {
-        public DateTime SendTime { get; set; }
-        [StringLength(256)]
-        public String Address { get; set; } = null!;
-        [StringLength(256)]
-        public String ErrorMessage { get; set; } = null!;
+namespace RVT.Entities;
 
-        [ForeignKey("NotificationId")]
-        public Guid NotificationId { get; set; }
-        public virtual Notification Notification { get; set; } = null!;
-    }
+public class NotificationsSent : BaseEntity
+{
+    public DateTime SendTime { get; set; }
+    [StringLength(256)]
+    public string Address { get; set; } = null!;
+    [StringLength(256)]
+    public string ErrorMessage { get; set; } = null!;
+
+    [ForeignKey("NotificationId")]
+    public Guid NotificationId { get; set; }
+    public virtual Notification Notification { get; set; } = null!;
 }

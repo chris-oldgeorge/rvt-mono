@@ -145,33 +145,6 @@ namespace OmnidotsAdapterTests
             return false;
         }
 
-        private static bool VerifyConfigRequest(HttpContent httpContent)
-        {
-            // todo check request
-            return true;
-            //if (httpContent is MultipartFormDataContent)
-            //{
-            //    var mfc = (MultipartFormDataContent)httpContent;
-            //    var s = ReadContent(mfc).Result;
-
-            //    if (!s.Contains(
-            //        string.Format("form-data; name=\"username\"\r\n\r\n{0}", RvtConfig.USER_ID)))
-            //    {
-            //        return false;
-            //    }
-
-            //    if (!s.Contains(
-            //        string.Format("form-data; name=\"password\"\r\n\r\n{0}", RvtConfig.USER_AUTH)))
-            //    {
-            //        return false;
-            //    }
-            //    return true;
-            //}
-
-            //return false;
-        }
-
-
         public static bool VerifyAlertRuleDto(RvtAlertRuleDto dto, string serialNumber, string field, bool triggered)
         {
 

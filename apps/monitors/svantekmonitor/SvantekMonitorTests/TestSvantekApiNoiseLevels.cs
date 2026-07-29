@@ -60,7 +60,7 @@ public class TestSvantekApiNoiseLevels
         httpClient.Setup(c => c.PostAsync("projects-get-result-data-multi-point.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>())).
                 ReturnsAsync(MultiPointResponse(3, sampleTime, 55));
 
-        await testObj.StoreNoiseLevelsAsync();
+        await testObj.StoreNoiseLevelsAsync(TestContext.CancellationToken);
 
         httpClient.Verify(c => c.PostAsync("projects-get-result-data-multi-point.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
             Times.Exactly(1));
@@ -103,7 +103,7 @@ public class TestSvantekApiNoiseLevels
         httpClient.Setup(c => c.PostAsync("projects-get-result-data-multi-point.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>())).
                 ReturnsAsync(MultiPointResponse(3, sampleTime, 55));
 
-        await testObj.StoreNoiseLevelsAsync();
+        await testObj.StoreNoiseLevelsAsync(TestContext.CancellationToken);
 
         httpClient.Verify(c => c.PostAsync("projects-get-result-data-multi-point.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
             Times.Exactly(1));
@@ -133,4 +133,6 @@ public class TestSvantekApiNoiseLevels
 
         mqttClient.VerifyNoOtherCalls();
     }
+
+    public TestContext TestContext { get; set; } = null!;
 }

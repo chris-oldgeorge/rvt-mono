@@ -48,6 +48,20 @@ superseded narratives to the archive.
   1,994 entries / 7,709 diagnostics to 1,112 entries / 2,072 diagnostics:
   882 entries removed, 12 lowered, 5,637 diagnostic allowances retired, and
   zero increases.
+- The Sonar remediation series retires the unreferenced `RVTUtilities`
+  project and its dedicated tests, removes the outdated package-validation
+  expectation from the common-source-boundary verifier, and documents the
+  repository guardrails added for repeated security and maintainability
+  findings.
+- Portal SendGrid registration now binds its enabled state through `IOptions`;
+  set `RVT__Email_ENABLED=false` in the `RvtPortal.Spa` startup environment to
+  disable outbound email. The variable is optional and email remains enabled
+  when no override is supplied.
+- Monitor projects follow main's lowercase `api`, `model`, `db`, `http`, and
+  `json` directory structure. Path-based architecture tests and tooling must
+  preserve that exact casing. Repo-wide CA1859 and CA1873 enforcement remains
+  enabled, with the inherited monitor-only debt kept visible as warnings
+  through the scoped `apps/monitors/**/*.cs` editorconfig section.
 
 ## Verification environment
 

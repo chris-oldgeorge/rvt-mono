@@ -4,15 +4,9 @@ using Rvt.Monitor.Common.Data.Entities;
 
 namespace Rvt.Monitor.Common.Data.EntityFramework;
 
-public abstract class MonitorDbContextBase : DbContext
+public abstract class MonitorDbContextBase(DbContextOptions options, MonitorDbOptions monitorOptions) : DbContext(options)
 {
-    protected MonitorDbContextBase(DbContextOptions options, MonitorDbOptions monitorOptions)
-        : base(options)
-    {
-        MonitorOptions = monitorOptions;
-    }
-
-    protected MonitorDbOptions MonitorOptions { get; }
+    protected MonitorDbOptions MonitorOptions { get; } = monitorOptions;
 
     internal IReadOnlyDictionary<string, string> ModelCacheIdentifierMap => MonitorOptions.IdentifierMap;
 

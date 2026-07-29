@@ -10,11 +10,16 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
-- The authoritative open-findings list is now
-  [docs/reviews/2026-07-29-full-repo-review.md](docs/reviews/2026-07-29-full-repo-review.md)
-  (third full review, superseding the 2026-07-28 one for anything still open).
-  Its P1 deletion sweep has been executed; the P0 bug list at the top of that
-  document is the next work.
+- The consolidated report of work since the monorepo source import is
+  [docs/reviews/2026-07-29-monorepo-work-report.md](docs/reviews/2026-07-29-monorepo-work-report.md).
+  It covers the `31d168fd..d1fe8282` range, current structure, delivery
+  metrics, verification evidence, Sonar gate state, and recommended follow-up
+  order.
+- The latest exhaustive finding register is
+  [docs/reviews/2026-07-29-full-repo-review.md](docs/reviews/2026-07-29-full-repo-review.md),
+  but it predates the durable-alert, legacy-messaging-retirement, dispatch
+  policy, ratchet-paydown, and `RvtConfig` endgame merges. Re-verify any item
+  against the current tree before treating it as open.
 - The second dead-code sweep removed ~1,600 lines: 13 never-queried EF view
   entities plus their DbSets, fluent config, model-snapshot blocks and
   canonical-name approvals; the dead `IAlertlevelRepository` port/adapter pair

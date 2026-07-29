@@ -13,6 +13,19 @@ was grep-verified (zero references outside the definition unless stated).
 
 ## Executive summary
 
+> **Status 2026-07-29 — remediation complete.** Every priority-list item is
+> resolved in-place below (executed, or withdrawn with rationale). The legacy
+> sync messaging path is deleted end-to-end (§8 steps 1–6), all four monitors
+> alert through the durable stack (`docs/architecture/rvt-monitor-common/durable-alerts.md`),
+> guardrail gaps G1 and G3 are closed by PR-run tests and the AirQ guards
+> (G5's portal Application→Spa.Api boundary guard landed too), and the
+> ratchet baseline is down from 7,709 tolerated violations to ~534. The
+> figures in this summary and §2 describe the 2026-07-28 snapshot and are kept
+> for the record. Open threads: the Omnidots `RVT__OMNIDOTS_USE_TOKEN` product
+> ruling, §8 step 7's `RvtConfig` endgame, and a main-side baseline
+> regeneration (a fresh `--all` scan exceeds the checked-in baseline in files
+> the remediation never touched).
+
 The codebase's biggest quality lever is no longer bugs — it is **repetition and
 retirement**. The ratchet baseline tolerates **7,709 violations**, and 13% of
 them live in four near-identical `TestDbClient.cs` files. The portal carries
@@ -51,6 +64,11 @@ with the same severity as anything else:
 | G8 | `.editorconfig` severities are `suggestion`, so `EnforceCodeStyleInBuild=true` in apps/monitors is effectively a no-op — misleading enforcement. | `.editorconfig:19-21` |
 
 ## 2. Ratchet-baseline debt map (authoritative numbers)
+
+> 2026-07-29: snapshot numbers. After the remediation series and main's own
+> sweeps, the baseline tolerates ~534 violations, dominated by IDE1006 naming
+> (blocked on Roslyn's fix-all-less naming code fix) and deliberate IDE0130
+> namespaces. See item 18 for the tooling limits.
 
 - **1,994 entries / 7,709 tolerated violations** (`eng/standards/baseline.json`).
 - By rule: IDE0008 `var` **4,518 (59%)**, IDE1006 naming 1,175, IDE0005 unused

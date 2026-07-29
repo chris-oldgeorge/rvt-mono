@@ -8,6 +8,8 @@ lives here under `docs/`.
 
 - [Portal ports and adapters](architecture/portal/ports-and-adapters-catalog.md)
 - [Reporting service architecture](architecture/reporting/architecture.md)
+- [Communication provider split](architecture/rvt-monitor-common/communications.md)
+- [Durable alert stack](architecture/rvt-monitor-common/durable-alerts.md)
 
 ## Development
 

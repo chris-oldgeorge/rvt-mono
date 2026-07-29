@@ -166,7 +166,8 @@ describe('HelpAdminPanel', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Create FAQ' }));
 
-    expect(await screen.findByRole('button', { name: 'Edit New FAQ' })).toHaveFocus();
+    const editNewFaq = await screen.findByRole('button', { name: 'Edit New FAQ' });
+    await waitFor(() => expect(editNewFaq).toHaveFocus());
   });
 
   it('waits for the refreshed overview before focusing the changed publication action', async () => {

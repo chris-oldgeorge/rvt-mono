@@ -20,7 +20,7 @@ public sealed class MyAtmRuleProcessor
         RuleAlertDeliveryPlanner? deliveryPlanner = null)
     {
         _ruleQueries = ruleQueries;
-        _deliveryPlanner = _deliveryPlanner ?? new RuleAlertDeliveryPlanner();
+        _deliveryPlanner = deliveryPlanner ?? new RuleAlertDeliveryPlanner();
     }
 
     public MyAtmAlertCommit CreateAggregateCommit(

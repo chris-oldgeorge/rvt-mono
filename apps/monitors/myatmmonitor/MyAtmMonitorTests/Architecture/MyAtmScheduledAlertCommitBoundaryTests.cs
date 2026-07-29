@@ -155,8 +155,10 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
         Assert.Contains("MonitorDeliveryDispatcher", source);
     }
 
+    // The optional underscore keeps this boundary check independent of which private-field
+    // naming convention a handler uses; the repository still carries both.
     private static string[] InvokedMethods(string source, string receiver) =>
-        [.. Regex.Matches(source, $@"\b{Regex.Escape(receiver)}\.(?<method>[A-Za-z0-9_]+)\s*\(")
+        [.. Regex.Matches(source, $@"\b_?{Regex.Escape(receiver)}\.(?<method>[A-Za-z0-9_]+)\s*\(")
             .Select(match => match.Groups["method"].Value)
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)];

@@ -79,7 +79,7 @@ namespace MyAtm.Api
             MyAtmMonitorReader monitorReader = new(dbClient, dbClient, testLocal);
             MyAtmRuleProcessor ruleProcessor = new(dbClient);
 
-            _outboxDispatcher = _outboxDispatcher ?? throw new ArgumentNullException(nameof(_outboxDispatcher));
+            _outboxDispatcher = outboxDispatcher ?? throw new ArgumentNullException(nameof(outboxDispatcher));
             _storeMonitors = new StoreMonitorsHandler(
                 gateway,
                 dbClient,

@@ -149,6 +149,16 @@ with the same severity as anything else:
   (Svantek)** / 15 s; only MyAtm has retry + bounded read; phantom `<T>` in 3
   of 4; Svantek's `GetByteArrayAsync` actually sends POST; the Omnidots
   fake-auth seam survived the rewrite verbatim.
+  **Resolved 2026-07-29:** one `VendorHttpTransport` engine in
+  `Rvt.Monitor.Common.Http` (send/dispose loop, optional pacing/retry via
+  `IVendorRequestPolicy` — MyAtm's policy generalized to
+  `VendorRequestPolicy` — and optional bounded reads); the four clients are
+  thin wrappers keeping their own pinned headers, timeouts, and error
+  contracts. Phantom `<T>` removed; Svantek's method renamed
+  `PostForBytesAsync`; the Omnidots seam moved to the
+  `OmnidotsStaticTokenClient` composition decorator (behaviour and the
+  `RVT__OMNIDOTS_USE_TOKEN` default preserved — whether the seam should exist
+  at all is still the open product question).
 - `ClearOlderErrorMessagesHandler` ×3 (same 7-day cutoff, now with sync/async
   signature drift, all reading the clock directly).
 - Test scaffolding: `TestDbClient.cs` ×4 (~6,400 lines; the "13% of ratchet
@@ -337,6 +347,10 @@ caller sees a warning. Retirement order (each step unblocks the next):
     stays per-monitor: its factory binds each monitor's own API/DB types.**
 11. One vendor HTTP client in rvt-monitor-common (MyAtm's as the superset);
     move the Omnidots token seam to composition (needs the product decision).
+    **Done: `VendorHttpTransport`/`VendorRequestPolicy` in Common; four thin
+    wrappers; seam relocated to a composition decorator with behaviour
+    preserved. Open: the product ruling on whether `RVT__OMNIDOTS_USE_TOKEN`
+    should exist/default-on.**
 12. ~~`AddRvtEmailProvider`~~ + `GetJobName` + job-map base into the library
     (kills the dual job lists and the ctor hack). **Done for the job parts
     (PR #22: `MonitorJobCatalog`, `MonitorJobArguments`). The email-provider

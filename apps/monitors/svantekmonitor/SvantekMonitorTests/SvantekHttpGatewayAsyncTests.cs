@@ -46,7 +46,7 @@ public sealed class SvantekHttpGatewayAsyncTests
                 It.IsAny<HttpContent>(),
                 token))
             .ReturnsAsync(MultiDataJson);
-        http.Setup(client => client.GetByteArrayAsync(
+        http.Setup(client => client.PostForBytesAsync(
                 "projects-get-data.php",
                 It.IsAny<MultipartFormDataContent>(),
                 token))

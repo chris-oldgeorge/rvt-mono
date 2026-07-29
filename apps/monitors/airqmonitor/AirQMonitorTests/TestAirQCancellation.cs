@@ -34,7 +34,7 @@ public class TestAirQCancellation
         using CancellationTokenSource cancellation = new();
         TokenCapturingHandler handler = new();
         using HttpClient inner = new(handler);
-        HttpWebClient<object> subject = new("https://airq.example.test/", inner);
+        HttpWebClient subject = new("https://airq.example.test/", inner);
 
         await subject.GetAsync("/latestData", cancellation.Token);
 
@@ -47,7 +47,7 @@ public class TestAirQCancellation
         using CancellationTokenSource cancellation = new();
         await cancellation.CancelAsync();
         using HttpClient inner = new(new TokenCapturingHandler());
-        HttpWebClient<object> subject = new("https://airq.example.test/", inner);
+        HttpWebClient subject = new("https://airq.example.test/", inner);
 
         await Assert.ThrowsAsync<TaskCanceledException>(
             () => subject.GetAsync("/latestData", cancellation.Token));

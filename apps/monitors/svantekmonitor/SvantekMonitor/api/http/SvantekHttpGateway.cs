@@ -165,7 +165,7 @@ namespace Svantek.Api.Http
 
             try
             {
-                return await httpClient.GetByteArrayAsync(
+                return await httpClient.PostForBytesAsync(
                     API_URL_PROJECTS_GET_DATA,
                     content,
                     cancellationToken).ConfigureAwait(false);

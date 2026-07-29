@@ -56,7 +56,7 @@ public static class MyAtmMonitorServices
             provider.GetRequiredService<MyAtmVendorOptions>(),
             provider.GetRequiredService<TimeProvider>()));
         services.AddHttpClient("MyAtmVendor");
-        services.AddSingleton<IHttpClient>(provider => new HttpWebClient<MyAtmService>(
+        services.AddSingleton<IHttpClient>(provider => new HttpWebClient(
             provider.GetRequiredService<MyAtmVendorOptions>(),
             provider.GetRequiredService<IHttpClientFactory>().CreateClient("MyAtmVendor"),
             provider.GetRequiredService<MyAtmRequestPolicy>()));

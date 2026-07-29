@@ -15,19 +15,19 @@ public class TestAirQHttpTimeout
     {
         using HttpClient inner = new();
 
-        _ = new HttpWebClient<object>("https://airq.example.test", inner);
+        _ = new HttpWebClient("https://airq.example.test", inner);
 
-        Assert.AreEqual(HttpWebClient<object>.RequestTimeout, inner.Timeout);
+        Assert.AreEqual(HttpWebClient.RequestTimeout, inner.Timeout);
     }
 
     [TestMethod]
     public void HttpWebClient_RequestTimeoutIsShorterThanTheFrameworkDefault()
     {
         Assert.IsTrue(
-            HttpWebClient<object>.RequestTimeout < TimeSpan.FromSeconds(100),
+            HttpWebClient.RequestTimeout < TimeSpan.FromSeconds(100),
             "The vendor timeout must be tighter than the 100 second framework default.");
         Assert.IsTrue(
-            HttpWebClient<object>.RequestTimeout > TimeSpan.Zero,
+            HttpWebClient.RequestTimeout > TimeSpan.Zero,
             "The vendor timeout must be a positive duration.");
     }
 
@@ -36,7 +36,7 @@ public class TestAirQHttpTimeout
     {
         using HttpClient inner = new();
 
-        _ = new HttpWebClient<object>("https://airq.example.test", inner);
+        _ = new HttpWebClient("https://airq.example.test", inner);
 
         Assert.AreEqual(new Uri("https://airq.example.test"), inner.BaseAddress);
         Assert.IsTrue(inner.DefaultRequestHeaders.Accept.Count > 0

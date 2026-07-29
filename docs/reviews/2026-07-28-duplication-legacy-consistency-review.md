@@ -388,6 +388,17 @@ caller sees a warning. Retirement order (each step unblocks the next):
    policy) is already single-sourced.**
 7. `RvtConfig` endgame: after the Omnidots token-seam decision and options
    binding for the remaining fields, delete the assembly-name sniffing.
+   **Done 2026-07-29: the user ruled the Omnidots static-token escape hatch
+   out — `OmnidotsStaticTokenClient`, `RVT__OMNIDOTS_USE_TOKEN`, and the
+   `RVT__OMNIDOTS_TOKEN` credential are deleted; Omnidots always authenticates
+   against the vendor. The entry-assembly/base-directory sniffing is deleted
+   from `RvtConfig` and `MonitorRuntimeDefaultsResolver`: `RVT__MONITOR_KIND`
+   (declared by every deployment, see `apps/monitors/docker-compose.yml`) is
+   the only kind signal, and an unknown kind falls to neutral defaults.
+   Converting the remaining static `RvtConfig` reads to per-host options
+   binding is withdrawn: with the sniffing gone they are deterministic
+   env/config lookups, and per-field options classes would churn every
+   composition root for no behavioral gain.**
 
 ---
 

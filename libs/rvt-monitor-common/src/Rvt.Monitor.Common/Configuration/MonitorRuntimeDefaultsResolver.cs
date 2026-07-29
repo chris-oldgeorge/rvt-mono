@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace Rvt.Monitor.Common.Configuration;
 
 public interface IMonitorRuntimeDefaultsResolver
@@ -9,6 +7,5 @@ public interface IMonitorRuntimeDefaultsResolver
 
 public sealed class MonitorRuntimeDefaultsResolver(string monitorKind) : IMonitorRuntimeDefaultsResolver
 {
-    public MonitorRuntimeDefaults Defaults { get; } = RvtConfig.ResolveMonitorDefaults(monitorKind, AppContext.BaseDirectory,
-            Assembly.GetEntryAssembly()?.GetName().Name ?? string.Empty);
+    public MonitorRuntimeDefaults Defaults { get; } = RvtConfig.ResolveMonitorDefaults(monitorKind);
 }

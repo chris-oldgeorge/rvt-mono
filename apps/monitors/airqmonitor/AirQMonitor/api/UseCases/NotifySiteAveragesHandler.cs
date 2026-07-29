@@ -10,11 +10,11 @@ namespace AirQ.Api.UseCases
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitorsNoiseLevels).
     public class NotifySiteAveragesHandler
     {
-        private readonly IAirQMonitorQueries monitorQueries;
-        private readonly IAirQRuleQueries ruleQueries;
-        private readonly IAirQMeasurementCommands measurementCommands;
-        private readonly IAirQOperationalCommands operationalCommands;
-        private readonly AirQRuleProcessor ruleProcessor;
+        private readonly IAirQMonitorQueries _monitorQueries;
+        private readonly IAirQRuleQueries _ruleQueries;
+        private readonly IAirQMeasurementCommands _measurementCommands;
+        private readonly IAirQOperationalCommands _operationalCommands;
+        private readonly AirQRuleProcessor _ruleProcessor;
 
         public NotifySiteAveragesHandler(
             IAirQMonitorQueries monitorQueries,
@@ -23,31 +23,31 @@ namespace AirQ.Api.UseCases
             IAirQOperationalCommands operationalCommands,
             AirQRuleProcessor ruleProcessor)
         {
-            this.monitorQueries = monitorQueries;
-            this.ruleQueries = ruleQueries;
-            this.measurementCommands = measurementCommands;
-            this.operationalCommands = operationalCommands;
-            this.ruleProcessor = ruleProcessor;
+            _monitorQueries = monitorQueries;
+            _ruleQueries = ruleQueries;
+            _measurementCommands = measurementCommands;
+            _operationalCommands = operationalCommands;
+            _ruleProcessor = ruleProcessor;
         }
 
-        public Task RunAsync(DateTime date, CancellationToken cancellationToken = default)
+        public async Task RunAsync(DateTime date, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            List<SiteMonitorsWithSiteHoursDto> monitors = monitorQueries.ReadSiteMonitorsWithSiteHours(date);
+            List<SiteMonitorsWithSiteHoursDto> monitors = _monitorQueries.ReadSiteMonitorsWithSiteHours(date);
             foreach (SiteMonitorsWithSiteHoursDto monitor in monitors)
             {
 
-                double level = ruleQueries.GetAverageNoiseLevel(serialNumber: monitor.SerialId,
+                double level = _ruleQueries.GetAverageNoiseLevel(serialNumber: monitor.SerialId,
                                               columnName: "LAeq", // Assuming that is enough for now.
                                               start: date + monitor.StartTime!.Value,
                                               end: date + monitor.EndTime!.Value);
 
-                measurementCommands.WriteDailyAverage(siteId: monitor.SiteId,
+                _measurementCommands.WriteDailyAverage(siteId: monitor.SiteId,
                                            monitorId: monitor.Id,
                                            field: "lAeq",
                                            level: level,
                                            timestamp: date);
-                List<RvtAlertRuleDto> allRules = ruleQueries.ReadRules(monitor.SerialId);
+                List<RvtAlertRuleDto> allRules = _ruleQueries.ReadRules(monitor.SerialId);
                 if (allRules != null && allRules.Count > 0)
                 {
                     List<RvtAlertRuleDto> rules = [.. allRules.Where(x => x.AveragingPeriod == 0 && x.Field == "LAeq").OrderBy(x => x.AlertType)];
@@ -60,20 +60,17 @@ namespace AirQ.Api.UseCases
                             if (rule.AlertType == AlertType.Alert || (previousAlert != AlertType.Alert && rule.AlertType == AlertType.Caution)) //Not to send cautions if we have sent alerts but if there are two alert rules lets go for it
                             {
                                 //New breach generate notification
-                                List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid siteId);
-                                ruleProcessor.ProcessAlertForContactsV2(fleetNr: monitor.FleetNr,
-                                serialId: monitor.SerialId,
+                                await _ruleProcessor.SignalAlertAsync(serialId: monitor.SerialId,
                                 alertTime: date + monitor.EndTime!.Value,
                                 limitOn: rule.LimitOn,
                                 averagingPeriod: 0,
                                 level: level,
                                 alertType: rule.AlertType,
                                 field: rule.Field,
-                                monitorId: monitor.Id,
-                                contacts: contacts);
+                                cancellationToken: cancellationToken);
 
                                 rule.IsActive = true;
-                                operationalCommands.UpdateAlertRule(rule);
+                                _operationalCommands.UpdateAlertRule(rule);
                                 previousAlert = rule.AlertType;
                             }
                         }
@@ -81,7 +78,7 @@ namespace AirQ.Api.UseCases
                         {
                             //turn off active rule
                             rule.IsActive = false;
-                            operationalCommands.UpdateAlertRule(rule);
+                            _operationalCommands.UpdateAlertRule(rule);
                         }
                         else if (rule.IsActive)
                         {
@@ -91,7 +88,6 @@ namespace AirQ.Api.UseCases
                 }
             }
 
-            return Task.CompletedTask;
         }
     }
 }

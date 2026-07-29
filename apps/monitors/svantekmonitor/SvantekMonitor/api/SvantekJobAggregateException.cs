@@ -11,7 +11,7 @@ public sealed class SvantekJobAggregateException : Exception
         ArgumentNullException.ThrowIfNull(failures);
 
         JobName = jobName;
-        Failures = failures.ToImmutableArray();
+        Failures = [.. failures];
         if (Failures.IsEmpty)
         {
             throw new ArgumentException("At least one failure is required.", nameof(failures));

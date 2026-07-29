@@ -103,21 +103,25 @@ public static class SeedDatabase
             masterAdmin.UserName = DefaultMasterAdminEmail;
             shouldUpdateUser = true;
         }
+
         if (!string.Equals(masterAdmin.Email, DefaultMasterAdminEmail, StringComparison.OrdinalIgnoreCase))
         {
             masterAdmin.Email = DefaultMasterAdminEmail;
             shouldUpdateUser = true;
         }
+
         if (!masterAdmin.EmailConfirmed)
         {
             masterAdmin.EmailConfirmed = true;
             shouldUpdateUser = true;
         }
+
         if (masterAdmin.IsDisabled)
         {
             masterAdmin.IsDisabled = false;
             shouldUpdateUser = true;
         }
+
         if (shouldUpdateUser)
         {
             IdentityResult updateResult = await userManager.UpdateAsync(masterAdmin);
@@ -190,6 +194,7 @@ public static class SeedDatabase
         {
             return;
         }
+
         IdentityResult result = await roleManager.CreateAsync(new IdentityRole
         {
             Name = roleName,

@@ -16,7 +16,7 @@ type Row = {
 
 const columns = [
   { key: 'name', header: 'Name', sortable: true, render: (row: Row) => row.name },
-  { key: 'users', header: 'Users', sortable: true, align: 'end' as const, render: (row: Row) => row.users }
+  { key: 'users', header: 'Users', sortable: true, align: 'end' as const, render: (row: Row) => row.users },
 ];
 
 describe('DataGrid', () => {
@@ -28,7 +28,7 @@ describe('DataGrid', () => {
       page: 1,
       pageSize: 10,
       total: 0,
-      totalPages: 0
+      totalPages: 0,
     };
 
     const { rerender } = render(<DataGrid {...baseProps} rows={[]} isLoading />);
@@ -66,7 +66,7 @@ describe('DataGrid', () => {
         onSortChange={onSortChange}
         onPageChange={onPageChange}
         rowActions={[{ label: 'Inspect row', onClick: onInspect }]}
-      />
+      />,
     );
 
     await user.click(screen.getByRole('button', { name: /name/i }));

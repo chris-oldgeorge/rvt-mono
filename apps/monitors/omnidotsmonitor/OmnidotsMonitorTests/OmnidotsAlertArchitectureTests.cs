@@ -129,7 +129,6 @@ public sealed class OmnidotsAlertArchitectureTests
             .Select(parameter => parameter.ParameterType)];
 
         CollectionAssert.DoesNotContain(constructorDependencies, typeof(IDBClient));
-        CollectionAssert.DoesNotContain(constructorDependencies, typeof(OmnidotsRuleProcessor));
         Assert.IsTrue(constructorDependencies.All(type =>
             type.FullName is not "Rvt.Communication.Abstractions.IMessageService" and
             not "Rvt.Monitor.Common.Mqtt.IMqttClient"));

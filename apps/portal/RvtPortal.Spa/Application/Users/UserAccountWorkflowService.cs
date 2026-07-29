@@ -144,11 +144,11 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         RoleNames.CompanyUser
     ];
 
-    private readonly IUserAdministrationReadService userReads;
-    private readonly UserManager<ApplicationUser> userManager;
-    private readonly ICompanyService companyService;
-    private readonly IMediator mediator;
-    private readonly IUserAccountNotificationService notifications;
+    private readonly IUserAdministrationReadService _userReads;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ICompanyService _companyService;
+    private readonly IMediator _mediator;
+    private readonly IUserAccountNotificationService _notifications;
 
     // Function summary: Initializes user account orchestration with Identity, command, lookup, and notification dependencies.
     public UserAccountWorkflowService(
@@ -158,11 +158,11 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         IMediator mediator,
         IUserAccountNotificationService notifications)
     {
-        this.userReads = userReads;
-        this.userManager = userManager;
-        this.companyService = companyService;
-        this.mediator = mediator;
-        this.notifications = notifications;
+        _userReads = userReads;
+        _userManager = userManager;
+        _companyService = companyService;
+        _mediator = mediator;
+        _notifications = notifications;
     }
 
     // Function summary: Creates an admin-managed user and sends the initial password-set link when configured.
@@ -178,23 +178,23 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
             return UserAccountWorkflowResultWithErrors(validationErrors);
         }
 
-        UserAccountCommandResult result = await mediator.Send(new CreateUserCommand(request), cancellationToken);
+        UserAccountCommandResult result = await _mediator.Send(new CreateUserCommand(request), cancellationToken);
         if (result.Errors.Count > 0 || string.IsNullOrWhiteSpace(result.UserId))
         {
             return UserAccountWorkflowResultWithErrors(result.Errors);
         }
 
-        ApplicationUser? user = await userManager.FindByIdAsync(result.UserId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(result.UserId);
         if (user == null)
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = result.UserId };
         }
 
-        await notifications.SendPasswordSetAsync(user, origin);
+        await _notifications.SendPasswordSetAsync(user, origin);
         return new UserAccountWorkflowResult
         {
             UserId = user.Id,
-            Detail = await userReads.GetDetailAsync(user.Id, actor, cancellationToken)
+            Detail = await _userReads.GetDetailAsync(user.Id, actor, cancellationToken)
         };
     }
 
@@ -206,7 +206,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserAccountRequestOrigin origin,
         CancellationToken cancellationToken)
     {
-        ApplicationUser? user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
@@ -227,13 +227,14 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         string requestedEmail = request.Email.Trim();
         bool emailChanged = !string.Equals(user.Email, requestedEmail, StringComparison.OrdinalIgnoreCase);
         bool wasEmailConfirmed = user.EmailConfirmed;
-        UserAccountCommandResult result = await mediator.Send(
+        UserAccountCommandResult result = await _mediator.Send(
             new UpdateUserCommand(userId, request, currentRole, emailChanged && !wasEmailConfirmed),
             cancellationToken);
         if (result.NotFound)
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
         }
+
         if (result.Errors.Count > 0)
         {
             return UserAccountWorkflowResultWithErrors(result.Errors, userId);
@@ -241,7 +242,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
 
         if (emailChanged)
         {
-            ApplicationUser? updatedUser = await userManager.FindByIdAsync(userId);
+            ApplicationUser? updatedUser = await _userManager.FindByIdAsync(userId);
             if (updatedUser == null)
             {
                 return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
@@ -249,18 +250,18 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
 
             if (wasEmailConfirmed)
             {
-                await notifications.SendEmailChangeAsync(updatedUser, requestedEmail);
+                await _notifications.SendEmailChangeAsync(updatedUser, requestedEmail);
             }
             else
             {
-                await notifications.SendPasswordSetAsync(updatedUser, origin);
+                await _notifications.SendPasswordSetAsync(updatedUser, origin);
             }
         }
 
         return new UserAccountWorkflowResult
         {
             UserId = userId,
-            Detail = await userReads.GetDetailAsync(userId, actor, cancellationToken)
+            Detail = await _userReads.GetDetailAsync(userId, actor, cancellationToken)
         };
     }
 
@@ -270,13 +271,13 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserAccountRequestOrigin origin,
         CancellationToken cancellationToken)
     {
-        ApplicationUser? user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserAccountMessageResult { NotFound = true };
         }
 
-        await notifications.SendPasswordSetAsync(user, origin);
+        await _notifications.SendPasswordSetAsync(user, origin);
         return new UserAccountMessageResult();
     }
 
@@ -286,13 +287,13 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserAccountRequestOrigin origin,
         CancellationToken cancellationToken)
     {
-        ApplicationUser? user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserAccountMessageResult { NotFound = true };
         }
 
-        await notifications.SendPasswordResetAsync(user, origin);
+        await _notifications.SendPasswordResetAsync(user, origin);
         return new UserAccountMessageResult();
     }
 
@@ -302,17 +303,18 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        ApplicationUser? user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
         }
+
         if (!CanEditUser(await GetUserRoleAsync(user), actor))
         {
             return new UserAccountWorkflowResult { Forbidden = true, UserId = userId };
         }
 
-        UserAccountCommandResult result = await mediator.Send(new DisableUserCommand(userId), cancellationToken);
+        UserAccountCommandResult result = await _mediator.Send(new DisableUserCommand(userId), cancellationToken);
         return await BuildPostCommandResultAsync(result, userId, actor, cancellationToken);
     }
 
@@ -322,17 +324,18 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        ApplicationUser? user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
         }
+
         if (!CanEditUser(await GetUserRoleAsync(user), actor))
         {
             return new UserAccountWorkflowResult { Forbidden = true, UserId = userId };
         }
 
-        UserAccountCommandResult result = await mediator.Send(new EnableUserCommand(userId), cancellationToken);
+        UserAccountCommandResult result = await _mediator.Send(new EnableUserCommand(userId), cancellationToken);
         return await BuildPostCommandResultAsync(result, userId, actor, cancellationToken);
     }
 
@@ -342,7 +345,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        ApplicationUser? user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(userId);
         if (user == null)
         {
             return new UserDeleteWorkflowResult { NotFound = true };
@@ -354,11 +357,12 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
             return new UserDeleteWorkflowResult { Forbidden = true };
         }
 
-        UserAccountCommandResult result = await mediator.Send(new DeleteUserCommand(userId), cancellationToken);
+        UserAccountCommandResult result = await _mediator.Send(new DeleteUserCommand(userId), cancellationToken);
         if (result.NotFound)
         {
             return new UserDeleteWorkflowResult { NotFound = true };
         }
+
         if (result.Errors.Count > 0)
         {
             UserDeleteWorkflowResult workflowResult = new() { Email = result.Email };
@@ -375,7 +379,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        UserSiteAssignmentCommandResult result = await mediator.Send(new AddUserToSiteCommand(request.UserId, request.SiteId), cancellationToken);
+        UserSiteAssignmentCommandResult result = await _mediator.Send(new AddUserToSiteCommand(request.UserId, request.SiteId), cancellationToken);
         if (result.Created)
         {
         }
@@ -389,7 +393,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        UserSiteAssignmentCommandResult result = await mediator.Send(new SetSiteContactCommand(request.UserId, request.SiteId), cancellationToken);
+        UserSiteAssignmentCommandResult result = await _mediator.Send(new SetSiteContactCommand(request.UserId, request.SiteId), cancellationToken);
         return await BuildSiteAssignmentResultAsync(result, request.SiteId, actor, cancellationToken);
     }
 
@@ -400,7 +404,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        UserSiteAssignmentCommandResult result = await mediator.Send(new RemoveSiteContactCommand(userId, siteId), cancellationToken);
+        UserSiteAssignmentCommandResult result = await _mediator.Send(new RemoveSiteContactCommand(userId, siteId), cancellationToken);
         return await BuildSiteAssignmentResultAsync(result, siteId, actor, cancellationToken);
     }
 
@@ -411,7 +415,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         UserListActor actor,
         CancellationToken cancellationToken)
     {
-        UserSiteAssignmentCommandResult result = await mediator.Send(new RemoveUserFromSiteCommand(userId, siteId), cancellationToken);
+        UserSiteAssignmentCommandResult result = await _mediator.Send(new RemoveUserFromSiteCommand(userId, siteId), cancellationToken);
         if (result.Removed)
         {
         }
@@ -449,7 +453,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
             {
                 AddError(errors, nameof(UserMutationRequest.CompanyId), "Company is required for Company User and Installer accounts.");
             }
-            else if (await companyService.ReadOneAsync(request.CompanyId.Value) == null)
+            else if (await _companyService.ReadOneAsync(request.CompanyId.Value) == null)
             {
                 AddError(errors, nameof(UserMutationRequest.CompanyId), "Company was not found.");
             }
@@ -457,7 +461,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
 
         if (!string.IsNullOrWhiteSpace(request.Email))
         {
-            ApplicationUser? existing = await userManager.FindByEmailAsync(request.Email.Trim());
+            ApplicationUser? existing = await _userManager.FindByEmailAsync(request.Email.Trim());
             if (existing != null && !string.Equals(existing.Id, currentUserId, StringComparison.Ordinal))
             {
                 AddError(errors, nameof(UserMutationRequest.Email), "Email already registered");
@@ -483,6 +487,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         {
             return new UserAccountWorkflowResult { NotFound = true, UserId = userId };
         }
+
         if (result.Errors.Count > 0)
         {
             return UserAccountWorkflowResultWithErrors(result.Errors, userId);
@@ -491,7 +496,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
         return new UserAccountWorkflowResult
         {
             UserId = userId,
-            Detail = await userReads.GetDetailAsync(userId, actor, cancellationToken)
+            Detail = await _userReads.GetDetailAsync(userId, actor, cancellationToken)
         };
     }
 
@@ -513,7 +518,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
 
         SiteAssignmentWorkflowResult workflowResult = new()
         {
-            Assignment = await userReads.GetSiteAssignmentsAsync(siteId, actor, cancellationToken)
+            Assignment = await _userReads.GetSiteAssignmentsAsync(siteId, actor, cancellationToken)
         };
         CopyErrors(result.Errors, workflowResult.Errors);
         return workflowResult;
@@ -522,7 +527,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
     // Function summary: Retrieves the first role assigned to a user.
     private async Task<string> GetUserRoleAsync(ApplicationUser user)
     {
-        return (await userManager.GetRolesAsync(user)).FirstOrDefault() ?? "";
+        return (await _userManager.GetRolesAsync(user)).FirstOrDefault() ?? "";
     }
 
     // Function summary: Evaluates whether the current admin may assign the requested role.
@@ -587,10 +592,10 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
 
 public sealed class UserAccountNotificationService : IUserAccountNotificationService
 {
-    private readonly UserManager<ApplicationUser> userManager;
-    private readonly IConfiguration configuration;
-    private readonly SpaOptions spaOptions;
-    private readonly IAccountMessenger accountMessenger;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IConfiguration _configuration;
+    private readonly SpaOptions _spaOptions;
+    private readonly IAccountMessenger _accountMessenger;
 
     // Function summary: Initializes account notification sending with Identity token generation and message delivery dependencies.
     public UserAccountNotificationService(
@@ -599,28 +604,28 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
         IOptions<SpaOptions> spaOptions,
         IAccountMessenger accountMessenger)
     {
-        this.userManager = userManager;
-        this.configuration = configuration;
-        this.spaOptions = spaOptions.Value;
-        this.accountMessenger = accountMessenger;
+        _userManager = userManager;
+        _configuration = configuration;
+        _spaOptions = spaOptions.Value;
+        _accountMessenger = accountMessenger;
     }
 
     // Function summary: Sends the password-set email for a newly created or unconfirmed account.
     public async Task SendPasswordSetAsync(ApplicationUser user, UserAccountRequestOrigin origin)
     {
-        if (configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
+        if (_configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
         {
             return;
         }
 
-        string code = await userManager.GenerateEmailConfirmationTokenAsync(user);
+        string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
         string callbackUrl = BuildClientUrl("/confirm-email", new Dictionary<string, string?>
         {
             ["userId"] = user.Id,
             ["code"] = code
         });
-        EmailDeliveryResult delivery = await accountMessenger.SendPasswordSetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
+        EmailDeliveryResult delivery = await _accountMessenger.SendPasswordSetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
         if (!delivery.Succeeded)
         {
             throw new InvalidOperationException($"Email failed to send ({delivery.ProviderResponse})");
@@ -630,17 +635,17 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
     // Function summary: Sends the password-reset email for an existing account.
     public async Task SendPasswordResetAsync(ApplicationUser user, UserAccountRequestOrigin origin)
     {
-        if (configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
+        if (_configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
         {
             return;
         }
 
-        string code = await userManager.GeneratePasswordResetTokenAsync(user);
+        string code = await _userManager.GeneratePasswordResetTokenAsync(user);
         string callbackUrl = BuildClientUrl("/reset-password", new Dictionary<string, string?>
         {
             ["code"] = code
         });
-        EmailDeliveryResult delivery = await accountMessenger.SendPasswordResetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
+        EmailDeliveryResult delivery = await _accountMessenger.SendPasswordResetAsync(user.Email ?? "", callbackUrl, CancellationToken.None);
         if (!delivery.Succeeded)
         {
             throw new InvalidOperationException($"Email failed to send ({delivery.ProviderResponse})");
@@ -650,12 +655,12 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
     // Function summary: Sends a confirmation link without replacing the account's current confirmed email.
     public async Task SendEmailChangeAsync(ApplicationUser user, string newEmail)
     {
-        if (configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
+        if (_configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
         {
             return;
         }
 
-        string code = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+        string code = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
         string callbackUrl = BuildClientUrl("/api/auth/change-email", new Dictionary<string, string?>
         {
@@ -663,7 +668,7 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
             ["email"] = newEmail,
             ["code"] = code
         });
-        EmailDeliveryResult delivery = await accountMessenger.SendEmailChangeAsync(newEmail, callbackUrl, CancellationToken.None);
+        EmailDeliveryResult delivery = await _accountMessenger.SendEmailChangeAsync(newEmail, callbackUrl, CancellationToken.None);
         if (!delivery.Succeeded)
         {
             throw new InvalidOperationException($"Email failed to send ({delivery.ProviderResponse})");
@@ -673,6 +678,6 @@ public sealed class UserAccountNotificationService : IUserAccountNotificationSer
     // Function summary: Builds an SPA client URL only from the configured public base URL.
     private string BuildClientUrl(string path, IDictionary<string, string?> query)
     {
-        return SpaPublicLinkBuilder.Build(spaOptions, path, query);
+        return SpaPublicLinkBuilder.Build(_spaOptions, path, query);
     }
 }

@@ -13,17 +13,17 @@ export default defineConfig({
   testMatch: ['**/*.spec.ts'],
   timeout: 30_000,
   expect: {
-    timeout: 5_000
+    timeout: 5_000,
   },
   use: {
     baseURL,
-    trace: 'retain-on-failure'
+    trace: 'retain-on-failure',
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] }
-    }
+      use: { ...devices['Desktop Chrome'] },
+    },
   ],
   webServer: process.env.RVT_PORTAL_E2E_SKIP_WEBSERVER
     ? undefined
@@ -31,6 +31,6 @@ export default defineConfig({
         command: 'npm run dev:vs',
         url: 'http://127.0.0.1:5173',
         reuseExistingServer: true,
-        timeout: 120_000
-      }
+        timeout: 120_000,
+      },
 });

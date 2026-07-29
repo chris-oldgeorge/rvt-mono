@@ -1,6 +1,5 @@
 
 using MyAtm.Api;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace MyAtm.Model.Dto
@@ -46,7 +45,10 @@ namespace MyAtm.Model.Dto
             CustomerDisplayName = device.CurrentCustomerAssignment!.customer.displayName;
             FirmwareVersion = "not set";
             if (device.Configuration != null && device.Configuration!.FirmwareVersion != null)
+            {
                 FirmwareVersion = device.Configuration!.FirmwareVersion!;
+            }
+
             Manufacturer = "Palas GmbH";
             Offline = false;
         }
@@ -83,46 +85,28 @@ namespace MyAtm.Model.Dto
 
         public DateTime? GetLastDataTime(Period period)
         {
-            switch (period)
+            return period switch
             {
-                case Period.Minutes1:
-                    return LastDataTime1Min;
-                case Period.Minutes15:
-                    return LastDataTime15Min;
-                case Period.Hours1:
-                    return LastDataTime1Hour;
-                case Period.Hours24:
-                    return LastDataTime24Hour;
-                default:
-                    throw AdapterException.Of("GetLastDataTime Unknown Period " + period);
-            }
+                Period.Minutes1 => LastDataTime1Min,
+                Period.Minutes15 => LastDataTime15Min,
+                Period.Hours1 => LastDataTime1Hour,
+                Period.Hours24 => LastDataTime24Hour,
+                _ => throw AdapterException.Of("GetLastDataTime Unknown Period " + period),
+            };
         }
 
 
         public static int PeriodToSeconds(Period period)
         {
-            int periodSeconds = 0;
-            switch (period)
+            int periodSeconds = period switch
             {
-                case Period.Minutes1:
-                    periodSeconds = 60;
-                    break;
-                case Period.Minutes15:
-                    periodSeconds = 900;
-                    break;
-                case Period.Hours1:
-                    periodSeconds = 3600;
-                    break;
-                case Period.Hours8:
-                    periodSeconds = 28800;
-                    break;
-                case Period.Hours24:
-                    periodSeconds = 86400;
-                    break;
-
-                default:
-                    throw AdapterException.Of("ReadRules Unknown Period " + period);
-            }
+                Period.Minutes1 => 60,
+                Period.Minutes15 => 900,
+                Period.Hours1 => 3600,
+                Period.Hours8 => 28800,
+                Period.Hours24 => 86400,
+                _ => throw AdapterException.Of("ReadRules Unknown Period " + period),
+            };
             return periodSeconds;
         }
     }

@@ -17,6 +17,5 @@ public sealed class CommunicationRegistrationTests
 
         Assert.AreEqual(1, services.Count(descriptor => descriptor.ServiceType == typeof(INotificationMessageComposer)));
         Assert.AreEqual(1, services.Count(descriptor => descriptor.ServiceType == typeof(INotificationDeliveryService)));
-        Assert.AreEqual(1, services.Count(descriptor => descriptor.ServiceType == typeof(IMessageService)));
     }
 }

@@ -1,6 +1,5 @@
 using AirQ.Api.Db;
 using AirQ.Model.Dto;
-using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace AirQ.Api
@@ -10,22 +9,22 @@ namespace AirQ.Api
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiMonitors).
     public class AirQMonitorReader
     {
-        private readonly IAirQMonitorQueries monitorQueries;
-        private readonly AirQTestLocalMonitorFilter testLocalFilter;
+        private readonly IAirQMonitorQueries _monitorQueries;
+        private readonly AirQTestLocalMonitorFilter _testLocalFilter;
 
         public AirQMonitorReader(
             IAirQMonitorQueries monitorQueries,
             AirQTestLocalMonitorFilter testLocalFilter)
         {
-            this.monitorQueries = monitorQueries;
-            this.testLocalFilter = testLocalFilter;
+            _monitorQueries = monitorQueries;
+            _testLocalFilter = testLocalFilter;
         }
 
         public List<NoiseMonitorDto> ReadMonitors(DateTime? lastDataTime = null)
         {
             try
             {
-                return testLocalFilter.Apply(monitorQueries.ReadMonitorList(lastDataTime));
+                return _testLocalFilter.Apply(_monitorQueries.ReadMonitorList(lastDataTime));
             }
             catch (Exception e)
             {

@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
@@ -20,14 +19,12 @@ public sealed class SharedRuntimeCompatibilityTests
     }
 
     [TestMethod]
-    [DataRow(AlertType.Alert, LegacyMessageKind.Alert)]
-    [DataRow(AlertType.Caution, LegacyMessageKind.Caution)]
-    [DataRow(AlertType.Offline, LegacyMessageKind.Offline)]
-    [DataRow(AlertType.BatteryAlert, LegacyMessageKind.Battery_Alert)]
-    [DataRow(AlertType.BatteryCaution, LegacyMessageKind.Battery_Caution)]
-    public void DurablePlannerPreservesLegacyNotificationAndMessageSelection(
-        AlertType alertType,
-        LegacyMessageKind expectedMessage)
+    [DataRow(AlertType.Alert)]
+    [DataRow(AlertType.Caution)]
+    [DataRow(AlertType.Offline)]
+    [DataRow(AlertType.BatteryAlert)]
+    [DataRow(AlertType.BatteryCaution)]
+    public void DurablePlannerPreservesLegacyNotificationAndMessageSelection(AlertType alertType)
     {
         RuleNotificationRequest request = new(
             FleetNr: "SV-1",
@@ -43,14 +40,6 @@ public sealed class SharedRuntimeCompatibilityTests
         [
             new(true, false, "alerts@example.test", null, null, null)
         ];
-        RecordingMessageService messages = new();
-        Rvt.Monitor.Common.Rules.NotificationDto? legacyNotification = null;
-        RuleAlertNotificationDispatcher legacyDispatcher = new(
-            messages,
-            notification => legacyNotification = notification,
-            (_, _, _) => { });
-
-        legacyDispatcher.ProcessAlertForContacts(request, contacts);
         RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             request,
             contacts,
@@ -59,16 +48,15 @@ public sealed class SharedRuntimeCompatibilityTests
             correlationKey: $"compatibility:{alertType}",
             createdAt: request.AlertTime);
 
-        Assert.IsNotNull(legacyNotification);
-        Assert.AreEqual(legacyNotification.NotificationTime, plan.Notification.NotificationTime);
-        Assert.AreEqual(legacyNotification.LimitOn, plan.Notification.LimitOn);
-        Assert.AreEqual(legacyNotification.AveragingPeriod, plan.Notification.AveragingPeriod);
-        Assert.AreEqual(legacyNotification.Level, plan.Notification.Level);
-        Assert.AreEqual(legacyNotification.AlertType, plan.Notification.AlertType);
-        Assert.AreEqual(legacyNotification.AlertField, plan.Notification.AlertField);
-        Assert.AreEqual(legacyNotification.MonitorId, plan.Notification.MonitorId);
-        Assert.HasCount(1, messages.Messages);
-        Assert.AreEqual(expectedMessage, messages.Messages[0]);
+        // Pins the notification shape the retired synchronous dispatcher
+        // produced (deleted by legacy-retirement step 4 on 2026-07-29).
+        Assert.AreEqual(request.AlertTime, plan.Notification.NotificationTime);
+        Assert.AreEqual(request.LimitOn, plan.Notification.LimitOn);
+        Assert.AreEqual(request.AveragingPeriod, plan.Notification.AveragingPeriod);
+        Assert.AreEqual(request.Level, plan.Notification.Level);
+        Assert.AreEqual(alertType, plan.Notification.AlertType);
+        Assert.AreEqual(request.Field, plan.Notification.AlertField);
+        Assert.AreEqual(request.MonitorId, plan.Notification.MonitorId);
 
         List<MonitorDeliveryRequest> emails = [.. plan.Deliveries.Where(delivery => delivery.Kind == MonitorDeliveryKind.Email)];
         Assert.HasCount(1, emails);
@@ -100,13 +88,10 @@ public sealed class SharedRuntimeCompatibilityTests
             sendStartTime: null,
             sendEndTime: null);
 
+        // The Notifications-namespace contact DTO and its converter were
+        // deleted by legacy-retirement step 5 (2026-07-29); the Rules DTO is
+        // the one contact surface.
         Assert.AreEqual(Rvt.Monitor.Common.Rules.ContactMethod.SMSAndEmail, contact.ContactMethod);
-        Assert.IsNotInstanceOfType<Rvt.Monitor.Common.Notifications.RvtContactDto>(contact);
-
-        Common.Notifications.RvtContactDto notificationContact = contact.ToNotificationDto();
-        Assert.AreEqual(Rvt.Monitor.Common.Notifications.ContactMethod.SMSAndEmail, notificationContact.ContactMethod);
-        Assert.AreEqual(contact.EmailAddress, notificationContact.EmailAddress);
-
     }
 
     [TestMethod]
@@ -164,34 +149,4 @@ public sealed class SharedRuntimeCompatibilityTests
         Assert.IsInstanceOfType<Rvt.Monitor.Common.Rules.AlertActivityTimeDto>(activity);
     }
 
-    private sealed class RecordingMessageService : IMessageService
-    {
-        public List<LegacyMessageKind> Messages { get; } = [];
-
-        public Task SendMessageAsync(
-            LegacyMessageKind message,
-            LegacyMessageChannel messsageType,
-            Rvt.Monitor.Common.Notifications.RvtContactDto contact,
-            string MonitorName,
-            string url = "",
-            CancellationToken cancellationToken = default)
-        {
-            Messages.Add(message);
-            return Task.CompletedTask;
-        }
-
-        public void Sendmessage(
-            LegacyMessageKind message,
-            LegacyMessageChannel messsageType,
-            Rvt.Monitor.Common.Notifications.RvtContactDto contact,
-            string MonitorName,
-            string url = "") => Messages.Add(message);
-
-        public void SendMessage(
-            LegacyMessageKind message,
-            LegacyMessageChannel messsageType,
-            Rvt.Monitor.Common.Notifications.RvtContactDto contact,
-            string MonitorName,
-            string url = "") => Messages.Add(message);
-    }
 }

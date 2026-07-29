@@ -64,7 +64,12 @@ public sealed class DurableAlertService : IAlertIngressPort
 
         ValidateText(signal.SerialId, MaximumSerialIdLength, nameof(signal.SerialId));
 
-        if (signal.AlertType is not AlertType.Alert and not AlertType.Caution and not AlertType.Ignore)
+        if (signal.AlertType is not AlertType.Alert
+            and not AlertType.Caution
+            and not AlertType.Ignore
+            and not AlertType.Offline
+            and not AlertType.BatteryAlert
+            and not AlertType.BatteryCaution)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(signal.AlertType),
@@ -108,12 +113,15 @@ public sealed class DurableAlertService : IAlertIngressPort
                 "Unsupported delivery channel bits.");
         }
 
-        if (signal.SuppressionWindow <= TimeSpan.Zero)
+        // Zero is valid: transition-latched emitters (offline/battery flags,
+        // rule IsActive latches) dedup at the source, so they request no
+        // windowed suppression.
+        if (signal.SuppressionWindow < TimeSpan.Zero)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(signal.SuppressionWindow),
                 signal.SuppressionWindow,
-                "Suppression window must be positive.");
+                "Suppression window cannot be negative.");
         }
     }
 

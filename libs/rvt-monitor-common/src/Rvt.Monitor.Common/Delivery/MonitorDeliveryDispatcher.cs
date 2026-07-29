@@ -9,8 +9,6 @@ namespace Rvt.Monitor.Common.Delivery;
 
 public sealed class MonitorDeliveryDispatcher
 {
-    private const int MaximumErrorLength = 1024;
-
     private readonly IMonitorDeliveryOutboxQueries queries;
     private readonly IMonitorDeliveryOutboxCommands commands;
     private readonly IMonitorDeliveryFailureSink failureSink;
@@ -302,8 +300,7 @@ public sealed class MonitorDeliveryDispatcher
         };
 
     private bool IsTerminal(Exception exception, int attemptCount) =>
-        exception is DeliveryException { FailureKind: not DeliveryFailureKind.Transient } ||
-        attemptCount >= options.MaxAttempts;
+        DeliveryDispatchPolicy.IsTerminal(exception, attemptCount, options.MaxAttempts);
 
     private TimeSpan RetryDelay(int attemptCount, Exception exception) =>
         DeliveryRetrySchedule.NextDelay(
@@ -312,13 +309,10 @@ public sealed class MonitorDeliveryDispatcher
             options.RetryCap,
             exception);
 
-    private static string DeliveryError(Exception exception)
-    {
-        string error = exception is DeliveryException
-            ? exception.Message
-            : $"Delivery failed ({exception.GetType().Name}).";
-        return error.Length <= MaximumErrorLength ? error : error[..MaximumErrorLength];
-    }
+    private static string DeliveryError(Exception exception) =>
+        DeliveryDispatchPolicy.SafeError(
+            exception,
+            $"Delivery failed ({exception.GetType().Name}).");
 
     private void LogOwnershipLoss(MonitorDeliveryMessage message) =>
         logger.LogWarning(

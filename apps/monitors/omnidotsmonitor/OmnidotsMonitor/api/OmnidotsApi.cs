@@ -4,6 +4,7 @@ using Omnidots.Api.Ports;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -35,17 +36,17 @@ namespace Omnidots.Api
         private readonly ClearOlderErrorMessagesHandler _clearOlderErrorMessages;
         private readonly MonitoringHandler _monitoring;
 
-        public OmnidotsApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient mqttClient, IMessageService messageService)
-            : this(httpClient, dbClient, mqttClient, messageService, RvtConfig.TESTLOCAL)
+        public OmnidotsApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient mqttClient, IAlertIngressPort alertIngress)
+            : this(httpClient, dbClient, mqttClient, alertIngress, RvtConfig.TESTLOCAL)
         {
         }
 
-        public OmnidotsApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient mqttClient, IMessageService messageService, bool testLocal)
+        public OmnidotsApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient mqttClient, IAlertIngressPort alertIngress, bool testLocal)
             : this(
                 httpClient,
                 dbClient,
                 mqttClient,
-                messageService,
+                alertIngress,
                 testLocal,
                 new OmnidotsMonitoringOptions(),
                 new EmailOmnidotsMonitoringNotifier(new UnavailableEmailDeliveryPort()),
@@ -57,7 +58,7 @@ namespace Omnidots.Api
             IHttpClient httpClient,
             IDBClient dbClient,
             IMqttClient mqttClient,
-            IMessageService messageService,
+            IAlertIngressPort alertIngress,
             bool testLocal,
             OmnidotsMonitoringOptions monitoringOptions,
             IOmnidotsMonitoringNotifier monitoringNotifier,
@@ -69,7 +70,7 @@ namespace Omnidots.Api
                 RequirePort<IOmnidotsMeasurementImportCommands>(dbClient),
                 RequirePort<IOmnidotsTraceQueries>(dbClient),
                 mqttClient,
-                messageService,
+                alertIngress,
                 testLocal,
                 monitoringOptions,
                 monitoringNotifier,
@@ -85,7 +86,7 @@ namespace Omnidots.Api
             IOmnidotsMeasurementImportCommands importCommands,
             IOmnidotsTraceQueries traceQueries,
             IMqttClient mqttClient,
-            IMessageService messageService,
+            IAlertIngressPort alertIngress,
             bool testLocal,
             OmnidotsMonitoringOptions monitoringOptions,
             IOmnidotsMonitoringNotifier monitoringNotifier,
@@ -95,7 +96,6 @@ namespace Omnidots.Api
             _gateway = new OmnidotsHttpGateway(httpClient, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             OmnidotsMonitorReader monitorReader = new(dbClient, testLocal);
             MonitorEventPublisher eventPublisher = new(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
-            OmnidotsRuleProcessor ruleProcessor = new(dbClient, dbClient, messageService, RvtConfig.PORTAL_BASE_URL);
             _storeMonitors = new StoreMonitorsHandler(_gateway, dbClient, dbClient, testLocal);
             _checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(
                 dbClient,
@@ -103,7 +103,7 @@ namespace Omnidots.Api
                 dbClient,
                 dbClient,
                 dbClient,
-                ruleProcessor);
+                alertIngress);
             _storePeakRecords = new StorePeakRecordsHandler(
                 _gateway,
                 monitorReader,
@@ -136,7 +136,7 @@ namespace Omnidots.Api
                 traceQueries,
                 traceCollectionOptions,
                 timeProvider);
-            _notifyBatteryLevels = new NotifyBatteryLevelsHandler(monitorReader, dbClient, ruleProcessor);
+            _notifyBatteryLevels = new NotifyBatteryLevelsHandler(monitorReader, dbClient, alertIngress);
             _clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
             _monitoring = new MonitoringHandler(
                 monitorReader,

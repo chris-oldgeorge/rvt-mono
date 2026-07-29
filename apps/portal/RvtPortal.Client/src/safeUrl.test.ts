@@ -15,7 +15,7 @@ describe('safeHref', () => {
 
   it('rejects javascript and data scheme URLs', () => {
     expect(safeHref('javascript:alert(document.cookie)')).toBeNull();
-    expect(safeHref("data:text/html,<script>alert(1)</script>")).toBeNull();
+    expect(safeHref('data:text/html,<script>alert(1)</script>')).toBeNull();
     expect(safeHref('vbscript:msgbox(1)')).toBeNull();
   });
 

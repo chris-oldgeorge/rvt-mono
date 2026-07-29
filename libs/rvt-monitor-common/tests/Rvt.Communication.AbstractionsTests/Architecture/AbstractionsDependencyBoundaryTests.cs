@@ -1,7 +1,3 @@
-using System.Reflection;
-using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Notifications;
-
 namespace Rvt.Communication.AbstractionsTests.Architecture;
 
 [TestClass]
@@ -20,26 +16,6 @@ public sealed class AbstractionsDependencyBoundaryTests
         Assert.DoesNotContain("AWSSDK.", project, StringComparison.Ordinal);
         Assert.DoesNotContain("Microsoft.AspNetCore.App", project, StringComparison.Ordinal);
         Assert.DoesNotContain("Rvt.Monitor.Common.csproj", project, StringComparison.Ordinal);
-    }
-
-    [TestMethod]
-    public void MessageServiceContract_UsesTopLevelLegacyEnums()
-    {
-        MethodInfo? method = typeof(IMessageService).GetMethod(nameof(IMessageService.SendMessageAsync));
-
-        Assert.IsNotNull(method);
-        CollectionAssert.AreEqual(
-            new[]
-            {
-                typeof(LegacyMessageKind),
-                typeof(LegacyMessageChannel),
-                typeof(RvtContactDto),
-                typeof(string),
-                typeof(string),
-                typeof(CancellationToken)
-            },
-            method.GetParameters().Select(parameter => parameter.ParameterType).ToArray());
-        Assert.AreSame(typeof(IMessageService).Assembly, typeof(RvtContactDto).Assembly);
     }
 
     private static string FindRepositoryRoot()

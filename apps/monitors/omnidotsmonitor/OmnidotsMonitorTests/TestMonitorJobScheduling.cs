@@ -11,7 +11,6 @@ using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
-using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Alerts.Persistence;
 using Rvt.Monitor.Common.Diagnostics;
@@ -41,7 +40,7 @@ public sealed class TestMonitorJobScheduling
             out Mock<IHttpClient>? httpClient,
             out Mock<IDBClient>? dbClient,
             out Mock<IMqttClient>? mqttClient,
-            out Mock<IMessageService>? messageService);
+            out Mock<IAlertIngressPort>? messageService);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Returns(OmnidotsFixture.AuthenticateTask());
         dbClient.Setup(client => client.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(1));
@@ -93,7 +92,7 @@ public sealed class TestMonitorJobScheduling
             Mock.Of<IHttpClient>(),
             database.Object,
             Mock.Of<IMqttClient>(),
-            Mock.Of<IMessageService>(),
+            Mock.Of<IAlertIngressPort>(),
             testLocal: false,
             new OmnidotsMonitoringOptions
             {
@@ -122,7 +121,7 @@ public sealed class TestMonitorJobScheduling
             out Mock<IHttpClient>? httpClient,
             out Mock<IDBClient>? dbClient,
             out Mock<IMqttClient>? mqttClient,
-            out Mock<IMessageService>? messageService,
+            out Mock<IAlertIngressPort>? messageService,
             out Mock<IOmnidotsImportCursorQueries>? cursorQueries,
             out Mock<IOmnidotsMeasurementImportCommands>? importCommands);
         VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(
@@ -169,7 +168,7 @@ public sealed class TestMonitorJobScheduling
             out Mock<IHttpClient>? httpClient,
             out Mock<IDBClient>? dbClient,
             out Mock<IMqttClient>? mqttClient,
-            out Mock<IMessageService>? messageService,
+            out Mock<IAlertIngressPort>? messageService,
             out Mock<IOmnidotsImportCursorQueries>? cursorQueries,
             out Mock<IOmnidotsMeasurementImportCommands>? importCommands);
         VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(
@@ -207,7 +206,7 @@ public sealed class TestMonitorJobScheduling
             out Mock<IHttpClient>? httpClient,
             out Mock<IDBClient>? dbClient,
             out Mock<IMqttClient>? mqttClient,
-            out Mock<IMessageService>? messageService,
+            out Mock<IAlertIngressPort>? messageService,
             out Mock<IOmnidotsImportCursorQueries>? cursorQueries,
             out Mock<IOmnidotsMeasurementImportCommands>? importCommands);
         DateTime bootstrap = new(2026, 7, 2, 9, 45, 0, DateTimeKind.Utc);
@@ -241,7 +240,7 @@ public sealed class TestMonitorJobScheduling
             out Mock<IHttpClient>? httpClient,
             out Mock<IDBClient>? dbClient,
             out Mock<IMqttClient>? mqttClient,
-            out Mock<IMessageService>? messageService);
+            out Mock<IAlertIngressPort>? messageService);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Returns(OmnidotsFixture.AuthenticateTask());
         dbClient.Setup(client => client.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(1));

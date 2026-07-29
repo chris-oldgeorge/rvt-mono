@@ -11,7 +11,7 @@ using Omnidots.Api.Ports;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Omnidots.Model.Json;
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -125,7 +125,7 @@ public class TestOmnidotsCancellation
             out Mock<IHttpClient> httpClient,
             out Mock<IDBClient> dbClient,
             out Mock<IMqttClient> mqttClient,
-            out Mock<IMessageService> messageClient,
+            out Mock<IAlertIngressPort> messageClient,
             traceCollectionOptions: new OmnidotsTraceCollectionOptions
             {
                 AllowedSerialIds = [],

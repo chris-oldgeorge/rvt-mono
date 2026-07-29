@@ -133,7 +133,10 @@ public sealed class SvantekImportOptionsTests
                     [$"{SvantekImportOptions.SectionName}:MaximumRequestWindow"] = "00:00:00"
                 }))
             .ConfigureServices((context, services) =>
-                services.AddSvantekMonitor(context.Configuration))
+            {
+                services.AddSvantekMonitor(context.Configuration);
+                TestUtil.UseTestMonitorContextFactory(services);
+            })
             .Build();
 
         await Assert.ThrowsExactlyAsync<OptionsValidationException>(() => host.StartAsync(TestContext.CancellationToken));

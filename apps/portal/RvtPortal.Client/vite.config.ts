@@ -15,7 +15,7 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     setupFiles: './src/test/setupTests.ts',
-    css: true
+    css: true,
   },
   server: {
     port: 5173,
@@ -24,13 +24,13 @@ export default defineConfig({
       '/api': {
         target: apiTarget,
         changeOrigin: true,
-        secure: false
+        secure: false,
       },
       '/swagger': {
         target: apiTarget,
         changeOrigin: true,
-        secure: false
-      }
-    }
-  }
+        secure: false,
+      },
+    },
+  },
 });

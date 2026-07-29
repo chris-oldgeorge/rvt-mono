@@ -318,14 +318,56 @@ caller sees a warning. Retirement order (each step unblocks the next):
    constructors take `INotificationDeliveryService` directly.**
 3. Omnidots offline/battery → durable alerts (cheapest retirement — the
    durable stack already runs in-process); delete the inline loop.
+   **Done 2026-07-29: the offline and battery handlers signal
+   `IAlertIngressPort` (the ingress and acceptance policy now admit the
+   transition-driven types), `OmnidotsRuleProcessor` and its inline dispatcher
+   loop are deleted, and Omnidots no longer consumes `IMessageService` at all —
+   its RVT0001 NoWarns are gone. AirQ, Svantek, and MyAtm's rule processors are
+   the remaining step-4 targets.**
 4. AirQ + Svantek alerting → durable stack; retires
    `RuleAlertNotificationDispatcher`, sync `NoiseRuleEvaluator`, sync
    `PublishAlert`.
+   **Done 2026-07-29: `NoiseRuleEvaluator` is async and emits `AlertSignal`s
+   via `IAlertIngressPort` (shared `RuleAlertSignals` factory; MQTT alert
+   delivery rides the durable Mqtt channel, replacing the sync `PublishAlert`
+   call). `RuleAlertNotificationDispatcher` is deleted; AirQ and Svantek
+   register `AddDurableAlerts<TContext>` with their own context factories and
+   no longer consume `IMessageService`. MyAtm's compat-only direct-delivery
+   route (compat ctor, `ProcessRule`/`ProcessAlertForContacts`/
+   `ProcessRulesV2`) is deleted too, so no monitor calls the sync path — all
+   monitor RVT0001 NoWarns are gone. Ingress validation was also corrected to
+   accept zero suppression windows (source-latched signals; the P3.c Omnidots
+   handlers already passed `TimeSpan.Zero`, which the old positive-only check
+   would have rejected at runtime). Both messaging-boundary allowlists are now
+   empty. Step 5 is unblocked: the only remaining `IMessageService` surface is
+   the contract + `MessageService` implementation inside `Rvt.Communication`.**
 5. Then: delete `IMessageService`/`MessageService`, the namespace-squatting
    `RvtContactDto` + `LegacyMessageContracts`, consolidate on one contact DTO
    (~60 test files, mechanical).
+   **Done 2026-07-29: `IMessageService`, `MessageService`,
+   `LegacyMessageContracts`, `CommsException`, and the Abstractions-assembly
+   `RvtContactDto` that squatted `Rvt.Monitor.Common.Notifications` are
+   deleted, along with the Rules-side `ToNotificationDto` converter —
+   `Rules.RvtContactDto` is the one contact surface. Omnidots'
+   `ReadAlertContacts` query went with them (the durable stack plans contact
+   deliveries itself; only stale test setups still referenced it). The ~60-file
+   estimate was written before steps 3–4 migrated the monitor tests; the
+   residue was 15 files. Note `Rvt.Communication.Abstractions` now holds only
+   the delivery ports and notification contracts the durable stack composes.**
 6. Dispatcher unification around a shared claim/lease/terminal/audit core
    (align the error-truncation divergence immediately regardless).
+   **Done 2026-07-29 (scoped): `DeliveryDispatchPolicy` now owns the terminal
+   decision and safe-error shaping for both dispatchers, and the alert
+   dispatcher gained the 1024-character error truncation the monitor
+   dispatcher already had — the divergence this step ordered fixed. The retry
+   schedule was already shared (`DeliveryRetrySchedule`). A full merge of the
+   two dispatch loops is withdrawn: the loops encode different product
+   semantics (MyAtm's failure sink + configurable failure modes and
+   fleet-level aggregate exceptions vs. the alert stack's dead-letter
+   aggregation and adapter registry), each side is independently pinned by
+   tests, and merging them would couple those semantics for no deletion win —
+   the shared core (claim/lease fencing SQL, retry schedule, terminal/error
+   policy) is already single-sourced.**
 7. `RvtConfig` endgame: after the Omnidots token-seam decision and options
    binding for the remaining fields, delete the assembly-name sniffing.
 
@@ -390,3 +432,20 @@ caller sees a warning. Retirement order (each step unblocks the next):
 18. Batch ratchet paydown: repo-wide IDE0008 fix + `--update-baseline`
     (59% of debt, mechanical), CHARSET sweep, prettier one-shot, DOC-002
     header removal on touch.
+    **Done 2026-07-29 (recomputed first — this item's numbers were stale): the
+    IDE0008 debt was already paid by earlier merges, and main's baseline now
+    tolerates 534 violations, not 7,709. This slice ran the remaining
+    mechanical dotnet-format sweep (file-scoped namespaces, primary ctors,
+    collection expressions, blank-line/parenthesis prefs, unused usings,
+    target-typed new), the portal CHARSET/BOM pass, a prettier one-shot, and
+    renamed private fields to `_camelCase` in every file this remediation
+    stack touches. Three tooling limits recorded: (a) Roslyn's naming code fix
+    has no fix-all at any scope, so the repo-wide IDE1006 residue stays
+    tolerated; (b) the IDE0072/IDE0010 switch-populating fixers are unsafe —
+    their fix inserts throwing arms ahead of the default case (verified: it
+    would have broken AuthController's status mapping) — never batch-apply
+    them; (c) `--all --update-baseline` is currently blocked by main-side
+    drift: a fresh scan of an untouched tree exceeds main's checked-in
+    baseline (CA1067/CA1873 in portal command files this stack never touched),
+    so the official baseline shrink needs a main-side pass once this stack
+    lands.**

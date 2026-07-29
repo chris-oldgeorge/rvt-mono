@@ -3,11 +3,10 @@ using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Model.Dto;
 using Moq;
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Rules;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
 namespace AirQMonitorTests
 {
 
@@ -15,13 +14,20 @@ namespace AirQMonitorTests
     {
 
         public static AirQApi CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> emailClient)
+                                         out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient)
         {
             httpClient = new Mock<IHttpClient>();
             dbClient = new Mock<IDBClient>();
             mqttClient = new Mock<IMqttClient>();
-            emailClient = new Mock<IMessageService>();
-            return new AirQApi(httpClient.Object, dbClient.Object, mqttClient.Object, emailClient.Object);
+            messageClient = new Mock<IAlertIngressPort>();
+            messageClient
+                .Setup(ingress => ingress.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AlertIngressResult(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    AlertOccurrenceOutcome.Accepted,
+                    IsDuplicate: false));
+            return new AirQApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object);
         }
 
 
@@ -105,39 +111,6 @@ namespace AirQMonitorTests
             {
                 return false;
             }
-            return true;
-        }
-
-        public static bool VerifyNotificationDto(NotificationDto dto, RvtAlertRuleDto rule, double alertLevel,
-                                           DateTime notificationTime, int averagingPeriod, double limitOn)
-        {
-
-            if (notificationTime != dto.NotificationTime)
-            {
-                return false;
-            }
-
-            if (alertLevel != dto.Level)
-            {
-                return false;
-            }
-
-            if (averagingPeriod != dto.AveragingPeriod)
-            {
-                return false;
-            }
-
-            if (limitOn != dto.LimitOn)
-            {
-                return false;
-            }
-
-            if (dto.AlertType != rule.AlertType ||
-                !dto.AlertField.Equals(rule.Field))
-            {
-                return false;
-            }
-
             return true;
         }
     }

@@ -11,9 +11,9 @@ using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
 using Rvt.Monitor.IntegrationTesting;
-using ContactMethod = Rvt.Monitor.Common.Notifications.ContactMethod;
+using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Notifications.RvtContactDto;
+using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace OmnidotsAdapterTests
 {
 
@@ -593,48 +593,6 @@ namespace OmnidotsAdapterTests
             }
         }
 
-
-        [TestMethod]
-        public void TestReadAlertContacts()
-        {
-            string connectionString = _database!.ConnectionString;
-            using NpgsqlConnection connection = new(connectionString);
-            connection.Open();
-
-            int numMonitors = 2;
-            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(numMonitors);
-            _testObj!.WriteMonitorList(monitorsIn);
-            Guid monitorId = monitorsIn[0].Id;
-            string serialId = monitorsIn[0].SerialId;
-            // add an alert and contact as RvtAlertContacts table has foreign key constraints
-            InsertAlertRule(connection, 44, serialId, monitorId);
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
-            Assert.HasCount(1, rules);
-            string email = "mytestemail@bbb.com";
-            string phoneNo = "01234567890";
-            DateTime startTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddHours(-1));
-            DateTime endTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddHours(1));
-
-            Guid siteUserId = Guid.NewGuid();
-            InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo,
-              siteUserId, startTime, endTime);
-
-            // insert that should not be read
-            InsertContact(connection, monitorsIn[1].Id, ContactMethod.Email, email, phoneNo, Guid.NewGuid());
-
-            List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
-            Assert.HasCount(2, contacts);
-
-            List<RvtContactDto> alertContacts = _testObj.ReadAlertContacts(monitorId);
-            Assert.HasCount(1, alertContacts);
-            RvtContactDto ac = alertContacts[0];
-            Assert.AreEqual(ContactMethod.Email, ac.ContactMethod);
-            Assert.AreEqual(email, ac.EmailAddress);
-            Assert.AreEqual(phoneNo, ac.PhoneNumber);
-            Assert.AreEqual(startTime.TimeOfDay, ac.SendStartTime);
-            Assert.AreEqual(endTime.TimeOfDay, ac.SendEndTime);
-
-        }
 
         [TestMethod]
         public void TestWriteExceptionUsesPostgreSqlErrorLog()

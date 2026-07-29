@@ -143,6 +143,7 @@ internal static class AlertLevelWorkflow
         {
             return alertType is AlertTypeEnum.Alert or AlertTypeEnum.Caution;
         }
+
         if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int numeric) && Enum.IsDefined(typeof(AlertTypeEnum), numeric))
         {
             alertType = (AlertTypeEnum)numeric;
@@ -160,6 +161,7 @@ internal static class AlertLevelWorkflow
         {
             return true;
         }
+
         if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out TimeSpan parsed))
         {
             result = parsed;
@@ -187,10 +189,12 @@ internal static class AlertLevelWorkflow
         {
             return EnumLabel(((AveragingPeriodsDustEnum)level.AveragingPeriod).ToString());
         }
+
         if (Enum.IsDefined(typeof(AveragingPeriodsNoiseEnum), level.AveragingPeriod))
         {
             return EnumLabel(((AveragingPeriodsNoiseEnum)level.AveragingPeriod).ToString());
         }
+
         if (Enum.IsDefined(typeof(AveragingPeriodsVibrationEnum), level.AveragingPeriod))
         {
             return EnumLabel(((AveragingPeriodsVibrationEnum)level.AveragingPeriod).ToString());

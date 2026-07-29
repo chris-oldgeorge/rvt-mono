@@ -204,9 +204,6 @@ public sealed class DurableAlertServiceTests
     }
 
     [TestMethod]
-    [DataRow(AlertType.Offline)]
-    [DataRow(AlertType.BatteryAlert)]
-    [DataRow(AlertType.BatteryCaution)]
     [DataRow((AlertType)999)]
     public async Task AcceptAsync_RejectsUnsupportedAlertTypesBeforeCallingStore(AlertType alertType)
     {
@@ -259,13 +256,18 @@ public sealed class DurableAlertServiceTests
     }
 
     [TestMethod]
-    [DataRow(0)]
-    [DataRow(-1)]
-    public async Task AcceptAsync_RejectsNonpositiveSuppressionWindowBeforeCallingStore(int ticks)
+    public async Task AcceptAsync_RejectsNegativeSuppressionWindowBeforeCallingStore()
     {
         await AssertRejectedAsync(
-            ValidSignal() with { SuppressionWindow = TimeSpan.FromTicks(ticks) },
+            ValidSignal() with { SuppressionWindow = TimeSpan.FromTicks(-1) },
             typeof(ArgumentOutOfRangeException));
+    }
+
+    [TestMethod]
+    public async Task AcceptAsync_AcceptsZeroSuppressionWindowForSourceLatchedSignals()
+    {
+        await AssertAcceptedAsync(
+            ValidSignal() with { SuppressionWindow = TimeSpan.Zero });
     }
 
     [TestMethod]

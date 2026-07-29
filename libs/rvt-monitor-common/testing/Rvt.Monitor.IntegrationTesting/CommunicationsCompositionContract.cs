@@ -30,7 +30,6 @@ public static class CommunicationsCompositionContract
         RequireImplementation<IEmailDeliveryPort>(provider, "Rvt.Communication.SendGridMail.SendGridEmailAdapter");
         RequireImplementation<ISmsDeliveryPort>(provider, "Rvt.Communication.TransmitSms.TransmitSmsAdapter");
         _ = provider.GetRequiredService<INotificationDeliveryService>();
-        _ = provider.GetRequiredService<IMessageService>();
         await StartValidatorsAsync(services, provider);
     }
 

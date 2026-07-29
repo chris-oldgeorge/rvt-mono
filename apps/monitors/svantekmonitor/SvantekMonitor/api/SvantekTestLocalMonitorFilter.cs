@@ -16,7 +16,7 @@ public static class SvantekTestLocalMonitorFilter
             return monitors;
         }
 
-        return monitors.Where(IsTargetReadMonitor).ToList();
+        return [.. monitors.Where(IsTargetReadMonitor)];
     }
 
     public static List<NoiseMonitorDto> Apply(List<NoiseMonitorDto> monitors, bool enabled)
@@ -26,7 +26,7 @@ public static class SvantekTestLocalMonitorFilter
             return monitors;
         }
 
-        return monitors.Where(monitor => string.Equals(monitor.SerialId, TargetSerialId, StringComparison.Ordinal)).ToList();
+        return [.. monitors.Where(monitor => string.Equals(monitor.SerialId, TargetSerialId, StringComparison.Ordinal))];
     }
 
     private static bool IsTargetReadMonitor(NoiseMonitorReadDto monitor) =>

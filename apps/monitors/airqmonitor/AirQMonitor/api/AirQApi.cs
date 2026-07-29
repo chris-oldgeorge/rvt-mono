@@ -2,7 +2,7 @@ using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Api.Ports;
 using AirQ.Api.UseCases;
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -23,8 +23,8 @@ namespace AirQ.Api
         private readonly NotifySiteAveragesHandler _notifySiteAverages;
         private readonly ClearOlderErrorMessagesHandler _clearOlderErrorMessages;
 
-        public AirQApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient mqttClient, IMessageService messageService)
-            : this(httpClient, dbClient, mqttClient, messageService, RvtConfig.TESTLOCAL, null)
+        public AirQApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient mqttClient, IAlertIngressPort alertIngress)
+            : this(httpClient, dbClient, mqttClient, alertIngress, RvtConfig.TESTLOCAL, null)
         {
         }
 
@@ -32,14 +32,14 @@ namespace AirQ.Api
             IHttpClient httpClient,
             IDBClient dbClient,
             IMqttClient mqttClient,
-            IMessageService messageService,
+            IAlertIngressPort alertIngress,
             bool testLocal,
             string? testLocalSerialId)
             : this(
                 httpClient,
                 dbClient,
                 mqttClient,
-                messageService,
+                alertIngress,
                 testLocal,
                 testLocalSerialId,
                 TimeProvider.System)
@@ -50,7 +50,7 @@ namespace AirQ.Api
             IHttpClient httpClient,
             IDBClient dbClient,
             IMqttClient mqttClient,
-            IMessageService messageService,
+            IAlertIngressPort alertIngress,
             bool testLocal,
             string? testLocalSerialId,
             TimeProvider timeProvider)
@@ -59,7 +59,7 @@ namespace AirQ.Api
             AirQTestLocalMonitorFilter testLocalFilter = AirQTestLocalMonitorFilter.Create(testLocal, testLocalSerialId);
             AirQMonitorReader monitorReader = new(dbClient, testLocalFilter);
             MonitorEventPublisher eventPublisher = new(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
-            AirQRuleProcessor ruleProcessor = new(dbClient, dbClient, messageService, eventPublisher);
+            AirQRuleProcessor ruleProcessor = new(dbClient, dbClient, alertIngress);
 
             _storeMonitors = new StoreMonitorsHandler(gateway, dbClient, dbClient, testLocalFilter);
             _checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(dbClient, monitorReader, dbClient, ruleProcessor);

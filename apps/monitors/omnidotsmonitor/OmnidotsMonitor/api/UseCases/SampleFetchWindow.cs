@@ -16,9 +16,21 @@ namespace Omnidots.Api.UseCases
 
         internal static DateTime Start(DateTime utcNow, TimeSpan lookback, TimeSpan overlap)
         {
-            if (utcNow.Kind != DateTimeKind.Utc) throw new ArgumentException("utcNow must be UTC.", nameof(utcNow));
-            if (lookback <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(lookback));
-            if (overlap < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(overlap));
+            if (utcNow.Kind != DateTimeKind.Utc)
+            {
+                throw new ArgumentException("utcNow must be UTC.", nameof(utcNow));
+            }
+
+            if (lookback <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(lookback));
+            }
+
+            if (overlap < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(overlap));
+            }
+
             return utcNow - lookback - overlap;
         }
     }

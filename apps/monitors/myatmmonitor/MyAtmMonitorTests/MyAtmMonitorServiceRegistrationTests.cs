@@ -6,7 +6,6 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
-using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -32,7 +31,6 @@ public sealed class MyAtmMonitorServiceRegistrationTests
         Mock<IDBClient> dbClient = new();
         services.AddSingleton(dbClient.Object);
         services.AddSingleton(new Mock<IMqttClient>().Object);
-        services.AddSingleton(new Mock<IMessageService>().Object);
 
         using ServiceProvider provider = services.BuildServiceProvider();
 

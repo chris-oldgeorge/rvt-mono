@@ -5,9 +5,9 @@ namespace AirQ.Api;
 
 public sealed class AirQTestLocalMonitorFilter
 {
-    private readonly string? targetSerialId;
+    private readonly string? _targetSerialId;
 
-    private AirQTestLocalMonitorFilter(string? targetSerialId) => this.targetSerialId = targetSerialId;
+    private AirQTestLocalMonitorFilter(string? targetSerialId) => _targetSerialId = targetSerialId;
 
     public static AirQTestLocalMonitorFilter Create(bool enabled, string? targetSerialId)
     {
@@ -21,15 +21,15 @@ public sealed class AirQTestLocalMonitorFilter
     }
 
     public List<NoiseMonitorDto> Apply(List<NoiseMonitorDto> monitors) =>
-        targetSerialId is null
+        _targetSerialId is null
             ? monitors
-            : monitors.Where(monitor => IsTargetSerial(monitor.SerialId)).ToList();
+            : [.. monitors.Where(monitor => IsTargetSerial(monitor.SerialId))];
 
     public List<InstrumentResponse> ApplyCatalog(List<InstrumentResponse> monitors) =>
-        targetSerialId is null
+        _targetSerialId is null
             ? monitors
-            : monitors.Where(monitor => IsTargetSerial(monitor.InstrumentID)).ToList();
+            : [.. monitors.Where(monitor => IsTargetSerial(monitor.InstrumentID))];
 
     private bool IsTargetSerial(string? serialId) =>
-        string.Equals(serialId, targetSerialId, StringComparison.Ordinal);
+        string.Equals(serialId, _targetSerialId, StringComparison.Ordinal);
 }

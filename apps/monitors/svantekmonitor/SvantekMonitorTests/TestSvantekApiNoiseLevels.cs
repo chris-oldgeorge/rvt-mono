@@ -1,272 +1,137 @@
+using System.Data;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Moq.Language.Flow;
-using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
+using Rvt.Monitor.Common.Utilities;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
-using Svantek.Model.Dto;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
-namespace SvantekMonitorTests
+namespace SvantekMonitorTests;
+
+// Summary: Facade-level StoreNoiseLevels tests: samples are persisted and rule breaches
+// emit exactly one durable AlertSignal per breach through IAlertIngressPort.
+// Major updates:
+// - 2026-07-29 Legacy retirement step 4: rewritten from the retired synchronous
+//   StoreNoiseLevels(string,string) / for-date entry points onto the async multi-point
+//   vendor pipeline and the durable alert contract.
+[TestClass]
+public class TestSvantekApiNoiseLevels
 {
-    [TestClass]
-    public class TestSvantekApiNoiseLevels
+    public TestSvantekApiNoiseLevels()
     {
-        public TestSvantekApiNoiseLevels()
+        ILoggerFactory factory = LoggerFactory.Create(builder =>
         {
-            ILoggerFactory factory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
-            });
-            RvtLogger.CreateLogger(factory, "TestSvantekApiNoiseLevels");
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevels_EmptyRules_Success()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
-                                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.SamplesResponseJson()));
-
-            List<NoiseMonitorDto> monitors = SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE);
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(monitors);
-            dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
-                Returns(new List<RvtAlertRuleDto>());
-
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/latestData?userID=foo"))), Times.Exactly(3));
-            httpClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device1", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device2", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device3", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>()), Times.Exactly(3));
-            dbClient.Verify(c => c.ReadRules("Device1"), Times.Exactly(1));
-            dbClient.Verify(c => c.ReadRules("Device2"), Times.Exactly(1));
-            dbClient.Verify(c => c.ReadRules("Device3"), Times.Exactly(1));
-
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
-            mqttClient.VerifyNoOtherCalls();
-
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevels_TruncatedByTimestamp_Success()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
-                                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.SamplesResponseJson()));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(DateTime.UtcNow, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/latestData?userID=foo"))), Times.Exactly(3));
-            httpClient.VerifyNoOtherCalls();
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.VerifyNoOtherCalls();
-
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevelsForYesterday_Success()
-        {
-
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
-
-            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + yesterday + "&token=bar&instrumentID=*"))).
-                                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.DateSamplesResponseJson()));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreAllNoiseLevelsForYesterday("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID=foo"))), Times.Exactly(3));
-            httpClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device1", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device2", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device3", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.VerifyNoOtherCalls();
-
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevelsForDate_Success()
-        {
-
-            string dateStr = "2023-09-11";
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
-
-            IReturnsResult<IHttpClient> regex =
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"))).
-                                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.DateSamplesResponseJson()));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreNoiseLevelsForDate("foo", "bar", dateStr);
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID="))), Times.Exactly(3));
-            httpClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device1", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device2", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device3", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.VerifyNoOtherCalls();
-
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevelsInactiveMonitor_Success()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
-                                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.SamplesResponseJson()));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, "Inactive"));
-
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID="))), Times.Exactly(0));
-            httpClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.VerifyNoOtherCalls();
-
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevelsForDateInactiveMonitor_Success()
-        {
-
-            string dateStr = "2023-09-11";
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"))).
-                                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.SamplesResponseJson()));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, "Inactive"));
-
-            testObj.StoreNoiseLevelsForDate("foo", "bar", dateStr);
-
-            httpClient.Verify(c => c.GetAsync(It.Is<string>(s => s.StartsWith("/dataForDate?userID="))), Times.Exactly(0));
-            httpClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.VerifyNoOtherCalls();
-
-            messageService.VerifyNoOtherCalls();
-        }
-
-        // don't have time to remock this test
-        //[DataRow(10.0, 11.0, 1)]
-        //[DataRow(11.0, 10.0, 0)]
-        //[DataTestMethod]
-        //public void TestNotifySiteAverages_Success(double limit, double level, int numExpectedNotifications)
-        //{
-
-        //    var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-        //                                 out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
-
-        //    var monitors = SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE);
-        //    dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
-
-        //    var rules = SvantekFixture.NotifyRules(monitors[0].SerialId, "LA90",
-        //                                                  limit);
-        //    dbClient.Setup(c => c.ReadRules(monitors[0].SerialId)).Returns(rules);
-        //    dbClient.Setup(c => c.ReadRules(monitors[1].SerialId)).Returns(new List<RvtAlertRuleDto>());
-        //    dbClient.Setup(c => c.ReadRules(monitors[2].SerialId)).Returns(new List<RvtAlertRuleDto>());
-
-        //    dbClient.Setup(c => c.GetAverageNoiseLevel(It.IsAny<string>(), It.IsAny<string>(),
-        //        It.IsAny<DateTime>(), It.IsAny<DateTime>())).Returns(level);
-
-        //    var contacts = SvantekFixture.AlertContacts();
-
-        //    dbClient.Setup(c => c.ReadAlertContacts(It.IsAny<string>(), out It.Ref<Guid>.IsAny)).
-        //        Returns(contacts);
-
-        //    var siteInfo = new SiteInfoDto(siteId: Guid.NewGuid(),
-        //                                   startTime: TimeSpan.Parse("09:00:00"),
-        //                                   endTime: TimeSpan.Parse("17:00:00"),
-        //                                   satStartTime: TimeSpan.Parse("09:40:12"),
-        //                                   satEndTime: TimeSpan.Parse("16:00:00"),
-        //                                   sunStartTime: TimeSpan.Parse("09:59:48"),
-        //                                   sunEndTime: TimeSpan.Parse("15:00:00"));
-
-        //    dbClient.Setup(c => c.ReadSiteInfo(It.IsAny<Guid>())).Returns(siteInfo);
-        //    testObj.NotifySiteAverages(DateTime.Today.AddDays(-1));
-
-        //    dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-        //    dbClient.Verify(c => c.ReadRules(monitors[0].SerialId), Times.Exactly(1));
-        //    dbClient.Verify(c => c.ReadRules(monitors[1].SerialId), Times.Exactly(1));
-        //    dbClient.Verify(c => c.ReadRules(monitors[2].SerialId), Times.Exactly(1));
-        //    dbClient.Verify(c => c.ReadAlertContacts(monitors[0].SerialId, out It.Ref<Guid>.IsAny),
-        //        Times.Exactly(1));
-        //    dbClient.Verify(c => c.ReadSiteInfo(It.IsAny<Guid>()), Times.Exactly(1));
-        //    dbClient.Verify(c => c.GetAverageNoiseLevel(monitors[0].SerialId, "LA90",
-        //                                                It.IsAny<DateTime>(), It.IsAny<DateTime>()),
-        //                                                Times.Exactly(1));
-        //    dbClient.Verify(c => c.WriteNotification(It.IsAny<NotificationDto>()),
-        //        Times.Exactly(numExpectedNotifications));
-        //    dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), contacts[0].EmailAddress, NotificationConstants.SENT_OK),
-        //        Times.Exactly(numExpectedNotifications));
-        //    dbClient.Verify(c => c.WriteDailyAverage(siteInfo.SiteId, monitors[0].Id, "LA90", level, It.IsAny<DateTime>()),
-        //        Times.Exactly(1));
-        //    dbClient.VerifyNoOtherCalls();
-
-        //    httpClient.VerifyNoOtherCalls();
-
-        //    mqttClient.VerifyNoOtherCalls();
-
-        //    commsClient.Verify(c => c.SendMessage(ContactMethod.Email, AlertType.Caution, contacts[0].EmailAddress, null, It.IsAny<string>()),
-        //        Times.Exactly(numExpectedNotifications));
-        //    commsClient.VerifyNoOtherCalls();
-
-        //}
+            builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
+        });
+        RvtLogger.CreateLogger(factory, "TestSvantekApiNoiseLevels");
     }
+
+    private static string MultiPointResponse(int pointId, DateTime sampleTime, int level)
+    {
+        string timestamp = sampleTime.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture);
+        string value = level.ToString(CultureInfo.InvariantCulture);
+        string values = string.Join(",", Enumerable.Repeat($"\"{value}\"", 8));
+        return $$$"""
+            {"status":"ok","data":[{"point":{{{pointId}}},"data":{"status":"ok","results":[{"keys":[],"data":[{"timestamp":"{{{timestamp}}}","values":[{{{values}}}]}]}]}}]}
+            """;
+    }
+
+    [TestMethod]
+    public async Task TestStoreNoiseLevels_EmptyRules_StoresSamplesWithoutSignals()
+    {
+        SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+                                                 out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
+
+        DateTime sampleTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddMinutes(-5));
+        NoiseMonitorReadDto monitor = SvantekFixture.ReadMonitorDto(
+            "Device1",
+            pointId: 3,
+            lastDataTime: DateTime.UtcNow.AddMinutes(-40));
+        dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
+                ReturnsAsync([monitor]);
+        dbClient.Setup(c => c.ReadRules("Device1")).
+            Returns([]);
+        httpClient.Setup(c => c.PostAsync("projects-get-result-data-multi-point.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>())).
+                ReturnsAsync(MultiPointResponse(3, sampleTime, 55));
+
+        await testObj.StoreNoiseLevelsAsync(TestContext.CancellationToken);
+
+        httpClient.Verify(c => c.PostAsync("projects-get-result-data-multi-point.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(1));
+        httpClient.VerifyNoOtherCalls();
+
+        dbClient.Verify(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>()), Times.Exactly(1));
+        dbClient.Verify(c => c.InsertNoiseRecordsTableAsync(
+            It.Is<DataTable>(table => table.Rows.Count == 1), It.IsAny<CancellationToken>()), Times.Exactly(1));
+        dbClient.Verify(c => c.WriteLatestTimestampAsync("Device1", sampleTime, It.IsAny<CancellationToken>()), Times.Exactly(1));
+        dbClient.Verify(c => c.ReadRules("Device1"), Times.Exactly(1));
+        dbClient.Verify(c => c.UpdateAlertRule(It.IsAny<RvtAlertRuleDto>()), Times.Never);
+
+        mqttClient.VerifyNoOtherCalls();
+        messageClient.VerifyNoOtherCalls();
+    }
+
+    [TestMethod]
+    public async Task TestStoreNoiseLevels_RuleBreach_EmitsOneDurableSignalAndLatchesRule()
+    {
+        SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+                                                 out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
+
+        DateTime sampleTime = DateTimeUtil.TruncateMillis(DateTime.UtcNow.AddMinutes(-5));
+        NoiseMonitorReadDto monitor = SvantekFixture.ReadMonitorDto(
+            "Device1",
+            pointId: 3,
+            lastDataTime: DateTime.UtcNow.AddMinutes(-40));
+        dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
+                ReturnsAsync([monitor]);
+
+        int durationSeconds = 15 * 60;
+        double limitOn = 10.0;
+        RvtAlertRuleDto rule = new(Guid.NewGuid(), "Device1", "LAeq", limitOn, 1.0, durationSeconds,
+                                   SvantekFixture.CreateActiveRuleActivity(null, null),
+                                   AlertType.Alert, false, false, DateTime.UtcNow, null);
+        dbClient.Setup(c => c.ReadRules("Device1")).
+            Returns([rule]);
+        dbClient.Setup(c => c.GetAverageNoiseLevel("Device1", "LAeq", It.IsAny<DateTime>(), It.IsAny<DateTime>())).
+            Returns(limitOn + 1);
+        httpClient.Setup(c => c.PostAsync("projects-get-result-data-multi-point.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>())).
+                ReturnsAsync(MultiPointResponse(3, sampleTime, 55));
+
+        await testObj.StoreNoiseLevelsAsync(TestContext.CancellationToken);
+
+        httpClient.Verify(c => c.PostAsync("projects-get-result-data-multi-point.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(1));
+        httpClient.VerifyNoOtherCalls();
+
+        dbClient.Verify(c => c.WriteLatestTimestampAsync("Device1", sampleTime, It.IsAny<CancellationToken>()), Times.Exactly(1));
+        dbClient.Verify(c => c.ReadRules("Device1"), Times.Exactly(1));
+
+        // One breach, one durable signal; the rule latch keeps later periods quiet and the
+        // durable stack owns notification writes, contact fan-out, and MQTT/email/SMS sends.
+        messageClient.Verify(c => c.AcceptAsync(
+            It.Is<AlertSignal>(signal =>
+                signal.Source == "svantek.rules" &&
+                signal.SerialId == "Device1" &&
+                signal.AlertType == AlertType.Alert &&
+                signal.Field == "LAeq" &&
+                signal.Level == limitOn + 1 &&
+                signal.Limit == limitOn &&
+                signal.AveragingPeriod == durationSeconds &&
+                signal.DeliveryChannels == (AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms) &&
+                signal.SuppressionWindow == TimeSpan.Zero),
+            It.IsAny<CancellationToken>()), Times.Exactly(1));
+        messageClient.VerifyNoOtherCalls();
+
+        dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, "Device1", "LAeq", true))),
+            Times.Exactly(1));
+
+        mqttClient.VerifyNoOtherCalls();
+    }
+
+    public TestContext TestContext { get; set; } = null!;
 }

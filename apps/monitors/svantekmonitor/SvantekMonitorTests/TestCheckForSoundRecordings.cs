@@ -1,6 +1,5 @@
 using Moq;
-using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Mqtt;
+using Rvt.Monitor.Common.Alerts;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
@@ -20,14 +19,12 @@ namespace SvantekMonitorTests
         {
             Mock<IHttpClient> httpClient = new();
             Mock<IDBClient> dbClient = new();
-            Mock<IMqttClient> mqttClient = new();
-            Mock<IMessageService> emailClient = new();
+            Mock<IAlertIngressPort> alertIngress = new();
             RecordingObjectStorageClient storage = new();
             SvantekApi testObj = new(
                 httpClient.Object,
                 dbClient.Object,
-                mqttClient.Object,
-                emailClient.Object,
+                alertIngress.Object,
                 "test-api-key",
                 TestObjectStorageFactory.ForSoundRecordings(storage),
                 testLocal: false);

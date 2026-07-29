@@ -17,7 +17,9 @@ export type OpenApiClientContractSentinels = [
   Assert<HasKey<Schema['AlertLevelMutationRequest'], 'alertType'>>,
   Assert<HasKey<Schema['CompanyMutationRequest'], 'companyName'>>,
   Assert<Schema['SiteUserMutationRequest'] extends { siteId: string; userId: string } ? true : false>,
-  Assert<Schema['VibrationAlertLevelMutationRequest'] extends { alertLevel: number; cautionLevel: number } ? true : false>,
+  Assert<
+    Schema['VibrationAlertLevelMutationRequest'] extends { alertLevel: number; cautionLevel: number } ? true : false
+  >,
   Assert<HasKey<Schema['LoginRequest'], 'email'>>,
-  Assert<HasKey<Schema['ReportUserMutationRequest'], 'userId'>>
+  Assert<HasKey<Schema['ReportUserMutationRequest'], 'userId'>>,
 ];

@@ -305,6 +305,7 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
                     && siteUser.UserId == scope.UserId.Value
                     && siteUser.StartDate <= scope.NowUtc
                     && (!siteUser.EndDate.HasValue || siteUser.EndDate.Value >= scope.NowUtc))),
+            SiteAccessScopeKind.None or SiteAccessScopeKind.Assigned => sites.Where(_ => false),
             _ => sites.Where(_ => false)
         };
     }
@@ -358,14 +359,14 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
                 : sites.OrderBy(site => site.SiteName),
             "companyname" => descending
                 ? sites.OrderByDescending(site =>
-                    site.Contracts.Select(contract => contract.Company.CompanyName).Min())
+                    site.Contracts.Min(contract => contract.Company.CompanyName))
                 : sites.OrderBy(site =>
-                    site.Contracts.Select(contract => contract.Company.CompanyName).Min()),
+                    site.Contracts.Min(contract => contract.Company.CompanyName)),
             "contracts" => descending
                 ? sites.OrderByDescending(site =>
-                    site.Contracts.Select(contract => contract.ContractNumber).Min())
+                    site.Contracts.Min(contract => contract.ContractNumber))
                 : sites.OrderBy(site =>
-                    site.Contracts.Select(contract => contract.ContractNumber).Min()),
+                    site.Contracts.Min(contract => contract.ContractNumber)),
             "siteaddress" => descending
                 ? sites.OrderByDescending(site =>
                     (site.AddressLine1 ?? "") + " " +

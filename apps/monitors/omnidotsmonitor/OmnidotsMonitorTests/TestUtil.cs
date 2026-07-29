@@ -9,7 +9,7 @@ using Omnidots.Api.Http;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.EntityFramework;
@@ -32,7 +32,7 @@ namespace OmnidotsAdapterTests
         }
 
         public static OmnidotsApi CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient,
+                                         out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient,
                                          bool testLocal = false,
                                          OmnidotsTraceCollectionOptions? traceCollectionOptions = null)
         {
@@ -48,7 +48,7 @@ namespace OmnidotsAdapterTests
         }
 
         public static OmnidotsApi CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                         out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageClient,
+                                         out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient,
                                          out Mock<IOmnidotsImportCursorQueries> cursorQueries,
                                          out Mock<IOmnidotsMeasurementImportCommands> importCommands,
                                          bool testLocal = false,
@@ -60,7 +60,14 @@ namespace OmnidotsAdapterTests
             importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             Mock<IOmnidotsTraceQueries> traceQueries = dbClient.As<IOmnidotsTraceQueries>();
             mqttClient = new Mock<IMqttClient>();
-            messageClient = new Mock<IMessageService>();
+            messageClient = new Mock<IAlertIngressPort>();
+            messageClient
+                .Setup(ingress => ingress.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new AlertIngressResult(
+                    Guid.NewGuid(),
+                    Guid.NewGuid(),
+                    AlertOccurrenceOutcome.Accepted,
+                    IsDuplicate: false));
             return new OmnidotsApi(
                 httpClient.Object,
                 dbClient.Object,

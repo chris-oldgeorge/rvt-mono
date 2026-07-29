@@ -28,12 +28,28 @@ public sealed class CautionAlertAcceptancePolicyTests
     }
 
     [TestMethod]
-    [DataRow(AlertType.Offline)]
-    [DataRow(AlertType.BatteryAlert)]
-    [DataRow(AlertType.BatteryCaution)]
+    [DataRow((AlertType)999)]
     public void Evaluate_RejectsUnsupportedIncomingAlertTypes(AlertType incoming)
     {
         Assert.ThrowsExactly<ArgumentOutOfRangeException>(
             () => policy.Evaluate(incoming, []));
+    }
+
+    [DataRow(AlertType.Offline)]
+    [DataRow(AlertType.BatteryAlert)]
+    [DataRow(AlertType.BatteryCaution)]
+    [TestMethod]
+    public void TransitionDrivenTypes_AreAcceptedRegardlessOfRecentHistory(AlertType incoming)
+    {
+        // The emitting handlers only signal on a state change, so the policy
+        // applies no windowed suppression to these types.
+        CautionAlertAcceptancePolicy policy = new();
+
+        Assert.AreEqual(
+            AlertOccurrenceOutcome.Accepted,
+            policy.Evaluate(incoming, [AlertType.Alert, AlertType.Caution]));
+        Assert.AreEqual(
+            AlertOccurrenceOutcome.Accepted,
+            policy.Evaluate(incoming, []));
     }
 }

@@ -20,7 +20,6 @@ public sealed class SharedRuntimeNamespaceTests
             typeof(IEmailDeliveryPort),
             typeof(ISmsDeliveryPort),
             typeof(INotificationDeliveryService),
-            typeof(IMessageService),
             typeof(IMqttClient),
             typeof(RvtMqttMessage),
             typeof(NotificationDto),
@@ -29,8 +28,8 @@ public sealed class SharedRuntimeNamespaceTests
         ];
 
         CollectionAssert.AllItemsAreUnique(runtimeContracts.Select(type => type.FullName).ToArray());
-        Assert.AreEqual("Rvt.Communication.Abstractions", typeof(IMessageService).Namespace);
-        Assert.AreEqual(typeof(IMessageService).Assembly, typeof(IEmailDeliveryPort).Assembly);
+        Assert.AreEqual("Rvt.Communication.Abstractions", typeof(INotificationDeliveryService).Namespace);
+        Assert.AreEqual(typeof(INotificationDeliveryService).Assembly, typeof(IEmailDeliveryPort).Assembly);
         Assert.IsFalse(typeof(RvtConfig).Assembly.GetTypes().Any(type =>
             type.Namespace is "Rvt.Api" or "Rvt.Api.Comms" or "Rvt.Api.Mqtt" or "Rvt.Model.Mqtt"
             or "Rvt.Notification" or "Rvt.Rules" or "Rvt.Util"));

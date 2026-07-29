@@ -83,9 +83,9 @@ public sealed class DurableAlertDispatcher
             catch (Exception exception)
             {
                 bool deadLetter = IsTerminal(exception, message.AttemptCount, options);
-                string safeError = exception is DeliveryException
-                    ? exception.Message
-                    : $"Alert delivery failed ({exception.GetType().Name}).";
+                string safeError = DeliveryDispatchPolicy.SafeError(
+                    exception,
+                    $"Alert delivery failed ({exception.GetType().Name}).");
                 DateTime outcomeTime = timeProvider.GetUtcNow().UtcDateTime;
                 DateTime nextAttemptAt = deadLetter
                     ? outcomeTime
@@ -124,8 +124,7 @@ public sealed class DurableAlertDispatcher
         Exception exception,
         int attemptCount,
         DurableAlertOptions options) =>
-        exception is DeliveryException { FailureKind: not DeliveryFailureKind.Transient } ||
-        attemptCount >= options.MaxAttempts;
+        DeliveryDispatchPolicy.IsTerminal(exception, attemptCount, options.MaxAttempts);
 
     private static TimeSpan RetryDelay(
         int attemptCount,

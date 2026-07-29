@@ -12,7 +12,6 @@ using Omnidots.Api.Ports;
 using Omnidots.Api.UseCases;
 using Omnidots.Model.Config;
 using Rvt.Communication;
-using Rvt.Communication.Abstractions;
 using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
 using Rvt.Communication.TransmitSms;
@@ -127,7 +126,7 @@ public static class OmnidotsMonitorServices
             provider.GetRequiredService<IOmnidotsMeasurementImportCommands>(),
             provider.GetRequiredService<IOmnidotsTraceQueries>(),
             provider.GetRequiredService<IMqttClient>(),
-            provider.GetRequiredService<IMessageService>(),
+            provider.GetRequiredService<IAlertIngressPort>(),
             RvtConfig.TESTLOCAL,
             provider.GetRequiredService<OmnidotsMonitoringOptions>(),
             provider.GetRequiredService<IOmnidotsMonitoringNotifier>(),

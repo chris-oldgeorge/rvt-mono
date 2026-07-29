@@ -10,13 +10,13 @@ namespace MyAtm.Api.UseCases;
 // Evaluates each completed aggregate period and persists its state transition through one atomic commit.
 public sealed class ProcessDustLevelsHandler
 {
-    private readonly IMyAtmMonitorQueries monitorQueries;
-    private readonly IMyAtmRuleQueries ruleQueries;
-    private readonly IMyAtmAlertCommitCommands alertCommitCommands;
-    private readonly IMyAtmOperationalCommands operationalCommands;
-    private readonly MyAtmRuleProcessor ruleProcessor;
-    private readonly TimeProvider timeProvider;
-    private readonly bool testLocal;
+    private readonly IMyAtmMonitorQueries _monitorQueries;
+    private readonly IMyAtmRuleQueries _ruleQueries;
+    private readonly IMyAtmAlertCommitCommands _alertCommitCommands;
+    private readonly IMyAtmOperationalCommands _operationalCommands;
+    private readonly MyAtmRuleProcessor _ruleProcessor;
+    private readonly TimeProvider _timeProvider;
+    private readonly bool _testLocal;
 
     public ProcessDustLevelsHandler(
         IMyAtmMonitorQueries monitorQueries,
@@ -27,21 +27,21 @@ public sealed class ProcessDustLevelsHandler
         TimeProvider timeProvider,
         bool testLocal)
     {
-        this.monitorQueries = monitorQueries;
-        this.ruleQueries = ruleQueries;
-        this.alertCommitCommands = alertCommitCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleProcessor = ruleProcessor;
-        this.timeProvider = timeProvider;
-        this.testLocal = testLocal;
+        _monitorQueries = monitorQueries;
+        _ruleQueries = ruleQueries;
+        _alertCommitCommands = alertCommitCommands;
+        _operationalCommands = operationalCommands;
+        _ruleProcessor = ruleProcessor;
+        _timeProvider = timeProvider;
+        _testLocal = testLocal;
     }
 
     public async Task RunAsync<T>(int customerId, Period period, CancellationToken cancellationToken = default)
         where T : BaseDeviceMeasurement
     {
-        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        List<RvtAlertRuleDto> rules = [.. ruleQueries.ReadRules(period).OrderBy(rule => rule.AlertType)];
-        MyAtmFailureCollector failures = new(operationalCommands);
+        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+        List<RvtAlertRuleDto> rules = [.. _ruleQueries.ReadRules(period).OrderBy(rule => rule.AlertType)];
+        MyAtmFailureCollector failures = new(_operationalCommands);
         foreach (RvtAlertRuleDto rule in rules)
         {
             try
@@ -51,8 +51,8 @@ public sealed class ProcessDustLevelsHandler
                 {
                     if (rule.IsActive)
                     {
-                        MyAtmAlertCommitResult result = await alertCommitCommands.CommitAlertAsync(
-                            ruleProcessor.CreateDeletedRuleDeactivationCommit(rule, utcNow),
+                        MyAtmAlertCommitResult result = await _alertCommitCommands.CommitAlertAsync(
+                            _ruleProcessor.CreateDeletedRuleDeactivationCommit(rule, utcNow),
                             cancellationToken);
                         if (result.Applied)
                         {
@@ -63,13 +63,13 @@ public sealed class ProcessDustLevelsHandler
                     continue;
                 }
 
-                if (rule.SerialId == null || (testLocal && !MyAtmTestLocalMonitorFilter.IsTargetSerial(rule.SerialId)))
+                if (rule.SerialId == null || (_testLocal && !MyAtmTestLocalMonitorFilter.IsTargetSerial(rule.SerialId)))
                 {
                     continue;
                 }
 
-                DustMonitorDto? monitor = monitorQueries.ReadMonitor(customerId, rule.SerialId);
-                if (monitor == null || (testLocal && !MyAtmTestLocalMonitorFilter.IsTargetReadMonitor(monitor)))
+                DustMonitorDto? monitor = _monitorQueries.ReadMonitor(customerId, rule.SerialId);
+                if (monitor == null || (_testLocal && !MyAtmTestLocalMonitorFilter.IsTargetReadMonitor(monitor)))
                 {
                     continue;
                 }
@@ -96,9 +96,9 @@ public sealed class ProcessDustLevelsHandler
                             MyAtmAlertTransitionEvaluator.NormalizeField(other.Field) == normalizedField && other.IsActive);
                     double? level = !rule.RuleActiveTime.IsActive(end)
                         ? null
-                        : ruleQueries.GetAverageDustLevel(rule.SerialId, rule.Field, start, end);
-                    MyAtmAlertCommit commit = ruleProcessor.CreateAggregateCommit(monitor, rule, level, end, alertForFieldIsActive, utcNow);
-                    MyAtmAlertCommitResult result = await alertCommitCommands.CommitAlertAsync(commit, cancellationToken);
+                        : _ruleQueries.GetAverageDustLevel(rule.SerialId, rule.Field, start, end);
+                    MyAtmAlertCommit commit = _ruleProcessor.CreateAggregateCommit(monitor, rule, level, end, alertForFieldIsActive, utcNow);
+                    MyAtmAlertCommitResult result = await _alertCommitCommands.CommitAlertAsync(commit, cancellationToken);
                     if (!result.Applied)
                     {
                         break;

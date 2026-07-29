@@ -74,11 +74,7 @@ namespace AirQ.Api.UseCases
                         lastDataTime = latest.LatestDateTime;
                         if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
                         {
-                            RvtLogger.Logger.LogInformation(
-                                "GetLatestSamples SerialId={Value1} number of samples={Value2} lastDataTime={Value3}",
-                                monitor.SerialId,
-                                samples.Count,
-                                lastDataTime);
+                            RvtLogger.Logger.LogInformation("GetLatestSamples SerialId={Value1} number of samples={Value2} lastDataTime={Value3}", monitor.SerialId, samples.Count, lastDataTime);
                         }
                         List<NoiseDto> dtos = [];
                         foreach (SampleResponse sample in samples)
@@ -104,10 +100,7 @@ namespace AirQ.Api.UseCases
                             {
                                 if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
                                 {
-                                    RvtLogger.Logger.LogInformation(
-                                        "Create average SerialId={Value1} number of endperiod={Value2}",
-                                        monitor.SerialId,
-                                        endperiod);
+                                    RvtLogger.Logger.LogInformation("Create average SerialId={Value1} number of endperiod={Value2}", monitor.SerialId, endperiod);
                                 }
                                 _measurementCommands.Create8hourAverage(monitor.SerialId, endperiod);
                                 start = start.AddHours(8);
@@ -123,7 +116,7 @@ namespace AirQ.Api.UseCases
                             await _eventPublisher.PublishDataInsertedAsync((DateTime)lastDataTime!, monitor.SerialId, cancellationToken: cancellationToken);
 
                             List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId);
-                            _ruleProcessor.ProcessRulesV2(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos);
+                            await _ruleProcessor.ProcessRulesV2Async(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos, cancellationToken);
                         }
 
                     }

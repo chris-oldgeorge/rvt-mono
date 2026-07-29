@@ -281,12 +281,6 @@
     {
       "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
-      "path": "apps/portal/RVT.BusinessLogic/AForge/FourierTransform.cs",
-      "count": 4
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
       "path": "apps/portal/RVT.BusinessLogic/Notifications/AccountMessenger.cs",
       "count": 1
     },

@@ -30,12 +30,18 @@ superseded narratives to the archive.
   delivery/heatmap/contact-skipping fixes, AirQ and Omnidots import chains
   async + cancellable behind vendor ports, uniform storage-port contract,
   shared rules decoupled from the running executable, common-hub cleanup.
-- The current branch `chore/p1-dead-code-and-hygiene-sweep` executes the P1
-  deletion sweep from
+- `main` carries the P1 dead-code and hygiene sweep (PR #18, merge
+  `adf9c824`) from
   [docs/reviews/2026-07-28-duplication-legacy-consistency-review.md](docs/reviews/2026-07-28-duplication-legacy-consistency-review.md)
-  (the authoritative open-findings list, including the P0 guardrail backlog:
+  (the authoritative remaining-findings list, including the P0 guardrail backlog:
   PR test job, Svantek HTTP timeout, `MonitorHost` one-shot token, AirQ
   architecture tests, portal `Application → Spa.Api` guard).
+- The branch `codex/monotonic-standards-baseline` remediates the six standards
+  increases found after PR #18 and regenerates the engineering-standards
+  baseline through the official monotonic updater. The baseline falls from
+  1,994 entries / 7,709 diagnostics to 1,112 entries / 2,072 diagnostics:
+  882 entries removed, 12 lowered, 5,637 diagnostic allowances retired, and
+  zero increases.
 
 ## Verification environment
 
@@ -56,6 +62,9 @@ superseded narratives to the archive.
   grades the changed surface; pure deletions are safe, but any edited line
   must satisfy the standards, and whole-file reformatting (namespace
   conversion) expands the graded surface — keep style fixes line-local.
+- Full standards inventory and baseline regeneration invoke Roslyn through a
+  local named pipe. Sandboxed runs that prohibit local IPC fail before
+  producing a report; rerun the unchanged command with local IPC permitted.
 
 ## Standing working-tree notes
 

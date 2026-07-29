@@ -4,7 +4,7 @@ namespace Rvt.Monitor.IntegrationTesting;
 
 public static class RepositoryLayout
 {
-    private const string RepositoryRootEnvironmentVariable = "RVT_MONOREPO_ROOT";
+    private const string _repositoryRootEnvironmentVariable = "RVT_MONOREPO_ROOT";
 
     private static readonly StringComparer _pathComparer =
         OperatingSystem.IsWindows()
@@ -16,7 +16,7 @@ public static class RepositoryLayout
             AppContext.BaseDirectory,
             SourceFilePath(),
             Directory.GetCurrentDirectory(),
-            Environment.GetEnvironmentVariable(RepositoryRootEnvironmentVariable)));
+            Environment.GetEnvironmentVariable(_repositoryRootEnvironmentVariable)));
 
     public static string Root => _repositoryRoot.Value;
 
@@ -88,12 +88,12 @@ public static class RepositoryLayout
             if (!IsRepositoryRoot(normalizedConfiguredRoot))
             {
                 throw new DirectoryNotFoundException(
-                    $"Configured {RepositoryRootEnvironmentVariable} root " +
+                    $"Configured {_repositoryRootEnvironmentVariable} root " +
                     $"'{configuredRoot}' must contain Rvt.Mono.slnx and a .git file or directory.");
             }
 
             candidates.Add(new RepositoryCandidate(
-                RepositoryRootEnvironmentVariable,
+                _repositoryRootEnvironmentVariable,
                 CanonicalizeExistingDirectory(normalizedConfiguredRoot)));
         }
 
@@ -132,7 +132,7 @@ public static class RepositoryLayout
         throw new DirectoryNotFoundException(
             $"Could not find the RVT monorepository root from output '{outputDirectory}' " +
             $"source '{sourceFilePath}', or current directory '{currentDirectory}'. " +
-            $"Set {RepositoryRootEnvironmentVariable} to the validated repository root " +
+            $"Set {_repositoryRootEnvironmentVariable} to the validated repository root " +
             "when the test host relocates both build output and its working directory.");
     }
 

@@ -102,6 +102,39 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
         Assert.IsFalse(source.Contains("DispatchDueAsync", StringComparison.Ordinal));
     }
 
+    // The scheduled handlers reach delivery only through MyAtmRuleProcessor, so the
+    // invariant also has to hold there: the processor must stay commit-only and must
+    // never regrow a direct, synchronous notification route.
+    [TestMethod]
+    public void MyAtmRuleProcessor_BuildsCommitsWithoutADirectSynchronousDeliveryRoute()
+    {
+        string source = File.ReadAllText(RepositoryLayout.GetPath(
+            "apps",
+            "monitors",
+            "myatmmonitor",
+            "MyAtmMonitor",
+            "api",
+            "MyAtmRuleProcessor.cs"));
+
+        Assert.Contains("CreateAggregateCommit", source);
+        Assert.Contains("CreateOfflineCommit", source);
+        AssertContainsNone(source, "direct delivery and legacy rule processing",
+        [
+            "IMessageService",
+            "IMonitorEventPublisher",
+            "IMqttClient",
+            "GetAwaiter().GetResult()",
+            "SendMessage",
+            "Sendmessage",
+            "WriteNotification(",
+            "WriteNotificationAudit(",
+            "UpdateAlertRule(",
+            "ProcessRule(",
+            "ProcessRulesV2(",
+            "ProcessAlertForContacts("
+        ]);
+    }
+
     [TestMethod]
     public void MyAtmService_UsesFocusedHandlersInsteadOfCompatibilityFacades()
     {
@@ -122,8 +155,10 @@ public sealed class MyAtmScheduledAlertCommitBoundaryTests
         Assert.Contains("MonitorDeliveryDispatcher", source);
     }
 
+    // The optional underscore keeps this boundary check independent of which private-field
+    // naming convention a handler uses; the repository still carries both.
     private static string[] InvokedMethods(string source, string receiver) =>
-        [.. Regex.Matches(source, $@"\b{Regex.Escape(receiver)}\.(?<method>[A-Za-z0-9_]+)\s*\(")
+        [.. Regex.Matches(source, $@"\b_?{Regex.Escape(receiver)}\.(?<method>[A-Za-z0-9_]+)\s*\(")
             .Select(match => match.Groups["method"].Value)
             .Distinct(StringComparer.Ordinal)
             .Order(StringComparer.Ordinal)];

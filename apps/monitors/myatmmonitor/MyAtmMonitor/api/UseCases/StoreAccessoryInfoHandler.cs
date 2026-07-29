@@ -14,11 +14,11 @@ namespace MyAtm.Api.UseCases
     public class StoreAccessoryInfoHandler
     {
         private readonly IMyAtmVendorGateway _gateway;
-        private readonly MyAtmMonitorReader monitorReader;
-        private readonly IMyAtmAccessoryCommands accessoryCommands;
-        private readonly IMyAtmMeasurementQueries measurementQueries;
-        private readonly IMyAtmOperationalCommands operationalCommands;
-        private readonly int maxPagesPerMonitorPerRun;
+        private readonly MyAtmMonitorReader _monitorReader;
+        private readonly IMyAtmAccessoryCommands _accessoryCommands;
+        private readonly IMyAtmMeasurementQueries _measurementQueries;
+        private readonly IMyAtmOperationalCommands _operationalCommands;
+        private readonly int _maxPagesPerMonitorPerRun;
 
         public StoreAccessoryInfoHandler(
             IMyAtmVendorGateway gateway,
@@ -29,30 +29,30 @@ namespace MyAtm.Api.UseCases
             int maxPagesPerMonitorPerRun)
         {
             _gateway = gateway;
-            this.monitorReader = monitorReader;
-            this.accessoryCommands = accessoryCommands;
-            this.measurementQueries = measurementQueries;
-            this.operationalCommands = operationalCommands;
-            this.maxPagesPerMonitorPerRun = maxPagesPerMonitorPerRun;
+            _monitorReader = monitorReader;
+            _accessoryCommands = accessoryCommands;
+            _measurementQueries = measurementQueries;
+            _operationalCommands = operationalCommands;
+            _maxPagesPerMonitorPerRun = maxPagesPerMonitorPerRun;
         }
 
         public async Task RunAsync(int customerId, CancellationToken cancellationToken = default)
         {
-            List<DustMonitorDto>? customerDtos = monitorReader.ReadMonitors(customerId);
+            List<DustMonitorDto>? customerDtos = _monitorReader.ReadMonitors(customerId);
             if (customerDtos == null)
             {
                 return;
             }
 
-            MyAtmFailureCollector failures = new(operationalCommands);
+            MyAtmFailureCollector failures = new(_operationalCommands);
             foreach (DustMonitorDto customerDto in customerDtos)
             {
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     DateTime cursor = DateTimeUtil.AsUtc(
-                        measurementQueries.ReadLatestAccessoryTimestamp(customerDto.SerialId) ?? MyAtmApi.JAN1_1970);
-                    for (int pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
+                        _measurementQueries.ReadLatestAccessoryTimestamp(customerDto.SerialId) ?? DateTimeUtil.JAN1_1970);
+                    for (int pageNumber = 0; pageNumber < _maxPagesPerMonitorPerRun; pageNumber++)
                     {
                         MyAtmMeasurementPage<AccessoryInfo> page = await _gateway.HttpGetAccessoryInfoPageAsync(
                             customerId,
@@ -65,16 +65,19 @@ namespace MyAtm.Api.UseCases
                             .Select(group => group.First())
                             .OrderBy(dto => dto.SampleTime)];
 
-                        RvtLogger.Logger.LogInformation(
-                            "StoreAccessoryInfo page={PageNumber} number of dtos to insert={Count} serialId={SerialId} cursor={Cursor}",
-                            pageNumber + 1,
-                            dtos.Count,
-                            customerDto.SerialId,
-                            cursor);
+                        if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                        {
+                            RvtLogger.Logger.LogInformation(
+                                "StoreAccessoryInfo page={PageNumber} number of dtos to insert={Count} serialId={SerialId} cursor={Cursor}",
+                                pageNumber + 1,
+                                dtos.Count,
+                                customerDto.SerialId,
+                                cursor);
+                        }
 
                         if (dtos.Count > 0)
                         {
-                            await accessoryCommands.InsertAccessoryPageAsync(dtos, cancellationToken);
+                            await _accessoryCommands.InsertAccessoryPageAsync(dtos, cancellationToken);
                         }
 
                         if (!page.HasMore || !page.NextCursor.HasValue || page.NextCursor <= cursor)

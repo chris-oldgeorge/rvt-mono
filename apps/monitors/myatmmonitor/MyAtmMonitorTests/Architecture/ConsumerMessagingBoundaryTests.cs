@@ -7,7 +7,6 @@ public sealed class ConsumerMessagingBoundaryTests
 {
     private static readonly string[] _synchronousCompatibilityCallers =
     [
-        "apps/monitors/myatmmonitor/MyAtmMonitor/api/MyAtmRuleProcessor.cs",
         "apps/monitors/omnidotsmonitor/OmnidotsMonitor/api/OmnidotsRuleProcessor.cs"
     ];
     private static readonly string[] _sourceArray =

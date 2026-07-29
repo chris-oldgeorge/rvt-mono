@@ -10,23 +10,35 @@ superseded narratives to the archive.
 
 ## Current state — 2026-07-29
 
-- The current branch is `codex/reliability-cleanup`. Draft PR #23 targets
-  `main`; the branch includes `origin/main` through `7453360c` after resolving
-  the publishing-time base conflict.
-- This branch implements the bounded reliability cleanup recorded in
+- The authoritative open-findings list is now
+  [docs/reviews/2026-07-29-full-repo-review.md](docs/reviews/2026-07-29-full-repo-review.md)
+  (third full review, superseding the 2026-07-28 one for anything still open).
+  Its P1 deletion sweep has been executed; the P0 bug list at the top of that
+  document is the next work.
+- The second dead-code sweep removed ~1,600 lines: 13 never-queried EF view
+  entities plus their DbSets, fluent config, model-snapshot blocks and
+  canonical-name approvals; the dead `IAlertlevelRepository` port/adapter pair
+  and its registration; ~12 dead service/port members (with their cascades);
+  MyAtm's compat-dead direct-delivery route (removing that monitor's last
+  production `GetAwaiter().GetResult()` and its `RVT0001` NoWarn); the three
+  dead `IMonitorRuntimeDefaultsResolver` DI registrations; and three dead
+  `LegacyMessageKind` members. `MyAtmApi` survives deliberately — it is now
+  test-only (production registration deleted, `JAN1_1970` moved to
+  `DateTimeUtil`), and retiring it is a test-migration exercise, not a
+  deletion.
+- `main` carries the bounded reliability cleanup (PR #23), recorded in
   [docs/superpowers/plans/2026-07-29-reliability-cleanup.md](docs/superpowers/plans/2026-07-29-reliability-cleanup.md):
-  - Omnidots trace imports propagate caller cancellation instead of recording
-    it as a monitor failure.
-  - Portal optional monitor summaries and site archives retain their fallback
-    behavior but now log genuine failures and propagate cancellation.
-  - AirQ uses injected UTC `TimeProvider` time for a missing watermark and no
-    longer carries behavior-neutral aggregate rethrow blocks.
-  - Omnidots checked-in defaults contain no personal alert recipient or
-    customer serial allow-list; deployments must supply the recipient and may
-    opt into a staged serial allow-list.
-- The authoritative review has been updated to distinguish the resolved slice
-  from remaining work:
-  [docs/reviews/2026-07-28-duplication-legacy-consistency-review.md](docs/reviews/2026-07-28-duplication-legacy-consistency-review.md).
+  Omnidots trace imports propagate caller cancellation instead of recording it
+  as a monitor failure; portal optional monitor summaries and site archives keep
+  their fallback behavior but now log genuine failures and propagate
+  cancellation; AirQ seeds a missing watermark from the injected UTC
+  `TimeProvider` and no longer carries behavior-neutral aggregate rethrow
+  blocks; and the Omnidots checked-in defaults no longer contain a personal
+  alert recipient or a customer serial allow-list. That PR independently
+  resolved several 2026-07-29 review findings (P5, P9, P10, P16) — verified
+  against the merged tree. P8 (the `DateTime.Now` stopwatch idiom still used by
+  three Omnidots handlers while `StoreTracesHandler` uses `TimeProvider`) is
+  *not* resolved and remains open.
 - Pull requests are gated by two workflows. `Engineering standards` grades the
   changed surface; `Tests` (added by PR #20) runs the whole `Rvt.Mono.slnx`
   suite against a TimescaleDB service container, the Portal client type check

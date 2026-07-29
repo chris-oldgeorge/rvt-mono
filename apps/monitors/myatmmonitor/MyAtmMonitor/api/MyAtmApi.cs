@@ -18,20 +18,14 @@ namespace MyAtm.Api
     public class MyAtmApi
     {
 
-        // Vendor context: the "RVT Case Study" AQ Network currently has no assigned devices, so the
-        // per-customer measurements endpoint returns nothing for it. Device 18129 was once assigned
-        // there, was moved to another AQ Network, and its data is still reachable via the per-device
-        // endpoint (GET /api/customers/146/devices/18129/measurements). 18129 was added to the DB manually.
-        public static readonly DateTime JAN1_1970 = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        private readonly StoreMonitorsHandler storeMonitors;
-        private readonly CheckForOfflineMonitorsHandler checkForOfflineMonitors;
-        private readonly ClearMonitorsOfflineFlagHandler clearMonitorsOfflineFlag;
-        private readonly ClearOlderErrorMessagesHandler clearOlderErrorMessages;
-        private readonly StoreDustLevelsHandler storeDustLevels;
-        private readonly ProcessDustLevelsHandler processDustLevels;
-        private readonly StoreAccessoryInfoHandler storeAccessoryInfo;
-        private readonly MonitorDeliveryDispatcher outboxDispatcher;
+        private readonly StoreMonitorsHandler _storeMonitors;
+        private readonly CheckForOfflineMonitorsHandler _checkForOfflineMonitors;
+        private readonly ClearMonitorsOfflineFlagHandler _clearMonitorsOfflineFlag;
+        private readonly ClearOlderErrorMessagesHandler _clearOlderErrorMessages;
+        private readonly StoreDustLevelsHandler _storeDustLevels;
+        private readonly ProcessDustLevelsHandler _processDustLevels;
+        private readonly StoreAccessoryInfoHandler _storeAccessoryInfo;
+        private readonly MonitorDeliveryDispatcher _outboxDispatcher;
 
         public MyAtmApi(IHttpClient httpClient, IDBClient dbClient, IMqttClient rvtMqttClient, INotificationDeliveryService notificationDelivery)
             : this(httpClient, dbClient, rvtMqttClient, notificationDelivery, RvtConfig.TESTLOCAL, new MyAtmMonitorOptions
@@ -83,17 +77,17 @@ namespace MyAtm.Api
                 options.MeasurementPageSize,
                 options.AccessoryPageSize);
             MyAtmMonitorReader monitorReader = new(dbClient, dbClient, testLocal);
-            MyAtmRuleProcessor ruleProcessor = new(dbClient, options.PortalBaseUrl);
+            MyAtmRuleProcessor ruleProcessor = new(dbClient);
 
-            this.outboxDispatcher = outboxDispatcher ?? throw new ArgumentNullException(nameof(outboxDispatcher));
-            storeMonitors = new StoreMonitorsHandler(
+            _outboxDispatcher = outboxDispatcher ?? throw new ArgumentNullException(nameof(outboxDispatcher));
+            _storeMonitors = new StoreMonitorsHandler(
                 gateway,
                 dbClient,
                 dbClient,
                 testLocal,
                 options.DevicePageSize,
                 options.MaxDevicePagesPerRun);
-            checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(
+            _checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(
                 dbClient,
                 monitorReader,
                 dbClient,
@@ -101,9 +95,9 @@ namespace MyAtm.Api
                 dbClient,
                 ruleProcessor,
                 TimeProvider.System);
-            clearMonitorsOfflineFlag = new ClearMonitorsOfflineFlagHandler(monitorReader, dbClient);
-            clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
-            storeDustLevels = new StoreDustLevelsHandler(
+            _clearMonitorsOfflineFlag = new ClearMonitorsOfflineFlagHandler(monitorReader, dbClient);
+            _clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
+            _storeDustLevels = new StoreDustLevelsHandler(
                 gateway,
                 monitorReader,
                 dbClient,
@@ -112,7 +106,7 @@ namespace MyAtm.Api
                 new MyAtmRuleEvaluator(),
                 TimeProvider.System,
                 options.MaxPagesPerMonitorPerRun);
-            processDustLevels = new ProcessDustLevelsHandler(
+            _processDustLevels = new ProcessDustLevelsHandler(
                 dbClient,
                 dbClient,
                 dbClient,
@@ -120,24 +114,24 @@ namespace MyAtm.Api
                 ruleProcessor,
                 TimeProvider.System,
                 testLocal);
-            storeAccessoryInfo = new StoreAccessoryInfoHandler(gateway, monitorReader, dbClient, dbClient, dbClient, options.MaxPagesPerMonitorPerRun);
+            _storeAccessoryInfo = new StoreAccessoryInfoHandler(gateway, monitorReader, dbClient, dbClient, dbClient, options.MaxPagesPerMonitorPerRun);
         }
 
         public Task StoreMonitorsAsync(int customerId, CancellationToken cancellationToken = default) =>
-            storeMonitors.RunAsync(customerId, cancellationToken);
+            _storeMonitors.RunAsync(customerId, cancellationToken);
 
 
         public Task CheckForOfflineMonitorsAsync(int customerId, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return checkForOfflineMonitors.RunAsync(customerId, cancellationToken);
+            return _checkForOfflineMonitors.RunAsync(customerId, cancellationToken);
         }
 
 
         public Task ClearMonitorsOfflineFlagAsync(int customerId, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            clearMonitorsOfflineFlag.Run(customerId);
+            _clearMonitorsOfflineFlag.Run(customerId);
             return Task.CompletedTask;
         }
 
@@ -145,30 +139,30 @@ namespace MyAtm.Api
         public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            clearOlderErrorMessages.Run();
+            _clearOlderErrorMessages.Run();
             return Task.CompletedTask;
         }
 
 
         public Task StoreDustLevelsAsync<T>(int customerId, Period period, CancellationToken cancellationToken = default)
             where T : BaseDeviceMeasurement =>
-            storeDustLevels.RunAsync<T>(customerId, period, cancellationToken);
+            _storeDustLevels.RunAsync<T>(customerId, period, cancellationToken);
 
 
         public Task ProcessDustLevelsAsync<T>(int customerId, Period period, CancellationToken cancellationToken = default)
             where T : BaseDeviceMeasurement
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return processDustLevels.RunAsync<T>(customerId, period, cancellationToken);
+            return _processDustLevels.RunAsync<T>(customerId, period, cancellationToken);
         }
 
 
         public Task StoreAccessoryInfoAsync(int customerId, CancellationToken cancellationToken = default) =>
-            storeAccessoryInfo.RunAsync(customerId, cancellationToken);
+            _storeAccessoryInfo.RunAsync(customerId, cancellationToken);
 
 
         public Task DispatchOutboxAsync(CancellationToken cancellationToken = default) =>
-            outboxDispatcher.DispatchDueAsync(cancellationToken);
+            _outboxDispatcher.DispatchDueAsync(cancellationToken);
 
         private static MonitorDeliveryDispatcher CreateDispatcher(
             IDBClient dbClient,

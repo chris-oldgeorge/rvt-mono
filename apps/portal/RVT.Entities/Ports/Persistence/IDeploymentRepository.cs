@@ -2,15 +2,9 @@
 // Major updates:
 // - 2026-07-10 pending Moved the deployment repository contract out of the EF adapter into the core ports.
 
-using RVT.Entities.Querying;
-
 namespace RVT.Entities.Ports.Persistence;
 
 public interface IDeploymentRepository
 {
     Task<Deployment?> GetByIdAsync(Guid id);
-    Task<IList<Deployment>> ReadAllAsync();
-    Task<SearchQueryResult<Deployment>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default);
-    Task<Deployment?> ReadCurrentForMonitiorAsync(Guid monitorId);
-    Task<Deployment?> ReadCurrentForMonitiorAsync(Guid monitorId, DateTime notificationTime);
 }

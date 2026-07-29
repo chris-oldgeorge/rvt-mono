@@ -145,7 +145,7 @@ public sealed class MyAtmRuleEvaluatorTests
         RvtAlertRuleDto rule = CreateRule(monitor, "Pm2_5", AlertType.Alert, AlwaysActive());
         DateTime triggeredAt = new(2026, 7, 15, 12, 30, 0, DateTimeKind.Utc);
         DateTime commitTime = triggeredAt.AddSeconds(5);
-        MyAtmRuleProcessor processor = new(new StubRuleQueries(), "https://portal.example.test/");
+        MyAtmRuleProcessor processor = new(new StubRuleQueries());
 
         MyAtmAlertCommit commit = processor.CreateAggregateCommit(
             monitor,

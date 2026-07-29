@@ -9,13 +9,13 @@ namespace MyAtm.Api.UseCases;
 // Detects offline/online edges using elapsed active-site time and atomic alert commits.
 public sealed class CheckForOfflineMonitorsHandler
 {
-    private readonly IMyAtmRuleQueries ruleQueries;
-    private readonly MyAtmMonitorReader monitorReader;
-    private readonly IMyAtmSiteScheduleQueries siteScheduleQueries;
-    private readonly IMyAtmAlertCommitCommands alertCommitCommands;
-    private readonly IMyAtmOperationalCommands operationalCommands;
-    private readonly MyAtmRuleProcessor ruleProcessor;
-    private readonly TimeProvider timeProvider;
+    private readonly IMyAtmRuleQueries _ruleQueries;
+    private readonly MyAtmMonitorReader _monitorReader;
+    private readonly IMyAtmSiteScheduleQueries _siteScheduleQueries;
+    private readonly IMyAtmAlertCommitCommands _alertCommitCommands;
+    private readonly IMyAtmOperationalCommands _operationalCommands;
+    private readonly MyAtmRuleProcessor _ruleProcessor;
+    private readonly TimeProvider _timeProvider;
 
     public CheckForOfflineMonitorsHandler(
         IMyAtmRuleQueries ruleQueries,
@@ -26,22 +26,22 @@ public sealed class CheckForOfflineMonitorsHandler
         MyAtmRuleProcessor ruleProcessor,
         TimeProvider timeProvider)
     {
-        this.ruleQueries = ruleQueries;
-        this.monitorReader = monitorReader;
-        this.siteScheduleQueries = siteScheduleQueries;
-        this.alertCommitCommands = alertCommitCommands;
-        this.operationalCommands = operationalCommands;
-        this.ruleProcessor = ruleProcessor;
-        this.timeProvider = timeProvider;
+        _ruleQueries = ruleQueries;
+        _monitorReader = monitorReader;
+        _siteScheduleQueries = siteScheduleQueries;
+        _alertCommitCommands = alertCommitCommands;
+        _operationalCommands = operationalCommands;
+        _ruleProcessor = ruleProcessor;
+        _timeProvider = timeProvider;
     }
 
     public async Task RunAsync(int customerId, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        DateTime utcNow = timeProvider.GetUtcNow().UtcDateTime;
-        List<RvtAlertRuleDto> rules = [.. (ruleQueries.ReadRules(null) ?? []).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
-        List<DustMonitorDto> monitors = monitorReader.ReadMonitors(customerId) ?? [];
-        MyAtmFailureCollector failures = new(operationalCommands);
+        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+        List<RvtAlertRuleDto> rules = [.. (_ruleQueries.ReadRules(null) ?? []).Where(rule => RuleConstants.OFFLINE_RULE.Equals(rule.Field))];
+        List<DustMonitorDto> monitors = _monitorReader.ReadMonitors(customerId) ?? [];
+        MyAtmFailureCollector failures = new(_operationalCommands);
 
         foreach (DustMonitorDto monitor in monitors)
         {
@@ -54,7 +54,7 @@ public sealed class CheckForOfflineMonitorsHandler
                     DateTime offlineDateTime = DateTimeUtil.TruncateMillis(cutoff);
                     DateTime lastDataTime = monitor.LastDataTime1Min.HasValue
                         ? DateTimeUtil.AsUtc(DateTimeUtil.TruncateMillis(monitor.LastDataTime1Min.Value))
-                        : MyAtmApi.JAN1_1970;
+                        : DateTimeUtil.JAN1_1970;
 
                     if (lastDataTime >= cutoff)
                     {
@@ -67,7 +67,7 @@ public sealed class CheckForOfflineMonitorsHandler
                         throw new InvalidOperationException("Monitor timezone is missing or invalid.");
                     }
 
-                    MyAtmSiteSchedule schedule = siteScheduleQueries.ReadSiteSchedule(monitor.Id);
+                    MyAtmSiteSchedule schedule = _siteScheduleQueries.ReadSiteSchedule(monitor.Id);
                     TimeSpan activeDuration = MyAtmSiteActiveDurationCalculator.Between(
                         schedule,
                         lastDataTime,
@@ -77,13 +77,13 @@ public sealed class CheckForOfflineMonitorsHandler
                     {
                         if (!monitor.Offline)
                         {
-                            MyAtmAlertCommit commit = ruleProcessor.CreateOfflineCommit(
+                            MyAtmAlertCommit commit = _ruleProcessor.CreateOfflineCommit(
                                 monitor,
                                 rule,
                                 offlineDateTime.Subtract(lastDataTime).TotalSeconds,
                                 lastDataTime,
                                 utcNow);
-                            MyAtmAlertCommitResult result = await alertCommitCommands.CommitAlertAsync(commit, cancellationToken);
+                            MyAtmAlertCommitResult result = await _alertCommitCommands.CommitAlertAsync(commit, cancellationToken);
                             if (result.Applied)
                             {
                                 monitor.Offline = true;
@@ -118,8 +118,8 @@ public sealed class CheckForOfflineMonitorsHandler
             return;
         }
 
-        MyAtmAlertCommitResult result = await alertCommitCommands.CommitAlertAsync(
-            ruleProcessor.CreateOnlineRecoveryCommit(monitor, utcNow),
+        MyAtmAlertCommitResult result = await _alertCommitCommands.CommitAlertAsync(
+            _ruleProcessor.CreateOnlineRecoveryCommit(monitor, utcNow),
             cancellationToken);
         if (result.Applied)
         {

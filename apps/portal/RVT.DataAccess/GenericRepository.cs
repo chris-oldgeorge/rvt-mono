@@ -10,7 +10,6 @@
 // - 2026-06-26 pending Awaited EF Core save operations in async repository methods for Sonar reliability.
 // - 2026-06-26 pending Removed repository disposal of DI-owned DbContext instances.
 
-using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using RVT.Entities.Querying;
 
@@ -47,27 +46,10 @@ public class GenericRepository<TEntity> where TEntity : class
     #endregion
 
     #region Async Members
-    // Function summary: Retrieves all data for callers.
-    public virtual async Task<IList<TEntity>> ReadAllAsync()
-    {
-        return await DbSet.AsNoTracking().ToListAsync();
-    }
-
     // Function summary: Retrieves by ID data for callers.
     public virtual async Task<TEntity?> GetByIdAsync(Guid id)
     {
         return await DbSet.FindAsync(id);
-    }
-    // Function summary: Retrieves by ID data for callers.
-    public virtual async Task<TEntity?> GetByIdAsync(Guid id, string includeProperties)
-    {
-        List<Filter> query = new() { new SingleFilter { Operation = Op.Equals, PropertyName = "Id", Value = id } };
-
-        Expression<Func<TEntity, bool>> filt = FilterExpression.ExpressionBuilder.GetExpression<TEntity>(query);
-
-        // FirstOrDefaultAsync, not FirstAsync: a missing row is a null result for the caller to handle,
-        // not an InvalidOperationException thrown from inside the data-access layer.
-        return await DbSet.Include(includeProperties).Where(filt).FirstOrDefaultAsync();
     }
     #endregion
 

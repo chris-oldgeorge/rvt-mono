@@ -59,7 +59,6 @@ public sealed class MyAtmMonitorServiceRegistrationTests
         Assert.IsInstanceOfType<ProcessDustLevelsHandler>(provider.GetRequiredService<ProcessDustLevelsHandler>());
         Assert.IsInstanceOfType<ClearOlderErrorMessagesHandler>(provider.GetRequiredService<ClearOlderErrorMessagesHandler>());
         Assert.IsInstanceOfType<StoreAccessoryInfoHandler>(provider.GetRequiredService<StoreAccessoryInfoHandler>());
-        Assert.AreSame(provider.GetRequiredService<MyAtmApi>(), provider.GetRequiredService<MyAtmApi>());
         Assert.AreSame(provider.GetRequiredService<MyAtmService>(), provider.GetRequiredService<IMyAtmMonitorJobs>());
     }
 }

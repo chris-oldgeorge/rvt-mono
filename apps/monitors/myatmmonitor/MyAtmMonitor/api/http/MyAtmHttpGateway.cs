@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using MyAtm.Api.Ports;
 using MyAtm.Model.Json;
 using MyAtm.Model.Json.DeviceInfo;
 using Rvt.Monitor.Common.Diagnostics;
@@ -10,7 +11,7 @@ namespace MyAtm.Api.Http
     // Summary: Vendor HTTP gateway for the MyAtmosphere API - request building, calls, and response parsing.
     // Major updates:
     // - 2026-07-12 God-class split: extracted from the MyAtmApi partials (MyAtmApiMonitors, MyAtmApiDustLevels, MyAtmApiAccessoryInfo).
-    public class MyAtmHttpGateway
+    public class MyAtmHttpGateway : IMyAtmVendorGateway
     {
         private readonly IHttpClient httpClient;
         private readonly int devicePageSize;

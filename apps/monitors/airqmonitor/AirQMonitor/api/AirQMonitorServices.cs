@@ -55,6 +55,7 @@ public static class AirQMonitorServices
                 throw; // Need this to kill the instance.
             }
         });
+        services.AddSingleton<IAirQMonitorJobs>(provider => provider.GetRequiredService<AirQService>());
         services.AddSingleton<IAirQDateImporter>(provider => provider.GetRequiredService<AirQService>());
         return services;
     }

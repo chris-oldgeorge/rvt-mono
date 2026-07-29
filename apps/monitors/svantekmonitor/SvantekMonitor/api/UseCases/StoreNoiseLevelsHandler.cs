@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Rules;
 using Svantek.Api.Db;
-using Svantek.Api.Http;
+using Svantek.Api.Ports;
 using Svantek.Model.Http;
 using SvantekMonitor.model.dto;
 
@@ -15,7 +15,7 @@ public sealed class StoreNoiseLevelsHandler
 {
     private const string VendorDateFormat = "yyyy-MM-dd HH:mm:ss";
 
-    private readonly SvantekHttpGateway gateway;
+    private readonly ISvantekVendorGateway _gateway;
     private readonly SvantekMonitorReader monitorReader;
     private readonly ISvantekRuleQueries ruleQueries;
     private readonly ISvantekMonitorCommands monitorCommands;
@@ -26,7 +26,7 @@ public sealed class StoreNoiseLevelsHandler
     private readonly TimeProvider timeProvider;
 
     public StoreNoiseLevelsHandler(
-        SvantekHttpGateway gateway,
+        ISvantekVendorGateway gateway,
         SvantekMonitorReader monitorReader,
         ISvantekRuleQueries ruleQueries,
         ISvantekMonitorCommands monitorCommands,
@@ -36,7 +36,7 @@ public sealed class StoreNoiseLevelsHandler
         NoiseRequestWindowCalculator windowCalculator,
         TimeProvider? timeProvider = null)
     {
-        this.gateway = gateway;
+        _gateway = gateway;
         this.monitorReader = monitorReader;
         this.ruleQueries = ruleQueries;
         this.monitorCommands = monitorCommands;
@@ -118,7 +118,7 @@ public sealed class StoreNoiseLevelsHandler
                 };
             })];
 
-            List<MultiData> response = await gateway.GetDataMultiAsync(
+            List<MultiData> response = await _gateway.GetDataMultiAsync(
                 projectId.ToString(CultureInfo.InvariantCulture),
                 arguments,
                 cancellationToken).ConfigureAwait(false);

@@ -44,17 +44,19 @@ namespace Omnidots.Api.UseCases
             string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
             List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
             DateTime utcNow = DateTime.UtcNow;
-            List<OmnidotsMonitorFailure> failures = [];
-            foreach (VibrationMonitorDto monitor in monitors)
-            {
-                if ("OmniDots guest".Equals(monitor.CustomerDisplayName))
+            List<OmnidotsMonitorFailure> failures = await OmnidotsFleetImport.RunAsync(
+                "StoreVdvRecords",
+                monitors,
+                operationalCommands,
+                async monitor =>
                 {
-                    RvtLogger.Logger.LogWarning("StoreVdvRecords Not collecting data for monitor={Value1}", monitor.CustomerDisplayName);
-                    continue;
-                }
+                    if ("OmniDots guest".Equals(monitor.CustomerDisplayName))
+                    {
+                        RvtLogger.Logger.LogWarning("StoreVdvRecords Not collecting data for monitor={Value1}", monitor.CustomerDisplayName);
+                        return;
+                    }
 
-                try
-                {
+
                     DateTime startTime = ResolveStart(monitor.SerialId, utcNow, lookback);
                     VdvRecords records = await _gateway.GetVdvRecordsAsync(token, startTime, utcNow, monitor.SerialId, cancellationToken);
                     List<VdvRecordDto> dtos = [.. records!.Samples!
@@ -78,22 +80,10 @@ namespace Omnidots.Api.UseCases
                     {
                         RvtLogger.Logger.LogDebug("StoreVdvRecords no samples for serialId={Value1}", monitor.SerialId);
                     }
-                }
-                catch (Exception e)
-                {
-                    string msg = string.Format("StoreVdvRecords serialId={0}", monitor.SerialId);
-                    RvtLogger.Logger.LogError(e, "StoreVdvRecords failed for serialId={Value1}", monitor.SerialId);
-                    failures.Add(OmnidotsMonitorFailure.Record(
-                        monitor.SerialId,
-                        e,
-                        () => operationalCommands.HandleException(msg, e)));
-                }
-            }
+                },
+                cancellationToken);
 
-            if (failures.Count > 0)
-            {
-                throw new OmnidotsImportException("StoreVdvRecords", failures);
-            }
+            OmnidotsFleetImport.ThrowIfAny("StoreVdvRecords", failures);
 
         }
 

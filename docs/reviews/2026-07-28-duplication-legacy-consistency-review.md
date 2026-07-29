@@ -366,6 +366,13 @@ caller sees a warning. Retirement order (each step unblocks the next):
     sweep; fix the intra-class mixes first.
 16. Ports for Svantek/MyAtm; one job-service shape; reuse `RunFleetAsync` in
     Omnidots Veff/Vdv/Traces.
+    **Done: `ISvantekVendorGateway` and `IMyAtmVendorGateway` mirror the
+    AirQ/Omnidots ports; AirQ gained `IAirQMonitorJobs` so every monitor's job
+    catalog binds an interface (Omnidots' provider shape stays — its durable
+    jobs resolve scoped services); the four Omnidots fleet loops share
+    `OmnidotsFleetImport`, which also fixes Veff/Vdv/Traces recording a
+    mid-fleet cancellation as a monitor failure, and standardizes the traces
+    failure message onto the `{job} serialId={id}` pattern.**
 17. Execute the legacy-retirement map (§8).
 18. Batch ratchet paydown: repo-wide IDE0008 fix + `--update-baseline`
     (59% of debt, mechanical), CHARSET sweep, prettier one-shot, DOC-002

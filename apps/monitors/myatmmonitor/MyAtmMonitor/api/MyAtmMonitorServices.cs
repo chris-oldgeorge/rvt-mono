@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
+using MyAtm.Api.Ports;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
 using Rvt.Communication;
@@ -91,6 +92,7 @@ public static class MyAtmMonitorServices
             provider.GetRequiredService<MyAtmMonitorOptions>().DevicePageSize,
             provider.GetRequiredService<MyAtmMonitorOptions>().MeasurementPageSize,
             provider.GetRequiredService<MyAtmMonitorOptions>().AccessoryPageSize));
+        services.AddSingleton<IMyAtmVendorGateway>(provider => provider.GetRequiredService<MyAtmHttpGateway>());
         services.AddSingleton(provider => new MyAtmMonitorReader(
             provider.GetRequiredService<IMyAtmMonitorQueries>(),
             provider.GetRequiredService<IMyAtmOperationalCommands>(),
@@ -100,7 +102,7 @@ public static class MyAtmMonitorServices
             provider.GetRequiredService<IMyAtmRuleQueries>(),
             provider.GetRequiredService<MyAtmMonitorOptions>().PortalBaseUrl));
         services.AddSingleton(provider => new StoreMonitorsHandler(
-            provider.GetRequiredService<MyAtmHttpGateway>(),
+            provider.GetRequiredService<IMyAtmVendorGateway>(),
             provider.GetRequiredService<IMyAtmMonitorCommands>(),
             provider.GetRequiredService<IMyAtmOperationalCommands>(),
             RvtConfig.TESTLOCAL,
@@ -110,7 +112,7 @@ public static class MyAtmMonitorServices
         services.AddSingleton<ClearMonitorsOfflineFlagHandler>();
         services.AddSingleton<ClearOlderErrorMessagesHandler>();
         services.AddSingleton(provider => new StoreDustLevelsHandler(
-            provider.GetRequiredService<MyAtmHttpGateway>(),
+            provider.GetRequiredService<IMyAtmVendorGateway>(),
             provider.GetRequiredService<MyAtmMonitorReader>(),
             provider.GetRequiredService<IMyAtmRuleQueries>(),
             provider.GetRequiredService<IMyAtmDustImportCommands>(),
@@ -127,7 +129,7 @@ public static class MyAtmMonitorServices
             provider.GetRequiredService<TimeProvider>(),
             RvtConfig.TESTLOCAL));
         services.AddSingleton(provider => new StoreAccessoryInfoHandler(
-            provider.GetRequiredService<MyAtmHttpGateway>(),
+            provider.GetRequiredService<IMyAtmVendorGateway>(),
             provider.GetRequiredService<MyAtmMonitorReader>(),
             provider.GetRequiredService<IMyAtmAccessoryCommands>(),
             provider.GetRequiredService<IMyAtmMeasurementQueries>(),

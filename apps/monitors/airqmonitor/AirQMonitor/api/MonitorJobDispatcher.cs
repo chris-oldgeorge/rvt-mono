@@ -9,7 +9,7 @@ namespace AirQ.Api;
 // - 2026-07-29 Job catalog: schedule validation reads the catalog directly, so
 //   the dispatcher no longer needs a parameterless constructor, a nullable
 //   service, or a runtime guard against being used unconstructed.
-internal sealed class AirQMonitorJobDispatcher(AirQService service) : IMonitorJobDispatcher
+internal sealed class AirQMonitorJobDispatcher(IAirQMonitorJobs service) : IMonitorJobDispatcher
 {
     public IReadOnlySet<string> SupportedJobNames => AirQMonitorJobs.Catalog.JobNames;
 

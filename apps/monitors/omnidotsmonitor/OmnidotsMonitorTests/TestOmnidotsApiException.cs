@@ -370,7 +370,7 @@ namespace OmnidotsAdapterTests
             httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Once);
             httpClient.Verify(c => c.GetAsync(It.Is<string>(url =>
                 url.StartsWith("/api/v1/get_traces_list", StringComparison.Ordinal)), It.IsAny<CancellationToken>()), Times.Exactly(2));
-            dbClient.Verify(c => c.HandleException("Failed to read traces for serialId=23423", It.IsAny<AdapterException>()), Times.Once);
+            dbClient.Verify(c => c.HandleException("StoreTraces serialId=23423", It.IsAny<AdapterException>()), Times.Once);
         }
 
         [TestMethod]
@@ -434,7 +434,7 @@ namespace OmnidotsAdapterTests
                 .Returns(OmnidotsFixture.StringTask("invalid-json"))
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"traces\":[]}"));
             InvalidOperationException recordingException = new("database-password=secret-value");
-            dbClient.Setup(c => c.HandleException("Failed to read traces for serialId=23423", It.IsAny<AdapterException>()))
+            dbClient.Setup(c => c.HandleException("StoreTraces serialId=23423", It.IsAny<AdapterException>()))
                 .Throws(recordingException);
 
             OmnidotsImportException exception = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(() => testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5)));
@@ -443,7 +443,7 @@ namespace OmnidotsAdapterTests
             httpClient.Verify(c => c.GetAsync(It.Is<string>(url =>
                 url.StartsWith("/api/v1/get_traces_list", StringComparison.Ordinal)), It.IsAny<CancellationToken>()), Times.Exactly(2));
             dbClient.Verify(c => c.HandleException(
-                "Failed to read traces for serialId=23423",
+                "StoreTraces serialId=23423",
                 It.IsAny<AdapterException>()), Times.Once);
         }
 

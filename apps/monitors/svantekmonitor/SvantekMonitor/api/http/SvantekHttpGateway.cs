@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Diagnostics;
+using Svantek.Api.Ports;
 using Svantek.Model.Http;
 
 namespace Svantek.Api.Http
@@ -9,7 +10,7 @@ namespace Svantek.Api.Http
     // Summary: Vendor HTTP gateway for the SvanNET API - request building, calls, and response parsing.
     // Major updates:
     // - 2026-07-12 God-class split: extracted from the SvantekApi partials (SvantekApiProjects, SvantekApi).
-    public class SvantekHttpGateway
+    public class SvantekHttpGateway : ISvantekVendorGateway
     {
         private const string API_URL_PROJECTS_GET_DATA = "projects-get-data.php";
         private const string API_URL_STATIONS_GET_LIST = "stations-get-list.php";

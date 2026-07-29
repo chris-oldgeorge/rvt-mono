@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using MyAtm.Api.Db;
-using MyAtm.Api.Http;
+using MyAtm.Api.Ports;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
@@ -12,7 +12,7 @@ namespace MyAtm.Api.UseCases;
 // Fetches and atomically stores new dust pages; delivery is handled by the independent outbox job.
 public sealed class StoreDustLevelsHandler
 {
-    private readonly MyAtmHttpGateway gateway;
+    private readonly IMyAtmVendorGateway _gateway;
     private readonly MyAtmMonitorReader monitorReader;
     private readonly IMyAtmRuleQueries ruleQueries;
     private readonly IMyAtmDustImportCommands dustImportCommands;
@@ -22,7 +22,7 @@ public sealed class StoreDustLevelsHandler
     private readonly int maxPagesPerMonitorPerRun;
 
     public StoreDustLevelsHandler(
-        MyAtmHttpGateway gateway,
+        IMyAtmVendorGateway gateway,
         MyAtmMonitorReader monitorReader,
         IMyAtmRuleQueries ruleQueries,
         IMyAtmDustImportCommands dustImportCommands,
@@ -31,7 +31,7 @@ public sealed class StoreDustLevelsHandler
         TimeProvider timeProvider,
         int maxPagesPerMonitorPerRun)
     {
-        this.gateway = gateway;
+        _gateway = gateway;
         this.monitorReader = monitorReader;
         this.ruleQueries = ruleQueries;
         this.dustImportCommands = dustImportCommands;
@@ -56,7 +56,7 @@ public sealed class StoreDustLevelsHandler
                 DateTime cursor = DateTimeUtil.AsUtc(monitor.GetLastDataTime(period) ?? MyAtmApi.JAN1_1970);
                 for (int pageNumber = 0; pageNumber < maxPagesPerMonitorPerRun; pageNumber++)
                 {
-                    MyAtmMeasurementPage<T> page = await gateway.HttpGetDeviceMeasurementPageAsync<T>(
+                    MyAtmMeasurementPage<T> page = await _gateway.HttpGetDeviceMeasurementPageAsync<T>(
                         customerId,
                         monitor.SerialId,
                         cursor,

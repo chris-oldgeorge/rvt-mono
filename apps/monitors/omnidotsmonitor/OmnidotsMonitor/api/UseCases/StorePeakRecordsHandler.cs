@@ -46,12 +46,19 @@ namespace Omnidots.Api.UseCases
             List<VibrationMonitorDto> monitors = monitorReader.ReadMonitors();
             string token = (await _gateway.AuthenticateAsync(cancellationToken)).Token!;
             DateTime utcNow = DateTime.UtcNow;
-            await RunFleetAsync(monitors, async monitor =>
-            {
-                DateTime startTime = ResolvePeakStart(monitor);
-                await StorePeakRecordsAsync(monitor: monitor, startTime: startTime, endTime: utcNow, token: token,
-                    cancellationToken: cancellationToken);
-            }, RecordFailure, cancellationToken);
+            List<OmnidotsMonitorFailure> failures = await OmnidotsFleetImport.RunAsync(
+                "StorePeakRecords",
+                monitors,
+                operationalCommands,
+                async monitor =>
+                {
+                    DateTime startTime = ResolvePeakStart(monitor);
+                    await StorePeakRecordsAsync(monitor: monitor, startTime: startTime, endTime: utcNow, token: token,
+                        cancellationToken: cancellationToken);
+                },
+                cancellationToken);
+
+            OmnidotsFleetImport.ThrowIfAny("StorePeakRecords", failures);
         }
 
         private DateTime ResolvePeakStart(VibrationMonitorDto monitor)
@@ -79,35 +86,6 @@ namespace Omnidots.Api.UseCases
             return fallback.AddMinutes(-5);
         }
 
-        private static async Task RunFleetAsync(
-            IEnumerable<VibrationMonitorDto> monitors,
-            Func<VibrationMonitorDto, Task> import,
-            Action<string, Exception, List<OmnidotsMonitorFailure>> recordFailure,
-            CancellationToken cancellationToken)
-        {
-            List<OmnidotsMonitorFailure> failures = [];
-            foreach (VibrationMonitorDto monitor in monitors)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                try
-                {
-                    await import(monitor);
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (Exception e)
-                {
-                    recordFailure(monitor.SerialId, e, failures);
-                }
-            }
-
-            if (failures.Count > 0)
-            {
-                throw new OmnidotsImportException("StorePeakRecords", failures);
-            }
-        }
 
         private async Task<int> StorePeakRecordsAsync(VibrationMonitorDto monitor, DateTime startTime, DateTime? endTime, string token, CancellationToken cancellationToken)
         {
@@ -196,14 +174,5 @@ namespace Omnidots.Api.UseCases
             return table.Rows.Count;
         }
 
-        private void RecordFailure(string serialId, Exception exception, List<OmnidotsMonitorFailure> failures)
-        {
-            string msg = string.Format("StorePeakRecords serialId={0}", serialId);
-            RvtLogger.Logger.LogError(exception, "StorePeakRecords failed for serialId={Value1}", serialId);
-            failures.Add(OmnidotsMonitorFailure.Record(
-                serialId,
-                exception,
-                () => operationalCommands.HandleException(msg, exception)));
-        }
     }
 }

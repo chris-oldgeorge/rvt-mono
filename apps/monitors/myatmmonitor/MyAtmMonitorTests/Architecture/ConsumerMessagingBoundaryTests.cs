@@ -5,12 +5,9 @@ namespace MyAtmMonitorTests.Architecture;
 [TestClass]
 public sealed class ConsumerMessagingBoundaryTests
 {
-    private static readonly string[] SynchronousCompatibilityCallers =
-    [
-        // Omnidots left this list on 2026-07-29 when its offline/battery
-        // alerting moved to the durable stack (legacy-retirement step 3).
-        "apps/monitors/myatmmonitor/MyAtmMonitor/api/MyAtmRuleProcessor.cs"
-    ];
+    // Emptied on 2026-07-29 when legacy-retirement step 4 deleted MyAtm's
+    // compat-only direct-delivery route, the last synchronous caller here.
+    private static readonly string[] _synchronousCompatibilityCallers = [];
 
     [TestMethod]
     public void ObsoleteSynchronousMessageCallsAreLimitedToConsumerCompatibilityAllowlist()
@@ -28,7 +25,7 @@ public sealed class ConsumerMessagingBoundaryTests
             .Order(StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(
-            SynchronousCompatibilityCallers.Order(StringComparer.Ordinal).ToArray(),
+            _synchronousCompatibilityCallers.Order(StringComparer.Ordinal).ToArray(),
             callers);
     }
 

@@ -1,35 +1,43 @@
+using System.Globalization;
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Monitor.Common.Mqtt;
-using Rvt.Monitor.Common.Rules;
+using Rvt.Monitor.Common.Notifications;
 
 namespace Rvt.Monitor.Common.Rules;
 
+// Summary: Shared noise-rule evaluation; breaches become durable alert signals.
+// Major updates:
+// - 2026-07-29 Legacy retirement step 4: breaches now signal IAlertIngressPort
+//   (durable notification, contact fan-out, and MQTT delivery) instead of the
+//   deleted RuleAlertNotificationDispatcher's inline synchronous sends.
+
 public sealed class NoiseRuleEvaluator
 {
-    private readonly Action<RvtAlertRuleDto> updateAlertRule;
-    private readonly Func<Guid, List<RvtContactDto>> readAlertContacts;
-    private readonly Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts;
-    private readonly IMonitorEventPublisher eventPublisher;
+    private readonly Action<RvtAlertRuleDto> _updateAlertRule;
+    private readonly IAlertIngressPort _alertIngress;
+    private readonly string _signalSource;
 
     public NoiseRuleEvaluator(
         Action<RvtAlertRuleDto> updateAlertRule,
-        Func<Guid, List<RvtContactDto>> readAlertContacts,
-        Action<RuleNotificationRequest, List<RvtContactDto>> processAlertForContacts,
-        IMonitorEventPublisher eventPublisher)
+        IAlertIngressPort alertIngress,
+        string signalSource)
     {
-        this.updateAlertRule = updateAlertRule;
-        this.readAlertContacts = readAlertContacts;
-        this.processAlertForContacts = processAlertForContacts;
-        this.eventPublisher = eventPublisher;
+        ArgumentNullException.ThrowIfNull(updateAlertRule);
+        ArgumentNullException.ThrowIfNull(alertIngress);
+        ArgumentException.ThrowIfNullOrWhiteSpace(signalSource);
+
+        _updateAlertRule = updateAlertRule;
+        _alertIngress = alertIngress;
+        _signalSource = signalSource;
     }
 
-    public Rvt.Monitor.Common.Notifications.AlertType Evaluate(
+    public async Task<AlertType> EvaluateAsync(
         RuleEvaluationRequest request,
         RvtAlertRuleDto rule,
         double level,
-        Rvt.Monitor.Common.Notifications.AlertType previousAlert)
+        AlertType previousAlert,
+        CancellationToken cancellationToken = default)
     {
         if (request.DeactivateDeletedRules && rule.IsDeleted)
         {
@@ -37,7 +45,7 @@ public sealed class NoiseRuleEvaluator
             if (rule.IsActive)
             {
                 rule.IsActive = false;
-                updateAlertRule(rule);
+                _updateAlertRule(rule);
             }
 
             return previousAlert;
@@ -57,7 +65,7 @@ public sealed class NoiseRuleEvaluator
 
         if (level >= rule.LimitOn)
         {
-            return ProcessLimitExceeded(request, rule, level, previousAlert);
+            return await ProcessLimitExceededAsync(request, rule, level, previousAlert, cancellationToken);
         }
 
         if (level <= rule.LimitOff)
@@ -70,7 +78,7 @@ public sealed class NoiseRuleEvaluator
             if (rule.IsActive)
             {
                 rule.IsActive = false;
-                updateAlertRule(rule);
+                _updateAlertRule(rule);
             }
 
             return previousAlert;
@@ -90,14 +98,15 @@ public sealed class NoiseRuleEvaluator
         return previousAlert;
     }
 
-    private Rvt.Monitor.Common.Notifications.AlertType ProcessLimitExceeded(
+    private async Task<AlertType> ProcessLimitExceededAsync(
         RuleEvaluationRequest request,
         RvtAlertRuleDto rule,
         double level,
-        Rvt.Monitor.Common.Notifications.AlertType previousAlert)
+        AlertType previousAlert,
+        CancellationToken cancellationToken)
     {
-        if (rule.AlertType != Rvt.Monitor.Common.Notifications.AlertType.Alert
-            && (previousAlert == Rvt.Monitor.Common.Notifications.AlertType.Alert || rule.AlertType != Rvt.Monitor.Common.Notifications.AlertType.Caution))
+        if (rule.AlertType != AlertType.Alert
+            && (previousAlert == AlertType.Alert || rule.AlertType != AlertType.Caution))
         {
             RvtLogger.Logger.LogInformation("PROCESS-RULES Already have an Alert for this monitor and field.");
             return previousAlert;
@@ -109,30 +118,25 @@ public sealed class NoiseRuleEvaluator
             return rule.AlertType;
         }
 
-        List<RvtContactDto> contacts = readAlertContacts(request.MonitorId);
-        processAlertForContacts(
-            new RuleNotificationRequest(
-                request.FleetNr,
-                rule.SerialId!,
+        string message = string.Create(
+            CultureInfo.InvariantCulture,
+            $"Alert {rule.Field} level={level} exceeds limitOn/Off={rule.LimitOn}/{rule.LimitOff}");
+        await _alertIngress.AcceptAsync(
+            RuleAlertSignals.Create(
+                _signalSource,
+                request.MonitorSerialId,
                 request.AlertTime,
-                rule.LimitOn,
-                rule.AveragingPeriod,
-                level,
                 rule.AlertType,
                 rule.Field,
-                request.MonitorId),
-            contacts);
-
-        string text = string.Format(
-            "Alert {0} level={1} exceeds limitOn/Off={2}/{3}",
-            rule.Field,
-            level,
-            rule.LimitOn,
-            rule.LimitOff);
-        eventPublisher.PublishAlert(request.PublishTime, request.MonitorSerialId, text);
+                level,
+                rule.LimitOn,
+                rule.AveragingPeriod,
+                message,
+                AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms),
+            cancellationToken);
 
         rule.IsActive = true;
-        updateAlertRule(rule);
+        _updateAlertRule(rule);
         return rule.AlertType;
     }
 }
@@ -153,6 +157,6 @@ public sealed record RuleNotificationRequest(
     double LimitOn,
     int AveragingPeriod,
     double Level,
-    Rvt.Monitor.Common.Notifications.AlertType AlertType,
+    AlertType AlertType,
     string Field,
     Guid MonitorId);

@@ -12,10 +12,9 @@ public sealed class CommunicationsBoundaryTests
         "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Sms/TransmitSmsClient.cs"
     ];
 
-    private static readonly string[] SynchronousCompatibilityCallers =
-    [
-        "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rules/RuleAlertNotificationDispatcher.cs"
-    ];
+    // Emptied on 2026-07-29 when legacy-retirement step 4 deleted
+    // RuleAlertNotificationDispatcher, the last synchronous caller in Common.
+    private static readonly string[] _synchronousCompatibilityCallers = [];
 
     [TestMethod]
     public void CommonContainsNoLegacyTransportOrProviderPackage()
@@ -149,7 +148,7 @@ public sealed class CommunicationsBoundaryTests
             .Order(StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(
-            SynchronousCompatibilityCallers.Order(StringComparer.Ordinal).ToArray(),
+            _synchronousCompatibilityCallers.Order(StringComparer.Ordinal).ToArray(),
             callers);
     }
 

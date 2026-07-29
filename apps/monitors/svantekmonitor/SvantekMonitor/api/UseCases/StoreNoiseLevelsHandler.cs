@@ -229,7 +229,7 @@ public sealed class StoreNoiseLevelsHandler
 
         cancellationToken.ThrowIfCancellationRequested();
         List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId);
-        ruleProcessor.ProcessRules(monitor, rules, monitor.PeriodStartDate, lastDataTime.Value);
+        await ruleProcessor.ProcessRulesAsync(monitor, rules, monitor.PeriodStartDate, lastDataTime.Value, cancellationToken).ConfigureAwait(false);
     }
 
     private static DataTable CreateResultsTable()

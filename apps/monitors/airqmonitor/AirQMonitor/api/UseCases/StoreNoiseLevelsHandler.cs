@@ -106,7 +106,7 @@ namespace AirQ.Api.UseCases
                             await eventPublisher.PublishDataInsertedAsync((DateTime)lastDataTime!, monitor.SerialId, cancellationToken: cancellationToken);
 
                             List<RvtAlertRuleDto> rules = ruleQueries.ReadRules(monitor.SerialId);
-                            ruleProcessor.ProcessRulesV2(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos);
+                            await ruleProcessor.ProcessRulesV2Async(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos, cancellationToken);
                         }
 
                     }

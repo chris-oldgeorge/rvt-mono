@@ -6,7 +6,7 @@ using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Language.Flow;
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
@@ -28,7 +28,7 @@ namespace AirQMonitorTests
         public async Task TestStoreNoiseLevels_EmptyRules_Success()
         {
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
+                                                     out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
@@ -58,14 +58,14 @@ namespace AirQMonitorTests
             mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
             mqttClient.VerifyNoOtherCalls();
 
-            messageService.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
         public async Task TestStoreNoiseLevels_TruncatedByTimestamp_Success()
         {
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
+                                                     out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
@@ -82,7 +82,7 @@ namespace AirQMonitorTests
 
             mqttClient.VerifyNoOtherCalls();
 
-            messageService.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
@@ -90,7 +90,7 @@ namespace AirQMonitorTests
         {
 
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
+                                                     out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
 
             string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + yesterday + "&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
@@ -112,7 +112,7 @@ namespace AirQMonitorTests
 
             mqttClient.VerifyNoOtherCalls();
 
-            messageService.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
@@ -121,7 +121,7 @@ namespace AirQMonitorTests
 
             string dateStr = "2023-09-11";
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
+                                                     out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
 
             IReturnsResult<IHttpClient> regex =
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
@@ -142,7 +142,7 @@ namespace AirQMonitorTests
 
             mqttClient.VerifyNoOtherCalls();
 
-            messageService.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
@@ -168,7 +168,7 @@ namespace AirQMonitorTests
         public async Task TestStoreNoiseLevelsInactiveMonitor_Success()
         {
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
+                                                     out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
@@ -186,7 +186,7 @@ namespace AirQMonitorTests
 
             mqttClient.VerifyNoOtherCalls();
 
-            messageService.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
@@ -195,7 +195,7 @@ namespace AirQMonitorTests
 
             string dateStr = "2023-09-11";
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
+                                                     out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/dataForDate\\?userID=foo&date=" + dateStr + "&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
@@ -213,7 +213,7 @@ namespace AirQMonitorTests
 
             mqttClient.VerifyNoOtherCalls();
 
-            messageService.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
         }
 
         // don't have time to remock this test
@@ -224,7 +224,7 @@ namespace AirQMonitorTests
         //{
 
         //    var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-        //                                 out Mock<IMqttClient> mqttClient, out Mock<IMessageService> messageService);
+        //                                 out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
 
         //    var monitors = AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE);
         //    dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);

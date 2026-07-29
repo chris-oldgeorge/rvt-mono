@@ -1,4 +1,3 @@
-using System.Data;
 using System.Text.Json;
 using AirQ.Api;
 using AirQ.Api.Db;
@@ -7,16 +6,13 @@ using AirQ.Model.Dto;
 using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQMonitorTests
 {
     [TestClass]
@@ -31,16 +27,6 @@ namespace AirQMonitorTests
             RvtLogger.CreateLogger(factory, "TestRules");
         }
 
-        private static Rvt.Monitor.Common.Notifications.RvtContactDto ContactEquivalentTo(RvtContactDto expected) =>
-            It.Is<Rvt.Monitor.Common.Notifications.RvtContactDto>(actual =>
-                actual.ContactMethod == (Rvt.Monitor.Common.Notifications.ContactMethod)(int)expected.ContactMethod &&
-                actual.EmailAddress == expected.EmailAddress &&
-                actual.PhoneNumber == expected.PhoneNumber &&
-                actual.Email == expected.Email &&
-                actual.SMS == expected.SMS &&
-                actual.SendStartTime == expected.SendStartTime &&
-                actual.SendEndTime == expected.SendEndTime);
-
 
         [TestMethod]
         [DynamicData(nameof(DateExclusion))]
@@ -52,7 +38,7 @@ namespace AirQMonitorTests
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
+                                                     out Mock<IAlertIngressPort> messageClient);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.SamplesResponseJson()));
@@ -79,16 +65,12 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.ReadRules("Device2"), Times.Exactly(1));
             dbClient.Verify(c => c.ReadRules("Device3"), Times.Exactly(1));
 
-            //dbClient.Verify(c => c.UpdateMonitorStatus(monitors[1].SerialId, monitors[1].MonitorStatus));
-            //dbClient.Verify(c => c.UpdateMonitorStatus(monitors[2].SerialId, monitors[2].MonitorStatus));
-            //dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-            //dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, monitors[0].SerialId, "LAeq", true))), Times.Exactly(1));
             dbClient.VerifyNoOtherCalls();
 
             mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
             mqttClient.VerifyNoOtherCalls();
 
-            messageService.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
@@ -97,7 +79,7 @@ namespace AirQMonitorTests
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
+                                                     out Mock<IAlertIngressPort> messageClient);
 
             DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
@@ -113,9 +95,6 @@ namespace AirQMonitorTests
                     Returns(monitors);
 
             Guid ruleId = Guid.NewGuid();
-            List<RvtContactDto> contacts = AirQFixture.AlertContacts();
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-
 
             httpClient.SetupSequence(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements1))).
@@ -132,9 +111,6 @@ namespace AirQMonitorTests
                                                             AlertType.Alert, true, false, DateTime.UtcNow,
                                                             DateTime.UtcNow.AddMinutes(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1) )]);
 
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, "LAeq", ruleOn.AlertType)).
-                                Returns(false);
-
             // first store noise levels should trigger an alert second should cancel it
             await testObj.StoreNoiseLevelsAsync("foo", "bar");
             await testObj.StoreNoiseLevelsAsync("foo", "bar");
@@ -144,7 +120,6 @@ namespace AirQMonitorTests
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(2));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(2));
@@ -154,18 +129,25 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()), Times.Exactly(1));
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.AddMinutes(15).ToUniversalTime()), Times.Exactly(1));
 
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(dto => TestUtil.VerifyNotificationDto(dto, ruleOn, alertLevel + 1, startTime.ToUniversalTime(), durationSeconds, alertLevel))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, "LAeq", ruleOn.AlertType), Times.Exactly(0));
             dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
                 Times.Exactly(1));
-
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
             dbClient.VerifyNoOtherCalls();
 
-            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-            messageService.VerifyNoOtherCalls();
+            // The durable stack owns notification persistence, contact fan-out,
+            // audits, and MQTT delivery; the breach contract is one signal.
+            messageClient.Verify(ingress => ingress.AcceptAsync(
+                It.Is<AlertSignal>(signal =>
+                    signal.Source == "airq.rules" &&
+                    signal.SerialId == serialId &&
+                    signal.AlertType == AlertType.Alert &&
+                    signal.Field == "LAeq" &&
+                    signal.Level == alertLevel + 1 &&
+                    signal.Limit == alertLevel &&
+                    signal.AveragingPeriod == durationSeconds &&
+                    signal.DeliveryChannels == (AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms) &&
+                    signal.SuppressionWindow == TimeSpan.Zero),
+                It.IsAny<CancellationToken>()), Times.Once);
+            messageClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
@@ -174,7 +156,7 @@ namespace AirQMonitorTests
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
+                                                     out Mock<IAlertIngressPort> messageClient);
 
             // In this test we get 3 noise levels first 2 should trigger an alert third should remove the trigger
             DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
@@ -192,8 +174,6 @@ namespace AirQMonitorTests
                    Returns(monitors);
 
             Guid ruleId = Guid.NewGuid();
-            List<RvtContactDto> contacts = AirQFixture.AlertContacts();
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
             int durationSeconds = 15 * 60;
             RvtAlertRuleDto rule = new(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
@@ -216,9 +196,6 @@ namespace AirQMonitorTests
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(alertingMeasurements))).
                                  Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(nonAlertingMeasurements)));
 
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType)).
-                Returns(false);
-
             await testObj.StoreNoiseLevelsAsync("foo", "bar");
             await testObj.StoreNoiseLevelsAsync("foo", "bar");
             await testObj.StoreNoiseLevelsAsync("foo", "bar");
@@ -228,7 +205,6 @@ namespace AirQMonitorTests
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(2));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(3));
@@ -238,19 +214,26 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()), Times.Exactly(2));
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.AddMinutes(15).ToUniversalTime()), Times.Exactly(1));
 
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(2));
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(dto => TestUtil.VerifyNotificationDto(dto, rule, limitOn, startTime.ToUniversalTime(), durationSeconds, limitOn))),
-                Times.Exactly(2));
-            dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType), Times.Exactly(0));
             dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
                 Times.Exactly(2));
             dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", false))),
                 Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
             dbClient.VerifyNoOtherCalls();
 
-            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(2));
-            messageService.VerifyNoOtherCalls();
+            // One durable signal per breach; delivery fan-out is downstream.
+            messageClient.Verify(ingress => ingress.AcceptAsync(
+                It.Is<AlertSignal>(signal =>
+                    signal.Source == "airq.rules" &&
+                    signal.SerialId == serialId &&
+                    signal.AlertType == AlertType.Alert &&
+                    signal.Field == "LAeq" &&
+                    signal.Level == limitOn &&
+                    signal.Limit == limitOn &&
+                    signal.AveragingPeriod == durationSeconds &&
+                    signal.DeliveryChannels == (AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms) &&
+                    signal.SuppressionWindow == TimeSpan.Zero),
+                It.IsAny<CancellationToken>()), Times.Exactly(2));
+            messageClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
@@ -259,7 +242,7 @@ namespace AirQMonitorTests
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
+                                                     out Mock<IAlertIngressPort> messageClient);
 
             string serialId = "MyDev1XXX";
             DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
@@ -271,8 +254,6 @@ namespace AirQMonitorTests
                                Returns(monitors);
 
             Guid ruleId = Guid.NewGuid();
-            List<RvtContactDto> contacts = AirQFixture.AlertContacts();
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=blah&token=blahh&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
@@ -292,10 +273,8 @@ namespace AirQMonitorTests
                                                             ruleActivity,
                                                             AlertType.Alert, true, false, created, created.AddMinutes(-(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1)) )]);
 
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, "Pm1", rule.AlertType)).
-                   Returns(false);
-
-            // first store noise levels should trigger an alert, second should not as it occurred before RULE_ALERT_DELAY_MINUTES but 3rd should as it's after RULE_ALERT_DELAY_MINUTES
+            // first store noise levels should trigger an alert; while the rule stays latched
+            // the later runs emit nothing (repeat-delivery timing lives in the durable stack)
             await testObj.StoreNoiseLevelsAsync("blah", "blahh");
             await testObj.StoreNoiseLevelsAsync("blah", "blahh");
             await testObj.StoreNoiseLevelsAsync("blah", "blahh");
@@ -305,43 +284,39 @@ namespace AirQMonitorTests
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(3));
             dbClient.Verify(c => c.ReadRules(serialId), Times.Exactly(3));
             dbClient.Verify(c => c.InsertNoiseDtos(serialId, It.IsAny<List<NoiseDto>>()), Times.Exactly(3));
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()), Times.Exactly(3));
-            DateTime expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
-            DateTime expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
-                dto => TestUtil.VerifyNotificationDto(dto, rule, alertLevel + 1, expectedDateTime, durationSeconds, alertLevel))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType),
-                Times.Exactly(0));
             dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
                 Times.Exactly(1));
-
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
             dbClient.VerifyNoOtherCalls();
 
-            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-
-            messageService.VerifyNoOtherCalls();
+            messageClient.Verify(ingress => ingress.AcceptAsync(
+                It.Is<AlertSignal>(signal =>
+                    signal.Source == "airq.rules" &&
+                    signal.SerialId == serialId &&
+                    signal.AlertType == AlertType.Alert &&
+                    signal.Field == "LAeq" &&
+                    signal.Level == alertLevel + 1 &&
+                    signal.Limit == alertLevel &&
+                    signal.AveragingPeriod == durationSeconds &&
+                    signal.DeliveryChannels == (AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms) &&
+                    signal.SuppressionWindow == TimeSpan.Zero),
+                It.IsAny<CancellationToken>()), Times.Once);
+            messageClient.VerifyNoOtherCalls();
 
         }
 
         [TestMethod]
-        [DynamicData(nameof(OneAlertContact))]
-        [DynamicData(nameof(TwoAlertContacts))]
-        [DynamicData(nameof(ThreeAlertContacts))]
-        public async Task TestStoreNoiseLevels_WithVaryingNumberOfContactsForAlertRule_Success(List<RvtContactDto> contacts)
+        public async Task TestStoreNoiseLevels_AlertRuleBreach_EmitsSingleSignalRegardlessOfContacts()
         {
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                          out Mock<IDBClient> dbClient,
                                          out Mock<IMqttClient> mqttClient,
-                                         out Mock<IMessageService> messageService);
+                                         out Mock<IAlertIngressPort> messageClient);
 
             DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
@@ -353,8 +328,6 @@ namespace AirQMonitorTests
                    Returns(monitors);
 
             Guid ruleId = Guid.NewGuid();
-
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
 
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
@@ -368,10 +341,7 @@ namespace AirQMonitorTests
                                                     AlertType.Alert, false, false, created, null);
             dbClient.Setup(c => c.ReadRules(serialId)).
                                 Returns([rule]);
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType)).
-                Returns(false);
 
-            // first store noise levels should trigger an alert, second should not as it occurred before RULE_ALERT_DELAY_MINUTES but 3rd should as it's after RULE_ALERT_DELAY_MINUTES
             await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
             httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
@@ -379,9 +349,6 @@ namespace AirQMonitorTests
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
-
-
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -391,55 +358,34 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()),
                 Times.Exactly(1));
 
-            DateTime expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
-            DateTime expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
-
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
-                dto => TestUtil.VerifyNotificationDto(dto, rule, alertLevel + 1, expectedDateTime, durationSeconds, alertLevel))),
-                Times.Exactly(1));
             dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
                 Times.Exactly(1));
-
-            dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType), Times.Exactly(0));
-            if (contacts.Count == 1)
-            {
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
-            }
-            else if (contacts.Count == 2)
-            {
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.SMS, ContactEquivalentTo(contacts[1]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "foo@bob.org", NotificationConstants.SENT_OK));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "01234567890", NotificationConstants.SENT_OK));
-            }
-            else if (contacts.Count == 3)
-            {
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.SMS, ContactEquivalentTo(contacts[1]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[2]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.SMS, ContactEquivalentTo(contacts[2]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "XXX@bob.org", NotificationConstants.SENT_OK));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "01234567890", NotificationConstants.SENT_OK));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "bar@bazbaz.org", NotificationConstants.SENT_OK));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "9988776655", NotificationConstants.SENT_OK));
-            }
-            else
-            {
-                Assert.Fail();
-            }
             dbClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
+
+            // Contact fan-out moved into the durable stack: however many contacts
+            // are configured, one breach emits exactly one signal.
+            messageClient.Verify(ingress => ingress.AcceptAsync(
+                It.Is<AlertSignal>(signal =>
+                    signal.Source == "airq.rules" &&
+                    signal.SerialId == serialId &&
+                    signal.AlertType == AlertType.Alert &&
+                    signal.Field == "LAeq" &&
+                    signal.Level == alertLevel + 1 &&
+                    signal.Limit == alertLevel &&
+                    signal.AveragingPeriod == durationSeconds &&
+                    signal.DeliveryChannels == (AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms) &&
+                    signal.SuppressionWindow == TimeSpan.Zero),
+                It.IsAny<CancellationToken>()), Times.Once);
+            messageClient.VerifyNoOtherCalls();
         }
 
         [TestMethod]
-        public async Task TestStoreNoiseLevels_AlertRuleActivatedButSendMessageFails_Success()
+        public async Task TestStoreNoiseLevels_AlertRuleActivatedDeliveryFailure_SignalStillEmitted()
         {
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
+                                                     out Mock<IAlertIngressPort> messageClient);
 
             DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
 
@@ -456,9 +402,7 @@ namespace AirQMonitorTests
             httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>())).
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
-            Guid ruleId = Guid.NewGuid(); ;
-            List<RvtContactDto> contacts = AirQFixture.AlertContacts();
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
+            Guid ruleId = Guid.NewGuid();
             int durationSeconds = 15 * 60;
             RvtAlertRuleDto rule = new(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
                                                     AirQFixture.CreateActiveRuleActivity(startTime.AddHours(-1), startTime.AddHours(1)),
@@ -466,12 +410,8 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadRules(serialId)).
                                 Returns([rule]);
 
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, It.IsAny<string>(), rule.AlertType)).
-                Returns(false);
-
-            messageService.Setup(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>())).
-                Throws(CommsException.Of("test-address", "test-message"));
-
+            // Send failures and their audits now live in the durable dispatcher;
+            // in-process the breach still emits its signal and latches the rule.
             await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
             httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
@@ -479,7 +419,6 @@ namespace AirQMonitorTests
             httpClient.VerifyNoOtherCalls();
 
             mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -489,48 +428,40 @@ namespace AirQMonitorTests
 
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()), Times.Exactly(1));
 
-            DateTime expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
-            DateTime expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-
-
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
-                dto => TestUtil.VerifyNotificationDto(dto, rule, limitOn, expectedDateTime, durationSeconds, limitOn))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, It.IsAny<string>(), rule.AlertType), Times.Exactly(0));
-
             dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
                 Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "test-address", "test-message"), Times.Exactly(1));
             dbClient.VerifyNoOtherCalls();
 
-            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-            messageService.VerifyNoOtherCalls();
+            messageClient.Verify(ingress => ingress.AcceptAsync(
+                It.Is<AlertSignal>(signal =>
+                    signal.Source == "airq.rules" &&
+                    signal.SerialId == serialId &&
+                    signal.AlertType == AlertType.Alert &&
+                    signal.Field == "LAeq" &&
+                    signal.Level == limitOn &&
+                    signal.Limit == limitOn &&
+                    signal.AveragingPeriod == durationSeconds &&
+                    signal.DeliveryChannels == (AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms) &&
+                    signal.SuppressionWindow == TimeSpan.Zero),
+                It.IsAny<CancellationToken>()), Times.Once);
+            messageClient.VerifyNoOtherCalls();
         }
 
 
-        [DataRow("Fri, 10 Mar 2023 14:10:00Z", null, null, 1)]
-        [DataRow("Thu, 09 Mar 2023 14:10:00Z", "09:00:00", "10:00:00", 0)]
-        [DataRow("Wed, 08 Mar 2023 14:10:00Z", "09:00:00", "15:00:00", 1)]
-        [DataRow("Sat, 16 Dec 2023 14:10:00Z", null, null, 1)]
-        [DataRow("Sat, 16 Dec 2023 14:10:00Z", "14:00:00", "15:00:00", 1)]
-        [DataRow("Sat, 17 Jun 2023 14:10:00Z", "14:00:00", "14:09:00", 0)]
-        [DataRow("Sun, 17 Dec 2023 14:10:00Z", null, null, 1)]
-        [DataRow("Sun, 17 Dec 2023 14:10:00Z", "14:09:00", "15:00:00", 1)]
-        [DataRow("Sun, 18 Jun 2023 14:10:00Z", "08:00:00", "14:09:00", 0)]
+        [DataRow("Fri, 10 Mar 2023 14:10:00Z")]
+        [DataRow("Thu, 09 Mar 2023 14:10:00Z")]
+        [DataRow("Sat, 17 Jun 2023 14:10:00Z")]
+        [DataRow("Sun, 18 Jun 2023 14:10:00Z")]
         [TestMethod]
-        public async Task TestStoreNoiseLevels_AlertRuleActivatedButSendMessageExcludedBySendTime_Success(
-            string dataTimeStr, string? sendStartTimeStr, string? sendEndTimeStr, int numExpectedMessages)
+        public async Task TestStoreNoiseLevels_AlertRuleActivatedOutsideContactSendWindow_SignalStillEmitted(
+            string dataTimeStr)
         {
             AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
                                                      out Mock<IDBClient> dbClient,
                                                      out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
+                                                     out Mock<IAlertIngressPort> messageClient);
 
             DateTime dataTime = DateTime.Parse(dataTimeStr).ToUniversalTime();
-
-            TimeSpan? sendStartTime = sendStartTimeStr == null ? null : TimeSpan.Parse(sendStartTimeStr);
-            TimeSpan? sendEndTime = sendEndTimeStr == null ? null : TimeSpan.Parse(sendEndTimeStr);
 
             double limitOn = 10.0;
             double limitOff = 8.0;
@@ -546,8 +477,6 @@ namespace AirQMonitorTests
                                     Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
 
             Guid ruleId = Guid.NewGuid();
-            List<RvtContactDto> contacts = AirQFixture.AlertContacts(sendStartTime, sendEndTime);
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
             int durationSeconds = 15 * 60;
             RvtAlertRuleDto rule = new(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
                                                     AirQFixture.CreateActiveRuleActivity(dataTime.AddHours(-1), dataTime.AddHours(1)),
@@ -555,17 +484,15 @@ namespace AirQMonitorTests
             dbClient.Setup(c => c.ReadRules(serialId)).
                                 Returns([rule]);
 
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, It.IsAny<string>(), It.IsAny<AlertType>())).
-                    Returns(false);
-
-            await testObj.StoreNoiseLevelsAsync("foo", "bar"); //Runs the StoreNoiseLevels function so that we can verify that all required functions have been triggered
+            // Per-contact send windows are applied by the durable dispatcher at
+            // delivery time; whatever the clock says, the breach emits its signal.
+            await testObj.StoreNoiseLevelsAsync("foo", "bar");
 
             httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId), It.IsAny<CancellationToken>()),
-                Times.Exactly(1)); //Checks that the GetAsync function has been ran with the correct parameters only 1 time (as shown above)
-            httpClient.VerifyNoOtherCalls();// checks that no other calls have been made by the httpClient
+                Times.Exactly(1));
+            httpClient.VerifyNoOtherCalls();
 
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(1)); //Checks that the PublishAsync function has been ran with the RVTConfig.INSERT_TOPIC 1 time
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
+            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
             mqttClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
@@ -573,26 +500,23 @@ namespace AirQMonitorTests
             dbClient.Verify(c => c.InsertNoiseDtos(serialId, It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
             dbClient.Verify(c => c.WriteLatestTimestamp(serialId, dataTime.ToUniversalTime()),
                 Times.Exactly(1));
-            DateTime expectedEndTime = dataTime;
-            DateTime expectedStartTime = expectedEndTime.AddSeconds(-durationSeconds);
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
-                dto => TestUtil.VerifyNotificationDto(dto, rule, limitOn, expectedEndTime, durationSeconds, limitOn))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK),
-                Times.Exactly(numExpectedMessages));
             dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
                 Times.Exactly(1));
-            foreach (NoiseMonitorDto monitor in monitors)
-            {
-                dbClient.Verify(c => c.HasOpenNotification(monitor.Id, It.IsAny<string>(), rule.AlertType),
-                    Times.Exactly(0));
-            }
             dbClient.VerifyNoOtherCalls();
 
-            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()),
-                Times.Exactly(numExpectedMessages));
-            messageService.VerifyNoOtherCalls();
+            messageClient.Verify(ingress => ingress.AcceptAsync(
+                It.Is<AlertSignal>(signal =>
+                    signal.Source == "airq.rules" &&
+                    signal.SerialId == serialId &&
+                    signal.AlertType == AlertType.Alert &&
+                    signal.Field == "LAeq" &&
+                    signal.Level == limitOn &&
+                    signal.Limit == limitOn &&
+                    signal.AveragingPeriod == durationSeconds &&
+                    signal.DeliveryChannels == (AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms) &&
+                    signal.SuppressionWindow == TimeSpan.Zero),
+                It.IsAny<CancellationToken>()), Times.Once);
+            messageClient.VerifyNoOtherCalls();
         }
 
 
@@ -636,72 +560,6 @@ namespace AirQMonitorTests
                                                 AirQFixture.CreateActiveRuleActivity(null,null),
                                                 AlertType.Alert, false, false,
                                                 DateTime.UtcNow, DateTime.UtcNow.AddMinutes(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1))
-                }
-            };
-        }
-
-        private static IEnumerable<object[]> OneAlertContact()
-        {
-            yield return new object[] { new List<RvtContactDto>()
-                {
-                    new(contactMethod:ContactMethod.Email,
-                                      emailAddress: "baz@bob.org",
-                                      phoneNumber: null,
-                                      email: true,
-                                      sms: false,
-                                      sendStartTime: null,
-                                      sendEndTime: null)
-                }
-            };
-        }
-
-        private static IEnumerable<object[]> TwoAlertContacts()
-        {
-            yield return new object[] { new List<RvtContactDto>()
-                {
-                    new(contactMethod: ContactMethod.Email,
-                                      emailAddress: "foo@bob.org",
-                                      phoneNumber:"999999999",
-                                      email: true,
-                                      sms: false,
-                                      sendStartTime: null,
-                                      sendEndTime: null),
-                    new(contactMethod: ContactMethod.SMS,
-                                      emailAddress: "blah",
-                                      phoneNumber: "01234567890",
-                                      email: false,
-                                      sms: true,
-                                      sendStartTime: null,
-                                      sendEndTime: null)
-                }
-            };
-        }
-
-        private static IEnumerable<object[]> ThreeAlertContacts()
-        {
-            yield return new object[] { new List<RvtContactDto>()
-                {
-                    new(contactMethod: ContactMethod.Email,
-                                      emailAddress: "XXX@bob.org",
-                                      phoneNumber: null,
-                                      email: true,
-                                      sms: false,
-                                      sendStartTime: null,
-                                      sendEndTime: null),
-                    new(contactMethod: ContactMethod.SMS,
-                                      emailAddress: "bbbb@cccc.ddd",
-                                      phoneNumber: "01234567890",
-                                      email: false,
-                                      sms: true,
-                                      sendStartTime: null,
-                                      sendEndTime: null),
-                    new(contactMethod:ContactMethod.SMSAndEmail,
-                                      emailAddress: "bar@bazbaz.org",
-                                      phoneNumber: "9988776655",
-                                      email: true,
-                                      sms: true,
-                                      sendStartTime: null,
-                                      sendEndTime: null)
                 }
             };
         }

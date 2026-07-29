@@ -101,7 +101,7 @@ public sealed class CheckForOfflineMonitorsHandlerTests
         DateTime now)
     {
         MyAtmMonitorReader reader = new(monitorQueries.Object, operational.Object, testLocal: false);
-        MyAtmRuleProcessor processor = new(ruleQueries.Object, "https://portal.example/");
+        MyAtmRuleProcessor processor = new(ruleQueries.Object);
         return new CheckForOfflineMonitorsHandler(
             ruleQueries.Object,
             reader,

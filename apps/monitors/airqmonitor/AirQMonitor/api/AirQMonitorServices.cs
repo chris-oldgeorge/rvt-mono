@@ -1,15 +1,17 @@
 using AirQ.Api.Db;
+using AirQ.Api.Db.EntityFramework;
 using AirQ.Api.Http;
 using AirQ.Api.UseCases;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Rvt.Communication;
-using Rvt.Communication.Abstractions;
 using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
 using Rvt.Communication.TransmitSms;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
+using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -34,11 +36,27 @@ public static class AirQMonitorServices
         services.AddRvtCommunication();
         AddEmailProvider(services, configuration);
         services.AddTransmitSms(configuration);
+        services.AddSingleton<IMonitorDbContextFactory<AirQMonitorContext>>(
+            _ => new AirQMonitorContextFactory(
+                RvtConfig.DB_CONNECTION_STRING,
+                AirQMonitorDbOptions.Current));
+        services.AddSingleton<IMonitorEventPublisher>(provider => new MonitorEventPublisher(
+            provider.GetRequiredService<IMqttClient>(),
+            RvtConfig.INSERT_TOPIC,
+            RvtConfig.ALERT_TOPIC));
+        services.AddDurableAlerts<AirQMonitorContext>();
+        services.PostConfigure<DurableAlertOptions>(options =>
+        {
+            if (!string.IsNullOrWhiteSpace(RvtConfig.PORTAL_BASE_URL))
+            {
+                options.PortalBaseUrl = RvtConfig.PORTAL_BASE_URL;
+            }
+        });
         services.AddSingleton(provider => new AirQApi(
             provider.GetRequiredService<IHttpClient>(),
             provider.GetRequiredService<IDBClient>(),
             provider.GetRequiredService<IMqttClient>(),
-            provider.GetRequiredService<IMessageService>(),
+            provider.GetRequiredService<IAlertIngressPort>(),
             RvtConfig.TESTLOCAL,
             provider.GetRequiredService<IConfiguration>()["AirQ:TestLocal:SerialId"]));
         services.AddSingleton(provider =>

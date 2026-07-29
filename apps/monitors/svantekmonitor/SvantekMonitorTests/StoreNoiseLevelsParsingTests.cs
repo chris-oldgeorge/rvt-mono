@@ -2,9 +2,8 @@ using System.Data;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Monitor.Common.Mqtt;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
@@ -100,8 +99,7 @@ public sealed class StoreNoiseLevelsParsingTests
                 new SvantekRuleProcessor(
                     ruleQueries.Object,
                     operational.Object,
-                    Mock.Of<IMessageService>(),
-                    Mock.Of<IMonitorEventPublisher>()),
+                    Mock.Of<IAlertIngressPort>()),
                 new NoiseRequestWindowCalculator(new SvantekImportOptions()),
                 new FixedTimeProvider(utcNow));
 

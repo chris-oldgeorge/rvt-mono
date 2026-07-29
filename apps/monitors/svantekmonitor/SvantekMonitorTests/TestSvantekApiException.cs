@@ -1,488 +1,127 @@
-using System.Diagnostics.Metrics;
-using System.Globalization;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
+using Rvt.Monitor.Common.Notifications;
+using Rvt.Monitor.Common.Rules;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
-using Svantek.Model.Dto;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
-namespace SvantekMonitorTests
+using SvantekMonitor.model.dto;
+namespace SvantekMonitorTests;
+
+// Summary: Facade-level failure-semantics tests: setup failures escape, per-unit failures
+// are recorded via HandleException and re-thrown as SvantekJobAggregateException.
+// Major updates:
+// - 2026-07-29 Legacy retirement step 4: rewritten from the swallow-and-HandleException
+//   suite of the retired synchronous entry points (StoreNoiseLevels(string,string),
+//   StoreAllNoiseLevelsForYesterday, StoreNoiseLevelsForDate).
+[TestClass]
+public class TestSvantekApiException
 {
-    [TestClass]
-    public class TestSvantekApiException
+    public TestSvantekApiException()
     {
-        public TestSvantekApiException()
+        ILoggerFactory factory = LoggerFactory.Create(builder =>
         {
-            ILoggerFactory factory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
-            });
-            RvtLogger.CreateLogger(factory, "TestSvantekApiException");
-        }
+            builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
+        });
+        RvtLogger.CreateLogger(factory, "TestSvantekApiException");
+    }
 
-        [TestMethod]
-        public void TestStoreMonitors_HandlesJsonExceptionCorrectly()
+    [TestMethod]
+    public async Task TestStoreNoiseLevels_MonitorReadFailure_EscapesAsAdapterException()
+    {
+        SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+                                                 out Mock<IDBClient> dbClient,
+                                                 out Mock<IMqttClient> mqttClient,
+                                                 out Mock<IAlertIngressPort> messageClient);
+
+        dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
+                ThrowsAsync(new IOException());
+
+        AdapterException exception =
+            await Assert.ThrowsExactlyAsync<AdapterException>(() => testObj.StoreNoiseLevelsAsync());
+
+        Assert.IsInstanceOfType<IOException>(exception.InnerException);
+        dbClient.Verify(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>()), Times.Exactly(1));
+        dbClient.Verify(c => c.HandleException(It.IsAny<string>(), It.IsAny<Exception>()), Times.Never);
+        dbClient.VerifyNoOtherCalls();
+
+        httpClient.VerifyNoOtherCalls();
+        mqttClient.VerifyNoOtherCalls();
+        messageClient.VerifyNoOtherCalls();
+    }
+
+    [TestMethod]
+    public async Task TestStoreNoiseLevels_VendorFailure_RecordsProjectAndThrowsAggregate()
+    {
+        SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+                                                 out Mock<IDBClient> dbClient,
+                                                 out Mock<IMqttClient> mqttClient,
+                                                 out Mock<IAlertIngressPort> messageClient);
+
+        List<NoiseMonitorReadDto> monitors = SvantekFixture.ReadMonitorDtos(DateTime.UtcNow.AddMinutes(-40));
+        dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
+                ReturnsAsync(monitors);
+        httpClient.Setup(c => c.PostAsync("projects-get-result-data-multi-point.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>())).
+                ThrowsAsync(new IOException());
+
+        SvantekJobAggregateException aggregate =
+            await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(() => testObj.StoreNoiseLevelsAsync());
+
+        Assert.AreEqual("StoreNoiseLevels", aggregate.JobName);
+        Assert.HasCount(1, aggregate.Failures);
+        Assert.AreEqual("StoreNoiseLevels project 7", aggregate.Failures[0].Message);
+        dbClient.Verify(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>()), Times.Exactly(1));
+        dbClient.Verify(c => c.HandleException("StoreNoiseLevels project 7", It.IsAny<Exception>()), Times.Exactly(1));
+        dbClient.VerifyNoOtherCalls();
+
+        mqttClient.VerifyNoOtherCalls();
+        messageClient.VerifyNoOtherCalls();
+    }
+
+    [TestMethod]
+    public async Task TestCheckForOfflineMonitors_CommandFailure_ContinuesSignalingAndThrowsAggregate()
+    {
+        SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+                                                 out Mock<IDBClient> dbClient,
+                                                 out Mock<IMqttClient> mqttClient,
+                                                 out Mock<IAlertIngressPort> messageClient);
+
+        List<RvtAlertRuleDto> rules = SvantekFixture.OfflineRules();
+        dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
+        List<NoiseMonitorReadDto> monitors = SvantekFixture.ReadMonitorDtos(DateTime.UtcNow.AddHours(-25));
+        dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
+                ReturnsAsync(monitors);
+        dbClient.Setup(c => c.SetMonitorOfflineAsync(monitors[0].Id, true, It.IsAny<CancellationToken>())).
+                ThrowsAsync(new IOException());
+
+        SvantekJobAggregateException aggregate =
+            await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(() => testObj.CheckForOfflineMonitorsAsync());
+
+        Assert.AreEqual("CheckForOfflineMonitors", aggregate.JobName);
+        Assert.HasCount(1, aggregate.Failures);
+        Assert.AreEqual("CheckForOfflineMonitors monitor Device1", aggregate.Failures[0].Message);
+        Assert.IsInstanceOfType<IOException>(aggregate.Failures[0].InnerException);
+
+        // The independent monitors keep signaling and latching after the first failure.
+        foreach (NoiseMonitorReadDto m in monitors)
         {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar")).
-                Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah."));
-
-            testObj.StoreMonitors("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync("/instrumentList?userID=foo&token=bar"), Times.Exactly(1));
-            httpClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.HandleException("StoreMonitors", It.Is<AdapterException>(
-                                e => e.InnerException is JsonException)), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
+            messageClient.Verify(c => c.AcceptAsync(
+                It.Is<AlertSignal>(signal =>
+                    signal.SerialId == m.SerialId &&
+                    signal.AlertType == AlertType.Offline),
+                It.IsAny<CancellationToken>()), Times.Exactly(1));
+            dbClient.Verify(c => c.SetMonitorOfflineAsync(m.Id, true, It.IsAny<CancellationToken>()), Times.Exactly(1));
         }
-
-        [TestMethod]
-        public void TestStoreMonitors_HandlesAdapterExceptionCorrectly()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar")).
-                    Returns(Task<string>.Factory.StartNew(() => SvantekFixture.TooManyRequestsJson()));
-
-            testObj.StoreMonitors("foo", "bar");
-
-
-            httpClient.Verify(c => c.GetAsync("/instrumentList?userID=foo&token=bar"), Times.Exactly(1));
-            httpClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.HandleException("StoreMonitors", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreMonitors_HandlesMetaDataAdapterExceptionCorrectly()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar")).
-                    Returns(Task<string>.Factory.StartNew(() => SvantekFixture.InstrumentsResponseJson()));
-
-            // 2nd monitor should fail to get metadata
-            httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device1")).
-                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.MetaDataResponseJson()));
-
-            httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device2")).
-                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.TooManyRequestsJson()));
-
-            httpClient.Setup(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device3")).
-                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.MetaDataResponseJson()));
-
-            testObj.StoreMonitors("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync("/instrumentList?userID=foo&token=bar"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device1"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device2"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestMetaData?userID=foo&token=bar&instrumentID=Device3"), Times.Exactly(1));
-            httpClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.HandleException("GetMetaData", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteMonitorList(It.Is<List<NoiseMonitorDto>>(l => l.Count == 3)));
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreMonitors_HandlesExceptionCorrectly()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-
-            httpClient.Setup(c => c.GetAsync("/instrumentList?userID=foo&token=bar")).
-                    Throws(new IOException());
-            httpClient.VerifyNoOtherCalls();
-
-            testObj.StoreMonitors("foo", "bar");
-
-            dbClient.Verify(c => c.HandleException("StoreMonitors",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is AggregateException &&
-                                        e.InnerException.InnerException is IOException)), Times.Exactly(1));
-
-            dbClient.VerifyNoOtherCalls();
-
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestReadMonitors_HandlesExceptionCorrectly()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Throws(new IOException());
-
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreNoiseLevels",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is IOException)), Times.Exactly(1));
-
-            httpClient.VerifyNoOtherCalls();
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-
-        [TestMethod]
-        public void TestStoreNoiseLevels_HandlesJsonExceptionCorrectly()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
-                                Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah"));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device1"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device2"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device3"), Times.Exactly(1));
-            httpClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device1", It.Is<AdapterException>(
-                                e => e.InnerException is JsonException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device2", It.Is<AdapterException>(
-                                e => e.InnerException is JsonException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device3", It.Is<AdapterException>(
-                                e => e.InnerException is JsonException)), Times.Exactly(1));
-            dbClient.Verify(c => c.UpdateMonitorStatus("Device1", It.Is<NoiseMonitorStatus>(s => s.ErrorCount == 1)), Times.Exactly(1));
-            dbClient.Verify(c => c.UpdateMonitorStatus("Device2", It.Is<NoiseMonitorStatus>(s => s.ErrorCount == 1)), Times.Exactly(1));
-            dbClient.Verify(c => c.UpdateMonitorStatus("Device3", It.Is<NoiseMonitorStatus>(s => s.ErrorCount == 1)), Times.Exactly(1));
-
-
-            dbClient.VerifyNoOtherCalls();
-
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevels_HandlesAdapterExceptionCorrectly()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
-                                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.TooManyRequestsJson()));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device1", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device2", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device3", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-
-            dbClient.Verify(c => c.UpdateMonitorStatus("Device1", It.Is<NoiseMonitorStatus>(s => s.ErrorCount == 1)), Times.Exactly(1));
-            dbClient.Verify(c => c.UpdateMonitorStatus("Device2", It.Is<NoiseMonitorStatus>(s => s.ErrorCount == 1)), Times.Exactly(1));
-            dbClient.Verify(c => c.UpdateMonitorStatus("Device3", It.Is<NoiseMonitorStatus>(s => s.ErrorCount == 1)), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevels_HandlesExceptionCorrectly()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
-                    Throws(new IOException());
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device1",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is AggregateException &&
-                                        e.InnerException.InnerException is IOException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device2",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is AggregateException &&
-                                        e.InnerException.InnerException is IOException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreNoiseLevels SerialId=Device3",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is AggregateException &&
-                                        e.InnerException.InnerException is IOException)), Times.Exactly(1));
-
-            dbClient.Verify(c => c.UpdateMonitorStatus("Device1", It.Is<NoiseMonitorStatus>(s => s.ErrorCount == 1)), Times.Exactly(1));
-            dbClient.Verify(c => c.UpdateMonitorStatus("Device2", It.Is<NoiseMonitorStatus>(s => s.ErrorCount == 1)), Times.Exactly(1));
-            dbClient.Verify(c => c.UpdateMonitorStatus("Device3", It.Is<NoiseMonitorStatus>(s => s.ErrorCount == 1)), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevelsForYesterday_HandlesJsonExceptionCorrectly()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)))).
-                                Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah"));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreAllNoiseLevelsForYesterday("foo", "bar");
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1", It.Is<AdapterException>(
-                                e => e.InnerException is JsonException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device2", It.Is<AdapterException>(
-                                e => e.InnerException is JsonException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device3", It.Is<AdapterException>(
-                                e => e.InnerException is JsonException)), Times.Exactly(1));
-
-            dbClient.VerifyNoOtherCalls();
-
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevelsForYesterday_HandlesAdapterExceptionCorrectly()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)))).
-                                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.TooManyRequestsJson()));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreAllNoiseLevelsForYesterday("foo", "bar");
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device2", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device3", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevelsForYesterday_HandlesExceptionCorrectly()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)))).
-                    Throws(new IOException());
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreAllNoiseLevelsForYesterday("foo", "bar");
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is AggregateException &&
-                                        e.InnerException.InnerException is IOException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device2",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is AggregateException &&
-                                        e.InnerException.InnerException is IOException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device3",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is AggregateException &&
-                                        e.InnerException.InnerException is IOException)), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-
-        [TestMethod]
-        public void TestStoreNoiseLevelsForDate_HandlesJsonExceptionCorrectly()
-        {
-            string dateStr = "2023-09-11";
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", dateStr)))).
-                                Returns(Task<string>.Factory.StartNew(() => "Blah!!!"));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreNoiseLevelsForDate("foo", "bar", dateStr);
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1", It.Is<AdapterException>(
-                                e => e.InnerException is JsonException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device2", It.Is<AdapterException>(
-                                e => e.InnerException is JsonException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device3", It.Is<AdapterException>(
-                                e => e.InnerException is JsonException)), Times.Exactly(1));
-
-            dbClient.VerifyNoOtherCalls();
-
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevelsForDate_HandlesAdapterExceptionCorrectly()
-        {
-            string dateStr = "2023-09-11";
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", dateStr)))).
-                                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.TooManyRequestsJson()));
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreNoiseLevelsForDate("foo", "bar", dateStr);
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device2", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device3", It.Is<AdapterException>(
-                                e => "Too many requests!".Equals(e.Message))), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevelsForDate_HandlesExceptionCorrectly()
-        {
-            string dateStr = "2023-09-11";
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                    out Mock<IDBClient> dbClient,
-                                                    out Mock<IMqttClient> mqttClient,
-                                                    out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", dateStr)))).
-                   Throws(new IOException());
-
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE));
-
-            testObj.StoreNoiseLevelsForDate("foo", "bar", dateStr);
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device1",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is AggregateException &&
-                                        e.InnerException.InnerException is IOException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device2",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is AggregateException &&
-                                        e.InnerException.InnerException is IOException)), Times.Exactly(1));
-            dbClient.Verify(c => c.HandleException("StoreAllNoiseLevelsForDate SerialId=Device3",
-                                    It.Is<AdapterException>(e =>
-                                        e.InnerException is AggregateException &&
-                                        e.InnerException.InnerException is IOException)), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-
-            mqttClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
+        dbClient.Verify(c => c.ReadRules(null), Times.Exactly(1));
+        dbClient.Verify(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>()), Times.Exactly(1));
+        dbClient.Verify(c => c.HandleException("CheckForOfflineMonitors monitor Device1", It.IsAny<Exception>()), Times.Exactly(1));
+        dbClient.VerifyNoOtherCalls();
+
+        httpClient.VerifyNoOtherCalls();
+        mqttClient.VerifyNoOtherCalls();
+        messageClient.VerifyNoOtherCalls();
     }
 }

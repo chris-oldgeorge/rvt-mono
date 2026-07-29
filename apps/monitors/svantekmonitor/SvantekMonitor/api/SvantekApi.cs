@@ -1,6 +1,5 @@
-using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Mqtt;
 using Rvt.Storage;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
@@ -32,25 +31,22 @@ public class SvantekApi
     public SvantekApi(
         IHttpClient httpClient,
         IDBClient dbClient,
-        IMqttClient mqttClient,
-        IMessageService messageService,
+        IAlertIngressPort alertIngress,
         string apiKey)
-        : this(httpClient, dbClient, mqttClient, messageService, apiKey, RvtConfig.TESTLOCAL)
+        : this(httpClient, dbClient, alertIngress, apiKey, RvtConfig.TESTLOCAL)
     {
     }
 
     public SvantekApi(
         IHttpClient httpClient,
         IDBClient dbClient,
-        IMqttClient mqttClient,
-        IMessageService messageService,
+        IAlertIngressPort alertIngress,
         string apiKey,
         bool testLocal)
         : this(
             httpClient,
             dbClient,
-            mqttClient,
-            messageService,
+            alertIngress,
             apiKey,
             MissingObjectStorageClientFactory.Instance,
             testLocal)
@@ -60,15 +56,13 @@ public class SvantekApi
     public SvantekApi(
         IHttpClient httpClient,
         IDBClient dbClient,
-        IMqttClient mqttClient,
-        IMessageService messageService,
+        IAlertIngressPort alertIngress,
         string apiKey,
         IObjectStorageClientFactory storageFactory)
         : this(
             httpClient,
             dbClient,
-            mqttClient,
-            messageService,
+            alertIngress,
             apiKey,
             storageFactory,
             RvtConfig.TESTLOCAL)
@@ -78,8 +72,7 @@ public class SvantekApi
     public SvantekApi(
         IHttpClient httpClient,
         IDBClient dbClient,
-        IMqttClient mqttClient,
-        IMessageService messageService,
+        IAlertIngressPort alertIngress,
         string apiKey,
         IObjectStorageClientFactory storageFactory,
         bool testLocal,
@@ -88,15 +81,10 @@ public class SvantekApi
     {
         ISvantekVendorGateway gateway = new SvantekHttpGateway(httpClient, apiKey);
         SvantekMonitorReader monitorReader = new(dbClient, testLocal);
-        MonitorEventPublisher eventPublisher = new(
-            mqttClient,
-            RvtConfig.INSERT_TOPIC,
-            RvtConfig.ALERT_TOPIC);
         SvantekRuleProcessor ruleProcessor = new(
             dbClient,
             dbClient,
-            messageService,
-            eventPublisher);
+            alertIngress);
         NoiseRequestWindowCalculator calculator = noiseRequestWindowCalculator ??
             new NoiseRequestWindowCalculator(new SvantekImportOptions());
 

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
+using Moq;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 
@@ -18,49 +18,71 @@ public sealed class NoiseRuleEvaluatorTests
     }
 
     [TestMethod]
-    public void Evaluate_DoesNotDowngradePreviousAlertWhenActiveCautionIsSuppressed()
+    public async Task EvaluateAsync_DoesNotDowngradePreviousAlertWhenActiveCautionIsSuppressed()
     {
         int updateCount = 0;
-        bool contactsWereRead = false;
-        bool notificationWasProcessed = false;
-        FakeEventPublisher eventPublisher = new();
+        Mock<IAlertIngressPort> alertIngress = NewAlertIngress();
 
         NoiseRuleEvaluator evaluator = new(
             _ => updateCount++,
-            _ =>
-            {
-                contactsWereRead = true;
-                return [];
-            },
-            (_, _) => notificationWasProcessed = true,
-            eventPublisher);
+            alertIngress.Object,
+            "test.rules");
 
         RvtAlertRuleDto rule = CreateRule(AlertType.Caution, isActive: true);
 
-        AlertType result = evaluator.Evaluate(CreateRequest(), rule, level: 12, previousAlert: AlertType.Alert);
+        AlertType result = await evaluator.EvaluateAsync(CreateRequest(), rule, level: 12, previousAlert: AlertType.Alert);
 
         Assert.AreEqual(AlertType.Alert, result);
         Assert.IsTrue(rule.IsActive);
         Assert.AreEqual(0, updateCount);
-        Assert.IsFalse(contactsWereRead);
-        Assert.IsFalse(notificationWasProcessed);
-        Assert.IsFalse(eventPublisher.AlertWasPublished);
+        alertIngress.VerifyNoOtherCalls();
     }
 
-    private sealed class FakeEventPublisher : IMonitorEventPublisher
+    [TestMethod]
+    public async Task EvaluateAsync_SignalsBreachWithDurableRuleContract()
     {
-        public bool AlertWasPublished { get; private set; }
+        int updateCount = 0;
+        Mock<IAlertIngressPort> alertIngress = NewAlertIngress();
 
-        public Task PublishDataInsertedAsync(
-            DateTime timestamp,
-            string serialId,
-            int? customerId = null,
-            CancellationToken cancellationToken = default) => Task.CompletedTask;
+        NoiseRuleEvaluator evaluator = new(
+            _ => updateCount++,
+            alertIngress.Object,
+            "test.rules");
 
-        public void PublishAlert(DateTime timestamp, string serialId, string message, int? customerId = null)
-        {
-            AlertWasPublished = true;
-        }
+        RvtAlertRuleDto rule = CreateRule(AlertType.Alert, isActive: false);
+        RuleEvaluationRequest request = CreateRequest();
+
+        AlertType result = await evaluator.EvaluateAsync(request, rule, level: 12, previousAlert: AlertType.Ignore);
+
+        Assert.AreEqual(AlertType.Alert, result);
+        Assert.IsTrue(rule.IsActive);
+        Assert.AreEqual(1, updateCount);
+        alertIngress.Verify(ingress => ingress.AcceptAsync(
+            It.Is<AlertSignal>(signal =>
+                signal.Source == "test.rules" &&
+                signal.SerialId == request.MonitorSerialId &&
+                signal.AlertType == AlertType.Alert &&
+                signal.Field == rule.Field &&
+                signal.Level == 12 &&
+                signal.Limit == rule.LimitOn &&
+                signal.AveragingPeriod == rule.AveragingPeriod &&
+                signal.EventTime == request.AlertTime &&
+                signal.DeliveryChannels == (AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms) &&
+                signal.SuppressionWindow == TimeSpan.Zero),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private static Mock<IAlertIngressPort> NewAlertIngress()
+    {
+        Mock<IAlertIngressPort> alertIngress = new();
+        alertIngress
+            .Setup(ingress => ingress.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AlertIngressResult(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                AlertOccurrenceOutcome.Accepted,
+                IsDuplicate: false));
+        return alertIngress;
     }
 
     private static RuleEvaluationRequest CreateRequest() =>

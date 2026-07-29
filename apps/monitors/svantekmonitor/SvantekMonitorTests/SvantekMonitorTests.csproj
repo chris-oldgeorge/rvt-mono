@@ -7,9 +7,6 @@
 
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <!-- RVT0001: this module still consumes the legacy IMessageService path;
-         retired by legacy-retirement steps 4-5, which also delete this NoWarn. -->
-    <NoWarn>$(NoWarn);RVT0001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,35 +26,8 @@
     <ProjectReference Include="../../../../libs/rvt-monitor-common/testing/Rvt.Monitor.IntegrationTesting/Rvt.Monitor.IntegrationTesting.csproj" />
   </ItemGroup>
 
-  <!--
-    2026-06-18 Warning remediation:
-    These suites target pre-port Svantek API entry points and old notification-status calls.
-    Keep the files for rewrite, but exclude them so DB/DTO tests and solution builds remain usable.
-  -->
-  <ItemGroup>
-    <Compile Remove="TestRules.cs" />
-    <Compile Remove="TestSvantekApi.cs" />
-    <Compile Remove="TestSvantekApiException.cs" />
-    <Compile Remove="TestSvantekApiNoiseLevels.cs" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="testdata/date_samples.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
   <ItemGroup>
     <None Update="testdata\latest_samples.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="testdata\latest_metadata.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="testdata\devices.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>

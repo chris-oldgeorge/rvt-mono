@@ -30,7 +30,7 @@ namespace AirQ.Api.UseCases
             this.ruleProcessor = ruleProcessor;
         }
 
-        public Task RunAsync(DateTime date, CancellationToken cancellationToken = default)
+        public async Task RunAsync(DateTime date, CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             List<SiteMonitorsWithSiteHoursDto> monitors = monitorQueries.ReadSiteMonitorsWithSiteHours(date);
@@ -60,17 +60,14 @@ namespace AirQ.Api.UseCases
                             if (rule.AlertType == AlertType.Alert || (previousAlert != AlertType.Alert && rule.AlertType == AlertType.Caution)) //Not to send cautions if we have sent alerts but if there are two alert rules lets go for it
                             {
                                 //New breach generate notification
-                                List<Rvt.Monitor.Common.Rules.RvtContactDto> contacts = ruleQueries.ReadAlertContacts(monitor.Id, out Guid siteId);
-                                ruleProcessor.ProcessAlertForContactsV2(fleetNr: monitor.FleetNr,
-                                serialId: monitor.SerialId,
+                                await ruleProcessor.SignalAlertAsync(serialId: monitor.SerialId,
                                 alertTime: date + monitor.EndTime!.Value,
                                 limitOn: rule.LimitOn,
                                 averagingPeriod: 0,
                                 level: level,
                                 alertType: rule.AlertType,
                                 field: rule.Field,
-                                monitorId: monitor.Id,
-                                contacts: contacts);
+                                cancellationToken: cancellationToken);
 
                                 rule.IsActive = true;
                                 operationalCommands.UpdateAlertRule(rule);
@@ -91,7 +88,6 @@ namespace AirQ.Api.UseCases
                 }
             }
 
-            return Task.CompletedTask;
         }
     }
 }

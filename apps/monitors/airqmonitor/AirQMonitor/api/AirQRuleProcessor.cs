@@ -1,37 +1,37 @@
+using System.Globalization;
 using AirQ.Api.Db;
 using AirQ.Model.Dto;
-using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Mqtt;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 
 namespace AirQ.Api
 {
-    // Summary: Evaluates AirQ noise readings against alert rules and dispatches notifications.
+    // Summary: Evaluates AirQ noise readings against alert rules and emits durable alert signals.
     // Major updates:
     // - 2026-07-12 God-class split: extracted from the AirQApi partials (AirQApiRuleProcessing).
+    // - 2026-07-29 Legacy retirement step 4: breaches signal IAlertIngressPort;
+    //   the inline RuleAlertNotificationDispatcher send loop is gone.
     public class AirQRuleProcessor
     {
-        private readonly IAirQRuleQueries ruleQueries;
-        private readonly IAirQOperationalCommands operationalCommands;
-        private readonly IMessageService messageService;
-        private readonly IMonitorEventPublisher eventPublisher;
+        internal const string SignalSource = "airq.rules";
+
+        private readonly IAirQRuleQueries _ruleQueries;
+        private readonly IAirQOperationalCommands _operationalCommands;
+        private readonly IAlertIngressPort _alertIngress;
 
         public AirQRuleProcessor(
             IAirQRuleQueries ruleQueries,
             IAirQOperationalCommands operationalCommands,
-            IMessageService messageService,
-            IMonitorEventPublisher eventPublisher)
+            IAlertIngressPort alertIngress)
         {
-            this.ruleQueries = ruleQueries;
-            this.operationalCommands = operationalCommands;
-            this.messageService = messageService;
-            this.eventPublisher = eventPublisher;
+            _ruleQueries = ruleQueries;
+            _operationalCommands = operationalCommands;
+            _alertIngress = alertIngress;
         }
 
         //Using start and end here to determine the date range and if there is time in there for an average. Eg, if there is a 15 to check the 15 minute average.
-        public void ProcessRulesV2(NoiseMonitorDto monitorDto, List<RvtAlertRuleDto> allrules, DateTime start, DateTime end, List<NoiseDto>? dtos)
+        public async Task ProcessRulesV2Async(NoiseMonitorDto monitorDto, List<RvtAlertRuleDto> allrules, DateTime start, DateTime end, List<NoiseDto>? dtos, CancellationToken cancellationToken = default)
         {
             if (allrules != null && allrules.Count > 0)
             {
@@ -77,11 +77,12 @@ namespace AirQ.Api
                                     break;
                             }
                             ;
-                            previousAlert = ruleEvaluator.Evaluate(
+                            previousAlert = await ruleEvaluator.EvaluateAsync(
                                 NewRuleEvaluationRequest(monitorDto, end, end),
                                 rule,
                                 level,
-                                previousAlert);
+                                previousAlert,
+                                cancellationToken);
                         }
                     }
                 }
@@ -102,12 +103,13 @@ namespace AirQ.Api
                         string serialId = monitorDto.SerialId!;
                         foreach (RvtAlertRuleDto? rule in rules)
                         {
-                            double level = ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Starthour, Starthour.AddHours(1));
-                            previousAlert = ruleEvaluator.Evaluate(
+                            double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Starthour, Starthour.AddHours(1));
+                            previousAlert = await ruleEvaluator.EvaluateAsync(
                                 NewRuleEvaluationRequest(monitorDto, end, end),
                                 rule,
                                 level,
-                                previousAlert);
+                                previousAlert,
+                                cancellationToken);
 
                         }
                         Starthour = Starthour.AddHours(1);
@@ -125,12 +127,13 @@ namespace AirQ.Api
                         string serialId = monitorDto.SerialId!;
                         foreach (RvtAlertRuleDto? rule in rules)
                         {
-                            double level = ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Startday, Startday.AddDays(1));
-                            previousAlert = ruleEvaluator.Evaluate(
+                            double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Startday, Startday.AddDays(1));
+                            previousAlert = await ruleEvaluator.EvaluateAsync(
                                 NewRuleEvaluationRequest(monitorDto, end, end),
                                 rule,
                                 level,
-                                previousAlert);
+                                previousAlert,
+                                cancellationToken);
                         }
                         Startday = Startday.AddDays(1);
                     }
@@ -140,20 +143,9 @@ namespace AirQ.Api
 
         private NoiseRuleEvaluator CreateNoiseRuleEvaluator() =>
             new(
-                operationalCommands.UpdateAlertRule,
-                monitorId => ruleQueries.ReadAlertContacts(monitorId, out Guid _),
-                (request, contacts) => ProcessAlertForContactsV2(
-                    fleetNr: request.FleetNr,
-                    serialId: request.SerialId,
-                    alertTime: request.AlertTime,
-                    limitOn: request.LimitOn,
-                    averagingPeriod: request.AveragingPeriod,
-                    level: request.Level,
-                    alertType: request.AlertType,
-                    field: request.Field,
-                    monitorId: request.MonitorId,
-                    contacts: contacts),
-                eventPublisher);
+                _operationalCommands.UpdateAlertRule,
+                _alertIngress,
+                SignalSource);
 
         private static RuleEvaluationRequest NewRuleEvaluationRequest(
             NoiseMonitorDto monitorDto,
@@ -167,8 +159,9 @@ namespace AirQ.Api
                 alertTime,
                 publishTime);
 
-        public void ProcessAlertForContactsV2(
-                             string fleetNr,
+        // Handler-driven alerts (offline, site averages) carry no MQTT
+        // delivery, matching the retired direct-send path.
+        public Task SignalAlertAsync(
                              string serialId,
                              DateTime alertTime,
                              double limitOn,
@@ -176,27 +169,24 @@ namespace AirQ.Api
                              double level,
                              AlertType alertType,
                              string field,
-                             Guid monitorId,
-                             List<RvtContactDto> contacts
-            )
+                             CancellationToken cancellationToken = default)
         {
-            RuleAlertNotificationDispatcher dispatcher = new(
-                messageService,
-                operationalCommands.WriteNotification,
-                operationalCommands.WriteNotificationAudit);
-
-            dispatcher.ProcessAlertForContacts(
-                new RuleNotificationRequest(
-                    fleetNr,
+            string message = string.Create(
+                CultureInfo.InvariantCulture,
+                $"{alertType} {field} level={level} limit={limitOn}");
+            return _alertIngress.AcceptAsync(
+                RuleAlertSignals.Create(
+                    SignalSource,
                     serialId,
                     alertTime,
-                    limitOn,
-                    averagingPeriod,
-                    level,
                     alertType,
                     field,
-                    monitorId),
-                contacts: contacts);
+                    level,
+                    limitOn,
+                    averagingPeriod,
+                    message,
+                    AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms),
+                cancellationToken);
         }
     }
 }

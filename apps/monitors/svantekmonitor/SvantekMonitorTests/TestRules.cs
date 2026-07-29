@@ -1,711 +1,284 @@
-using System.Data;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Org.BouncyCastle.Tls;
-using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Configuration;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Svantek.Api;
 using Svantek.Api.Db;
-using Svantek.Api.Http;
-using Svantek.Model.Dto;
-using Svantek.Model.Http;
-using SvantekMonitorTests;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Rules.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
-namespace SvantekMonitorTests
+namespace SvantekMonitorTests;
+
+// Summary: Pins the durable alert contract of SvantekRuleProcessor: one AcceptAsync per
+// breach, rule latching via UpdateAlertRule, and no in-process contact fan-out.
+// Major updates:
+// - 2026-07-29 Legacy retirement step 4: rewritten from the synchronous IMessageService
+//   send-and-audit suite; contact fan-out, notification writes, audits, and send-time
+//   window filtering moved into the durable alert stack.
+[TestClass]
+public class TestRules
 {
-    [TestClass]
-    public class TestRules
+    private const string _serialId = "MyDevice";
+    private const int _durationSeconds = 15 * 60;
+
+    // Tuesday, quarter aligned; the 16 minute range holds exactly one full averaging period.
+    private static readonly DateTime _periodStart = new(2023, 10, 3, 13, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime _rangeEnd = _periodStart.AddMinutes(16);
+    private static readonly DateTime _alertTime = _periodStart.AddSeconds(_durationSeconds);
+
+    public TestRules()
     {
-        public TestRules()
+        ILoggerFactory factory = LoggerFactory.Create(builder =>
         {
-            ILoggerFactory factory = LoggerFactory.Create(builder =>
-            {
-                builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
-            });
-            RvtLogger.CreateLogger(factory, "TestRules");
-        }
-
-        private static Rvt.Monitor.Common.Notifications.RvtContactDto ContactEquivalentTo(RvtContactDto expected) =>
-            It.Is<Rvt.Monitor.Common.Notifications.RvtContactDto>(actual =>
-                actual.ContactMethod == (Rvt.Monitor.Common.Notifications.ContactMethod)(int)expected.ContactMethod &&
-                actual.EmailAddress == expected.EmailAddress &&
-                actual.PhoneNumber == expected.PhoneNumber &&
-                actual.Email == expected.Email &&
-                actual.SMS == expected.SMS &&
-                actual.SendStartTime == expected.SendStartTime &&
-                actual.SendEndTime == expected.SendEndTime);
-
-
-        [TestMethod]
-        [DynamicData(nameof(DateExclusion))]
-        [DynamicData(nameof(DeletedExclusion))]
-        [DynamicData(nameof(TimeExclusion))]
-        [DynamicData(nameof(LevelExclusion))]
-        public void TestStoreNoiseLevels_WithAlertRuleExclusion_Success(List<RvtAlertRuleDto> rules)
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            httpClient.Setup(c => c.GetAsync(It.IsRegex("\\/latestData\\?userID=foo&token=bar&instrumentID=*"))).
-                                Returns(Task<string>.Factory.StartNew(() => SvantekFixture.SamplesResponseJson()));
-            List<NoiseMonitorDto> monitors = SvantekFixture.MonitorDtos(null, NoiseMonitorStatus.ACTIVE);
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(monitors);
-
-            dbClient.Setup(c => c.ReadRules("Device1")).
-                Returns(rules);
-
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device1"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device2"), Times.Exactly(1));
-            httpClient.Verify(c => c.GetAsync("/latestData?userID=foo&token=bar&instrumentID=Device3"), Times.Exactly(1));
-            httpClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device1", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device2", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos("Device3", It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>()), Times.Exactly(3));
-            dbClient.Verify(c => c.ReadRules("Device1"), Times.Exactly(1));
-            dbClient.Verify(c => c.ReadRules("Device2"), Times.Exactly(1));
-            dbClient.Verify(c => c.ReadRules("Device3"), Times.Exactly(1));
-
-            //dbClient.Verify(c => c.UpdateMonitorStatus(monitors[1].SerialId, monitors[1].MonitorStatus));
-            //dbClient.Verify(c => c.UpdateMonitorStatus(monitors[2].SerialId, monitors[2].MonitorStatus));
-            //dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-            //dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, monitors[0].SerialId, "LAeq", true))), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
-            mqttClient.VerifyNoOtherCalls();
-
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevels_AlertRuleActivatedThenDeactivatedByActivityWindow_Success()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
-
-            double alertLevel = 10.0;
-            string serialId = "MyDevice";
-            List<SampleResponse> measurements1 = new List<SampleResponse> {
-                        SvantekFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
-            List<SampleResponse> measurements2 = new List<SampleResponse> {
-                        SvantekFixture.CreateSampleResponse(startTime.AddMinutes(15), serialId, alertLevel + 1) };
-
-            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, null);
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                    Returns(monitors);
-
-            Guid ruleId = Guid.NewGuid();
-            List<RvtContactDto> contacts = SvantekFixture.AlertContacts();
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-
-
-            httpClient.SetupSequence(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
-                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements1))).
-                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements2)));
-
-            int durationSeconds = 15 * 60;
-            RvtAlertRuleDto ruleOn = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
-                                                    SvantekFixture.CreateActiveRuleActivity(startTime, startTime.AddSeconds(30)),
-                                                    AlertType.Alert, false, false, DateTime.UtcNow, null);
-            dbClient.SetupSequence(c => c.ReadRules(serialId)).
-                                Returns(new List<RvtAlertRuleDto> { ruleOn }).
-                                Returns(new List<RvtAlertRuleDto> { new(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
-                                                            SvantekFixture.CreateActiveRuleActivity(startTime, startTime.AddSeconds(30)),
-                                                            AlertType.Alert, true, false, DateTime.UtcNow,
-                                                            DateTime.UtcNow.AddMinutes(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1) )});
-
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, "LAeq", ruleOn.AlertType)).
-                                Returns(false);
-
-            // first store noise levels should trigger an alert second should cancel it
-            testObj.StoreNoiseLevels("foo", "bar");
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId)),
-                Times.Exactly(2));
-            httpClient.VerifyNoOtherCalls();
-
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(2));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
-            mqttClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(2));
-            dbClient.Verify(c => c.ReadRules(serialId), Times.Exactly(2));
-            dbClient.Verify(c => c.InsertNoiseDtos(serialId, It.IsAny<List<NoiseDto>>()), Times.Exactly(2));
-
-            dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.AddMinutes(15).ToUniversalTime()), Times.Exactly(1));
-
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(dto => TestUtil.VerifyNotificationDto(dto, ruleOn, alertLevel + 1, startTime.ToUniversalTime(), durationSeconds, alertLevel))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, "LAeq", ruleOn.AlertType), Times.Exactly(0));
-            dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
-                Times.Exactly(1));
-
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
-            dbClient.VerifyNoOtherCalls();
-
-            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevels_AlertRuleActivatedThenDeactivatedByNoiseLimitOnOff_Success()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            // In this test we get 3 noise levels first 2 should trigger an alert third should remove the trigger
-            DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
-
-            double limitOn = 10.0;
-            double limitOff = 8.0;
-            string serialId = "MyDev1";
-            List<SampleResponse> alertingMeasurements =
-                new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime, serialId, limitOn) };
-            List<SampleResponse> nonAlertingMeasurements =
-                new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime.AddMinutes(15), serialId, limitOff) };
-
-            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                   Returns(monitors);
-
-            Guid ruleId = Guid.NewGuid();
-            List<RvtContactDto> contacts = SvantekFixture.AlertContacts();
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-
-            int durationSeconds = 15 * 60;
-            RvtAlertRuleDto rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
-                                                    SvantekFixture.CreateActiveRuleActivity(startTime.AddHours(-1), startTime.AddHours(1)),
-                                                    AlertType.Alert, false, false, DateTime.UtcNow, null);
-
-            dbClient.SetupSequence(c => c.ReadRules(serialId)).
-                                Returns(new List<RvtAlertRuleDto> { rule }).
-                                Returns(new List<RvtAlertRuleDto> { new(ruleId, serialId, "LAeq", limitOn, limitOff,  durationSeconds,
-                                                            SvantekFixture.CreateActiveRuleActivity(startTime.AddHours(-1), startTime.AddHours(1)),
-                                                            AlertType.Alert, false, false, DateTime.UtcNow, null) }).
-                                Returns(new List<RvtAlertRuleDto> { new(ruleId, serialId, "LAeq", limitOn, limitOff,  durationSeconds,
-                                                            SvantekFixture.CreateActiveRuleActivity(startTime.AddHours(-1), startTime.AddHours(1)),
-                                                            AlertType.Alert, true, false, DateTime.UtcNow, null) });
-
-
-
-            httpClient.SetupSequence(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
-                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(alertingMeasurements))).
-                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(alertingMeasurements))).
-                                 Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(nonAlertingMeasurements)));
-
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType)).
-                Returns(false);
-
-            testObj.StoreNoiseLevels("foo", "bar");
-            testObj.StoreNoiseLevels("foo", "bar");
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId)),
-                Times.Exactly(3));
-            httpClient.VerifyNoOtherCalls();
-
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(2));
-            mqttClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(3));
-            dbClient.Verify(c => c.ReadRules(serialId), Times.Exactly(3));
-            dbClient.Verify(c => c.InsertNoiseDtos(serialId, It.IsAny<List<NoiseDto>>()), Times.Exactly(3));
-
-            dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()), Times.Exactly(2));
-            dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.AddMinutes(15).ToUniversalTime()), Times.Exactly(1));
-
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(2));
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(dto => TestUtil.VerifyNotificationDto(dto, rule, limitOn, startTime.ToUniversalTime(), durationSeconds, limitOn))),
-                Times.Exactly(2));
-            dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType), Times.Exactly(0));
-            dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
-                Times.Exactly(2));
-            dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", false))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
-            dbClient.VerifyNoOtherCalls();
-
-            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(2));
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevels_AlertRuleActiveWritesAlertAccordingToAlertDelay_Success()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            string serialId = "MyDev1XXX";
-            DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
-
-            double alertLevel = 10.0;
-            List<SampleResponse> measurements = new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
-            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                               Returns(monitors);
-
-            Guid ruleId = Guid.NewGuid();
-            List<RvtContactDto> contacts = SvantekFixture.AlertContacts();
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-
-            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=blah&token=blahh&instrumentID={0}", serialId))).
-                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
-
-            AlertActivityTimeDto ruleActivity = SvantekFixture.CreateActiveRuleActivity(null, null);
-            int durationSeconds = 15 * 60;
-            DateTime created = DateTime.UtcNow;
-            RvtAlertRuleDto rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
-                                                   ruleActivity,
-                                                   AlertType.Alert, false, false, created, null);
-            dbClient.SetupSequence(c => c.ReadRules(serialId)).
-                                Returns(new List<RvtAlertRuleDto> { rule }).
-                                Returns(new List<RvtAlertRuleDto> { new(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
-                                                            ruleActivity,
-                                                            AlertType.Alert, true, false, created, created.AddMinutes(-(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES-1)) )}).
-                                Returns(new List<RvtAlertRuleDto> { new(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
-                                                            ruleActivity,
-                                                            AlertType.Alert, true, false, created, created.AddMinutes(-(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1)) )});
-
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, "Pm1", rule.AlertType)).
-                   Returns(false);
-
-            // first store noise levels should trigger an alert, second should not as it occurred before RULE_ALERT_DELAY_MINUTES but 3rd should as it's after RULE_ALERT_DELAY_MINUTES
-            testObj.StoreNoiseLevels("blah", "blahh");
-            testObj.StoreNoiseLevels("blah", "blahh");
-            testObj.StoreNoiseLevels("blah", "blahh");
-
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=blah&token=blahh&instrumentID={0}", serialId)),
-                Times.Exactly(3));
-            httpClient.VerifyNoOtherCalls();
-
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(3));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
-            mqttClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(3));
-            dbClient.Verify(c => c.ReadRules(serialId), Times.Exactly(3));
-            dbClient.Verify(c => c.InsertNoiseDtos(serialId, It.IsAny<List<NoiseDto>>()), Times.Exactly(3));
-            dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()), Times.Exactly(3));
-            DateTime expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
-            DateTime expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
-                dto => TestUtil.VerifyNotificationDto(dto, rule, alertLevel + 1, expectedDateTime, durationSeconds, alertLevel))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType),
-                Times.Exactly(0));
-            dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
-                Times.Exactly(1));
-
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
-            dbClient.VerifyNoOtherCalls();
-
-            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-
-            messageService.VerifyNoOtherCalls();
-
-        }
-
-        [TestMethod]
-        [DynamicData(nameof(OneAlertContact))]
-        [DynamicData(nameof(TwoAlertContacts))]
-        [DynamicData(nameof(ThreeAlertContacts))]
-        public void TestStoreNoiseLevels_WithVaryingNumberOfContactsForAlertRule_Success(List<RvtContactDto> contacts)
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                         out Mock<IDBClient> dbClient,
-                                         out Mock<IMqttClient> mqttClient,
-                                         out Mock<IMessageService> messageService);
-
-            DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
-
-            double alertLevel = 10.0;
-            string serialId = "MyDev1AbC";
-            List<SampleResponse> measurements = new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime, serialId, alertLevel + 1) };
-            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                   Returns(monitors);
-
-            Guid ruleId = Guid.NewGuid();
-
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-
-            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
-                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
-
-            AlertActivityTimeDto ruleActivity = SvantekFixture.CreateActiveRuleActivity(null, null);
-            int durationSeconds = 15 * 60;
-            DateTime created = DateTime.UtcNow;
-
-            RvtAlertRuleDto rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", alertLevel, 1.0, durationSeconds,
-                                                    ruleActivity,
-                                                    AlertType.Alert, false, false, created, null);
-            dbClient.Setup(c => c.ReadRules(serialId)).
-                                Returns(new List<RvtAlertRuleDto> { rule });
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType)).
-                Returns(false);
-
-            // first store noise levels should trigger an alert, second should not as it occurred before RULE_ALERT_DELAY_MINUTES but 3rd should as it's after RULE_ALERT_DELAY_MINUTES
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId)),
-                Times.Exactly(1));
-            httpClient.VerifyNoOtherCalls();
-
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
-
-
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
-            mqttClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.ReadRules(serialId), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos(serialId, It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-
-            dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()),
-                Times.Exactly(1));
-
-            DateTime expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
-            DateTime expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
-
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
-                dto => TestUtil.VerifyNotificationDto(dto, rule, alertLevel + 1, expectedDateTime, durationSeconds, alertLevel))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
-                Times.Exactly(1));
-
-            dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, "LAeq", rule.AlertType), Times.Exactly(0));
-            if (contacts.Count == 1)
-            {
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK));
+            builder.AddConsole().SetMinimumLevel(LogLevel.Debug);
+        });
+        RvtLogger.CreateLogger(factory, "TestRules");
+    }
+
+    private static SvantekRuleProcessor CreateProcessor(
+        out Mock<ISvantekRuleQueries> ruleQueries,
+        out Mock<ISvantekOperationalCommands> operationalCommands,
+        out Mock<IAlertIngressPort> alertIngress)
+    {
+        ruleQueries = new Mock<ISvantekRuleQueries>();
+        operationalCommands = new Mock<ISvantekOperationalCommands>();
+        alertIngress = new Mock<IAlertIngressPort>();
+        alertIngress
+            .Setup(ingress => ingress.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AlertIngressResult(
+                Guid.NewGuid(),
+                Guid.NewGuid(),
+                AlertOccurrenceOutcome.Accepted,
+                IsDuplicate: false));
+        return new SvantekRuleProcessor(ruleQueries.Object, operationalCommands.Object, alertIngress.Object);
+    }
+
+    private static RvtAlertRuleDto CreateRule(
+        double limitOn,
+        double limitOff,
+        AlertActivityTimeDto activity,
+        bool isActive = false) =>
+        new(Guid.NewGuid(), _serialId, "LAeq", limitOn, limitOff, _durationSeconds,
+            activity, AlertType.Alert, isActive, false, DateTime.UtcNow, null);
+
+    [TestMethod]
+    [DynamicData(nameof(DateExclusion))]
+    [DynamicData(nameof(TimeExclusion))]
+    [DynamicData(nameof(LevelExclusion))]
+    public async Task TestProcessRules_WithAlertRuleExclusion_EmitsNoSignal(List<RvtAlertRuleDto> rules)
+    {
+        SvantekRuleProcessor processor = CreateProcessor(out Mock<ISvantekRuleQueries> ruleQueries,
+                                                         out Mock<ISvantekOperationalCommands> operationalCommands,
+                                                         out Mock<IAlertIngressPort> alertIngress);
+        ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime)).
+            Returns(20.0);
+
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), rules, _periodStart, _rangeEnd);
+
+        ruleQueries.Verify(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime), Times.Exactly(1));
+        ruleQueries.VerifyNoOtherCalls();
+        operationalCommands.VerifyNoOtherCalls();
+        alertIngress.VerifyNoOtherCalls();
+    }
+
+    [TestMethod]
+    public async Task TestProcessRules_Breach_EmitsOneDurableSignalAndLatchesRule()
+    {
+        SvantekRuleProcessor processor = CreateProcessor(out Mock<ISvantekRuleQueries> ruleQueries,
+                                                         out Mock<ISvantekOperationalCommands> operationalCommands,
+                                                         out Mock<IAlertIngressPort> alertIngress);
+        RvtAlertRuleDto rule = CreateRule(10.0, 1.0, SvantekFixture.CreateActiveRuleActivity(null, null));
+        ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime)).
+            Returns(11.0);
+
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], _periodStart, _rangeEnd);
+
+        alertIngress.Verify(c => c.AcceptAsync(
+            It.Is<AlertSignal>(signal =>
+                signal.Source == "svantek.rules" &&
+                signal.SerialId == _serialId &&
+                signal.EventTime == _alertTime &&
+                signal.AlertType == AlertType.Alert &&
+                signal.Field == "LAeq" &&
+                signal.Level == 11.0 &&
+                signal.Limit == 10.0 &&
+                signal.AveragingPeriod == _durationSeconds &&
+                signal.DeliveryChannels == (AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms) &&
+                signal.SuppressionWindow == TimeSpan.Zero),
+            It.IsAny<CancellationToken>()), Times.Exactly(1));
+        alertIngress.VerifyNoOtherCalls();
+
+        operationalCommands.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, _serialId, "LAeq", true))),
+            Times.Exactly(1));
+        operationalCommands.VerifyNoOtherCalls();
+    }
+
+    [TestMethod]
+    public async Task TestProcessRules_AlertRuleActivatedThenDeactivatedByNoiseLimitOnOff_SignalsOnceAndUnlatches()
+    {
+        SvantekRuleProcessor processor = CreateProcessor(out Mock<ISvantekRuleQueries> ruleQueries,
+                                                         out Mock<ISvantekOperationalCommands> operationalCommands,
+                                                         out Mock<IAlertIngressPort> alertIngress);
+        AlertActivityTimeDto activity = SvantekFixture.CreateActiveRuleActivity(null, null);
+        RvtAlertRuleDto ruleOn = CreateRule(10.0, 8.0, activity);
+        RvtAlertRuleDto ruleActive = CreateRule(10.0, 8.0, activity, isActive: true);
+        ruleQueries.SetupSequence(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime)).
+            Returns(11.0).
+            Returns(0.5);
+
+        // The first run breaches and latches; the second drops below limit-off and unlatches.
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [ruleOn], _periodStart, _rangeEnd);
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [ruleActive], _periodStart, _rangeEnd);
+
+        alertIngress.Verify(c => c.AcceptAsync(
+            It.Is<AlertSignal>(signal => signal.SerialId == _serialId && signal.AlertType == AlertType.Alert),
+            It.IsAny<CancellationToken>()), Times.Exactly(1));
+        alertIngress.VerifyNoOtherCalls();
+
+        operationalCommands.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, _serialId, "LAeq", true))),
+            Times.Exactly(1));
+        operationalCommands.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, _serialId, "LAeq", false))),
+            Times.Exactly(1));
+        operationalCommands.VerifyNoOtherCalls();
+    }
+
+    // Replaces TestStoreNoiseLevels_WithVaryingNumberOfContactsForAlertRule_Success: contact
+    // fan-out is a durable-stack concern, so one breach is one signal however many contacts exist.
+    [TestMethod]
+    public async Task TestProcessRules_OneBreach_EmitsOneSignalWithoutReadingContacts()
+    {
+        SvantekRuleProcessor processor = CreateProcessor(out Mock<ISvantekRuleQueries> ruleQueries,
+                                                         out Mock<ISvantekOperationalCommands> operationalCommands,
+                                                         out Mock<IAlertIngressPort> alertIngress);
+        RvtAlertRuleDto rule = CreateRule(10.0, 1.0, SvantekFixture.CreateActiveRuleActivity(null, null));
+        ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime)).
+            Returns(11.0);
+
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], _periodStart, _rangeEnd);
+
+        alertIngress.Verify(c => c.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(1));
+        ruleQueries.Verify(q => q.ReadAlertContacts(It.IsAny<Guid>(), out It.Ref<Guid>.IsAny), Times.Never);
+        operationalCommands.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, _serialId, "LAeq", true))),
+            Times.Exactly(1));
+        operationalCommands.VerifyNoOtherCalls();
+    }
+
+    // Replaces TestStoreNoiseLevels_AlertRuleActivatedButSendMessageFails_Success: delivery
+    // failures and audits live in the durable stack; a duplicate-reporting ingress result
+    // still latches the rule after exactly one signal.
+    [TestMethod]
+    public async Task TestProcessRules_IngressReportsDuplicate_RuleStillLatchesAfterOneSignal()
+    {
+        SvantekRuleProcessor processor = CreateProcessor(out Mock<ISvantekRuleQueries> ruleQueries,
+                                                         out Mock<ISvantekOperationalCommands> operationalCommands,
+                                                         out Mock<IAlertIngressPort> alertIngress);
+        alertIngress
+            .Setup(ingress => ingress.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new AlertIngressResult(
+                Guid.NewGuid(),
+                NotificationId: null,
+                AlertOccurrenceOutcome.Suppressed,
+                IsDuplicate: true));
+        RvtAlertRuleDto rule = CreateRule(10.0, 1.0, SvantekFixture.CreateActiveRuleActivity(null, null));
+        ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime)).
+            Returns(11.0);
+
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], _periodStart, _rangeEnd);
+
+        alertIngress.Verify(c => c.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(1));
+        operationalCommands.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, _serialId, "LAeq", true))),
+            Times.Exactly(1));
+        operationalCommands.VerifyNoOtherCalls();
+    }
+
+    // Replaces TestStoreNoiseLevels_AlertRuleActivatedButSendMessageExcludedBySendTime_Success:
+    // per-contact send-time windows are applied by the durable stack at delivery planning time,
+    // so the breach signal is emitted whatever the time of day.
+    [DataRow("2023-03-09T14:00:00Z")]
+    [DataRow("2023-06-17T14:00:00Z")]
+    [DataRow("2023-12-17T14:00:00Z")]
+    [TestMethod]
+    public async Task TestProcessRules_BreachSignalEmittedRegardlessOfContactSendWindows(string periodStartStr)
+    {
+        SvantekRuleProcessor processor = CreateProcessor(out Mock<ISvantekRuleQueries> ruleQueries,
+                                                         out Mock<ISvantekOperationalCommands> operationalCommands,
+                                                         out Mock<IAlertIngressPort> alertIngress);
+        DateTime periodStart = DateTime.Parse(periodStartStr).ToUniversalTime();
+        RvtAlertRuleDto rule = CreateRule(10.0, 1.0, SvantekFixture.CreateActiveRuleActivity(null, null));
+        ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", periodStart, periodStart.AddSeconds(_durationSeconds))).
+            Returns(11.0);
+
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], periodStart, periodStart.AddMinutes(16));
+
+        alertIngress.Verify(c => c.AcceptAsync(
+            It.Is<AlertSignal>(signal => signal.SerialId == _serialId && signal.AlertType == AlertType.Alert),
+            It.IsAny<CancellationToken>()), Times.Exactly(1));
+        alertIngress.VerifyNoOtherCalls();
+        operationalCommands.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, _serialId, "LAeq", true))),
+            Times.Exactly(1));
+        operationalCommands.VerifyNoOtherCalls();
+    }
+
+    [TestMethod]
+    public async Task TestSignalAlert_EmitsHandlerSignalWithEmailAndSmsChannels()
+    {
+        SvantekRuleProcessor processor = CreateProcessor(out Mock<ISvantekRuleQueries> ruleQueries,
+                                                         out Mock<ISvantekOperationalCommands> operationalCommands,
+                                                         out Mock<IAlertIngressPort> alertIngress);
+        DateTime alertTime = new(2023, 10, 3, 13, 15, 0, DateTimeKind.Utc);
+
+        await processor.SignalAlertAsync(_serialId, alertTime, 20.0, 0, 15.0, AlertType.BatteryCaution, "Battery level");
+
+        alertIngress.Verify(c => c.AcceptAsync(
+            It.Is<AlertSignal>(signal =>
+                signal.Source == "svantek.rules" &&
+                signal.SerialId == _serialId &&
+                signal.EventTime == alertTime &&
+                signal.AlertType == AlertType.BatteryCaution &&
+                signal.Field == "Battery level" &&
+                signal.Level == 15.0 &&
+                signal.Limit == 20.0 &&
+                signal.AveragingPeriod == 0 &&
+                signal.DeliveryChannels == (AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms) &&
+                signal.SuppressionWindow == TimeSpan.Zero),
+            It.IsAny<CancellationToken>()), Times.Exactly(1));
+        alertIngress.VerifyNoOtherCalls();
+        ruleQueries.VerifyNoOtherCalls();
+        operationalCommands.VerifyNoOtherCalls();
+    }
+
+    private static IEnumerable<object[]> DateExclusion()
+    {
+        yield return new object[] {
+            new List<RvtAlertRuleDto> { new(Guid.NewGuid(), _serialId, "LAeq", 19.0, 19.0, _durationSeconds,
+                                            new AlertActivityTimeDto { Weekdays = false, Sundays = true, Saturdays = true,
+                                            StartTime = null, EndTime = null}, AlertType.Alert, false, false,
+                                            DateTime.UtcNow, DateTime.UtcNow.AddMinutes(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1))
             }
-            else if (contacts.Count == 2)
-            {
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.SMS, ContactEquivalentTo(contacts[1]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "foo@bob.org", NotificationConstants.SENT_OK));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "01234567890", NotificationConstants.SENT_OK));
+        };
+    }
+
+    private static IEnumerable<object[]> TimeExclusion()
+    {
+        yield return new object[] {
+            new List<RvtAlertRuleDto> { new(Guid.NewGuid(), _serialId, "LAeq", 19.0, 19.0, _durationSeconds,
+                                            SvantekFixture.CreateActiveRuleActivity(DateTime.Parse("2023-09-25T00:01:02"), DateTime.Parse("2023-09-25T00:01:03")),
+                                            AlertType.Alert, false, false,
+                                            DateTime.UtcNow, DateTime.UtcNow.AddMinutes(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1))
             }
-            else if (contacts.Count == 3)
-            {
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.SMS, ContactEquivalentTo(contacts[1]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[2]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.SMS, ContactEquivalentTo(contacts[2]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "XXX@bob.org", NotificationConstants.SENT_OK));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "01234567890", NotificationConstants.SENT_OK));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "bar@bazbaz.org", NotificationConstants.SENT_OK));
-                dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "9988776655", NotificationConstants.SENT_OK));
+        };
+    }
+
+    private static IEnumerable<object[]> LevelExclusion()
+    {
+        yield return new object[] {
+            new List<RvtAlertRuleDto> { new(Guid.NewGuid(), _serialId, "LAeq", 50.0, 19.0, _durationSeconds,
+                                            SvantekFixture.CreateActiveRuleActivity(null, null),
+                                            AlertType.Alert, false, false,
+                                            DateTime.UtcNow, DateTime.UtcNow.AddMinutes(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1))
             }
-            else
-            {
-                Assert.Fail();
-            }
-            dbClient.VerifyNoOtherCalls();
-            messageService.VerifyNoOtherCalls();
-        }
-
-        [TestMethod]
-        public void TestStoreNoiseLevels_AlertRuleActivatedButSendMessageFails_Success()
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            DateTime startTime = DateTime.Parse("2023-10-03T13:10:00+00:00");
-
-            double limitOn = 10.0;
-            double limitOff = 8.0;
-            string serialId = "MyDevice123";
-            List<SampleResponse> measurements =
-                          new List<SampleResponse> { SvantekFixture.CreateSampleResponse(startTime, serialId, limitOn) };
-
-            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, startTime.AddMinutes(-1).ToUniversalTime());
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                   Returns(monitors);
-
-            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
-                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
-
-            Guid ruleId = Guid.NewGuid(); ;
-            List<RvtContactDto> contacts = SvantekFixture.AlertContacts();
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-            int durationSeconds = 15 * 60;
-            RvtAlertRuleDto rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
-                                                    SvantekFixture.CreateActiveRuleActivity(startTime.AddHours(-1), startTime.AddHours(1)),
-                                                    AlertType.Alert, false, false, DateTime.UtcNow, null);
-            dbClient.Setup(c => c.ReadRules(serialId)).
-                                Returns(new List<RvtAlertRuleDto> { rule });
-
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, It.IsAny<string>(), rule.AlertType)).
-                Returns(false);
-
-            messageService.Setup(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>())).
-                Throws(CommsException.Of("test-address", "test-message"));
-
-            testObj.StoreNoiseLevels("foo", "bar");
-
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId)),
-                Times.Exactly(1));
-            httpClient.VerifyNoOtherCalls();
-
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
-            mqttClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.ReadRules(serialId), Times.Exactly(1));
-
-            dbClient.Verify(c => c.InsertNoiseDtos(serialId, It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-
-            dbClient.Verify(c => c.WriteLatestTimestamp(serialId, startTime.ToUniversalTime()), Times.Exactly(1));
-
-            DateTime expectedDateTime = DateTime.Parse("2023-10-03T13:10:00");
-            DateTime expectedStartTime = expectedDateTime.AddSeconds(-durationSeconds);
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-
-
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
-                dto => TestUtil.VerifyNotificationDto(dto, rule, limitOn, expectedDateTime, durationSeconds, limitOn))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.HasOpenNotification(monitors[0].Id, It.IsAny<string>(), rule.AlertType), Times.Exactly(0));
-
-            dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "test-address", "test-message"), Times.Exactly(1));
-            dbClient.VerifyNoOtherCalls();
-
-            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()), Times.Exactly(1));
-            messageService.VerifyNoOtherCalls();
-        }
-
-
-        [DataRow("Fri, 10 Mar 2023 14:10:00Z", null, null, 1)]
-        [DataRow("Thu, 09 Mar 2023 14:10:00Z", "09:00:00", "10:00:00", 0)]
-        [DataRow("Wed, 08 Mar 2023 14:10:00Z", "09:00:00", "15:00:00", 1)]
-        [DataRow("Sat, 16 Dec 2023 14:10:00Z", null, null, 1)]
-        [DataRow("Sat, 16 Dec 2023 14:10:00Z", "14:00:00", "15:00:00", 1)]
-        [DataRow("Sat, 17 Jun 2023 14:10:00Z", "14:00:00", "14:09:00", 0)]
-        [DataRow("Sun, 17 Dec 2023 14:10:00Z", null, null, 1)]
-        [DataRow("Sun, 17 Dec 2023 14:10:00Z", "14:09:00", "15:00:00", 1)]
-        [DataRow("Sun, 18 Jun 2023 14:10:00Z", "08:00:00", "14:09:00", 0)]
-        [TestMethod]
-        public void TestStoreNoiseLevels_AlertRuleActivatedButSendMessageExcludedBySendTime_Success(
-            string dataTimeStr, string? sendStartTimeStr, string? sendEndTimeStr, int numExpectedMessages)
-        {
-            SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                                     out Mock<IDBClient> dbClient,
-                                                     out Mock<IMqttClient> mqttClient,
-                                                     out Mock<IMessageService> messageService);
-
-            DateTime dataTime = DateTime.Parse(dataTimeStr).ToUniversalTime();
-
-            TimeSpan? sendStartTime = sendStartTimeStr == null ? null : TimeSpan.Parse(sendStartTimeStr);
-            TimeSpan? sendEndTime = sendEndTimeStr == null ? null : TimeSpan.Parse(sendEndTimeStr);
-
-            double limitOn = 10.0;
-            double limitOff = 8.0;
-            string serialId = "MyDevice123";
-            List<SampleResponse> measurements =
-                          new List<SampleResponse> { SvantekFixture.CreateSampleResponse(dataTime, serialId, limitOn) };
-
-            List<NoiseMonitorDto> monitors = SvantekFixture.SingleActiveMonitorDto(serialId, dataTime.AddMinutes(-1).ToUniversalTime());
-            dbClient.Setup(c => c.ReadMonitorList(null)).
-                   Returns(monitors);
-
-            httpClient.Setup(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId))).
-                                    Returns(Task<string>.Factory.StartNew(() => JsonSerializer.Serialize(measurements)));
-
-            Guid ruleId = Guid.NewGuid();
-            List<RvtContactDto> contacts = SvantekFixture.AlertContacts(sendStartTime, sendEndTime);
-            dbClient.Setup(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny)).Returns(contacts);
-            int durationSeconds = 15 * 60;
-            RvtAlertRuleDto rule = new RvtAlertRuleDto(ruleId, serialId, "LAeq", limitOn, limitOff, durationSeconds,
-                                                    SvantekFixture.CreateActiveRuleActivity(dataTime.AddHours(-1), dataTime.AddHours(1)),
-                                                    AlertType.Alert, false, false, DateTime.UtcNow, null);
-            dbClient.Setup(c => c.ReadRules(serialId)).
-                                Returns(new List<RvtAlertRuleDto> { rule });
-
-            dbClient.Setup(c => c.HasOpenNotification(monitors[0].Id, It.IsAny<string>(), It.IsAny<AlertType>())).
-                    Returns(false);
-
-            testObj.StoreNoiseLevels("foo", "bar"); //Runs the StoreNoiseLevels function so that we can verify that all required functions have been triggered
-
-            httpClient.Verify(c => c.GetAsync(string.Format("/latestData?userID=foo&token=bar&instrumentID={0}", serialId)),
-                Times.Exactly(1)); //Checks that the GetAsync function has been ran with the correct parameters only 1 time (as shown above)
-            httpClient.VerifyNoOtherCalls();// checks that no other calls have been made by the httpClient
-
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>()), Times.Exactly(1)); //Checks that the PublishAsync function has been ran with the RVTConfig.INSERT_TOPIC 1 time
-            mqttClient.Verify(c => c.PublishAsync(RvtConfig.ALERT_TOPIC, It.IsAny<string>()), Times.Exactly(1));
-            mqttClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-            dbClient.Verify(c => c.ReadRules(serialId), Times.Exactly(1));
-            dbClient.Verify(c => c.InsertNoiseDtos(serialId, It.IsAny<List<NoiseDto>>()), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteLatestTimestamp(serialId, dataTime.ToUniversalTime()),
-                Times.Exactly(1));
-            DateTime expectedEndTime = dataTime;
-            DateTime expectedStartTime = expectedEndTime.AddSeconds(-durationSeconds);
-            dbClient.Verify(c => c.ReadAlertContacts(monitors[0].Id, out It.Ref<Guid>.IsAny), Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotification(It.Is<NotificationDto>(
-                dto => TestUtil.VerifyNotificationDto(dto, rule, limitOn, expectedEndTime, durationSeconds, limitOn))),
-                Times.Exactly(1));
-            dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), "baz@bob.org", NotificationConstants.SENT_OK),
-                Times.Exactly(numExpectedMessages));
-            dbClient.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, serialId, "LAeq", true))),
-                Times.Exactly(1));
-            foreach (NoiseMonitorDto monitor in monitors)
-            {
-                dbClient.Verify(c => c.HasOpenNotification(monitor.Id, It.IsAny<string>(), rule.AlertType),
-                    Times.Exactly(0));
-            }
-            dbClient.VerifyNoOtherCalls();
-
-            messageService.Verify(c => c.Sendmessage(LegacyMessageKind.Alert, LegacyMessageChannel.Email, ContactEquivalentTo(contacts[0]), monitors[0].FleetNr!, It.IsAny<string>()),
-                Times.Exactly(numExpectedMessages));
-            messageService.VerifyNoOtherCalls();
-        }
-
-
-        private static IEnumerable<object[]> DateExclusion()
-        {
-            yield return new object[] {
-                new List<RvtAlertRuleDto> { new(Guid.NewGuid(), "Device1", "LAeq", 19.0,19.0, 15 * 60,
-                                                new AlertActivityTimeDto { Weekdays = false, Sundays = true,Saturdays = true,
-                                                StartTime = null, EndTime = null}, AlertType.Alert, false, false,
-                                                DateTime.UtcNow, DateTime.UtcNow.AddMinutes(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1))
-                }
-            };
-        }
-
-        private static IEnumerable<object[]> DeletedExclusion()
-        {
-            yield return new object[] {
-                new List<RvtAlertRuleDto> { new(Guid.NewGuid(), "Device1", "LAeq", 19.0,19.0, 15 * 60,
-                                                new AlertActivityTimeDto { Weekdays = true, Sundays = true,Saturdays = true,
-                                                StartTime = null, EndTime = null}, AlertType.Alert, false, true,
-                                                DateTime.UtcNow, DateTime.UtcNow.AddMinutes(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1))
-                }
-            };
-        }
-
-        private static IEnumerable<object[]> TimeExclusion()
-        {
-            yield return new object[] {
-                new List<RvtAlertRuleDto> { new(Guid.NewGuid(), "Device1", "LAeq", 19.0,19.0, 15 * 60,
-                                                SvantekFixture.CreateActiveRuleActivity(DateTime.Parse("2023-09-25T00:01:02"),DateTime.Parse("2023-09-25T00:01:03")),
-                                                AlertType.Alert, false, false,
-                                                DateTime.UtcNow, DateTime.UtcNow.AddMinutes(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1))
-                }
-            };
-        }
-
-        private static IEnumerable<object[]> LevelExclusion()
-        {
-            yield return new object[] {
-                new List<RvtAlertRuleDto> { new(Guid.NewGuid(), "Device1", "LAeq", 50.0,19.0, 15 * 60,
-                                                SvantekFixture.CreateActiveRuleActivity(null,null),
-                                                AlertType.Alert, false, false,
-                                                DateTime.UtcNow, DateTime.UtcNow.AddMinutes(RvtAlertRuleDto.RULE_ALERT_DELAY_MINUTES+1))
-                }
-            };
-        }
-
-        private static IEnumerable<object[]> OneAlertContact()
-        {
-            yield return new object[] { new List<RvtContactDto>()
-                {
-                    new RvtContactDto(contactMethod:ContactMethod.Email,
-                                      emailAddress: "baz@bob.org",
-                                      phoneNumber: null,
-                                      email: true,
-                                      sms: false,
-                                      sendStartTime: null,
-                                      sendEndTime: null)
-                }
-            };
-        }
-
-        private static IEnumerable<object[]> TwoAlertContacts()
-        {
-            yield return new object[] { new List<RvtContactDto>()
-                {
-                    new RvtContactDto(contactMethod: ContactMethod.Email,
-                                      emailAddress: "foo@bob.org",
-                                      phoneNumber:"999999999",
-                                      email: true,
-                                      sms: false,
-                                      sendStartTime: null,
-                                      sendEndTime: null),
-                    new RvtContactDto(contactMethod: ContactMethod.SMS,
-                                      emailAddress: "blah",
-                                      phoneNumber: "01234567890",
-                                      email: false,
-                                      sms: true,
-                                      sendStartTime: null,
-                                      sendEndTime: null)
-                }
-            };
-        }
-
-        private static IEnumerable<object[]> ThreeAlertContacts()
-        {
-            yield return new object[] { new List<RvtContactDto>()
-                {
-                    new RvtContactDto(contactMethod: ContactMethod.Email,
-                                      emailAddress: "XXX@bob.org",
-                                      phoneNumber: null,
-                                      email: true,
-                                      sms: false,
-                                      sendStartTime: null,
-                                      sendEndTime: null),
-                    new RvtContactDto(contactMethod: ContactMethod.SMS,
-                                      emailAddress: "bbbb@cccc.ddd",
-                                      phoneNumber: "01234567890",
-                                      email: false,
-                                      sms: true,
-                                      sendStartTime: null,
-                                      sendEndTime: null),
-                    new RvtContactDto(contactMethod:ContactMethod.SMSAndEmail,
-                                      emailAddress: "bar@bazbaz.org",
-                                      phoneNumber: "9988776655",
-                                      email: true,
-                                      sms: true,
-                                      sendStartTime: null,
-                                      sendEndTime: null)
-                }
-            };
-        }
+        };
     }
 }

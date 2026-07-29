@@ -60,8 +60,11 @@ public sealed class AirQDependencyBoundaryTests
             "Microsoft.EntityFrameworkCore"
         ];
 
+        // The composition root names the concrete context factory to register
+        // the durable alert stack, matching the other monitors' service roots.
         string[] offenders = [.. ProductionFiles()
             .Where(file => !file.RelativePath.Contains("/api/db/", StringComparison.Ordinal))
+            .Where(file => file.RelativePath != "apps/monitors/airqmonitor/AirQMonitor/api/AirQMonitorServices.cs")
             .Where(file => persistenceMarkers.Any(marker =>
                 file.Text.Contains(marker, StringComparison.Ordinal)))
             .Select(file => file.RelativePath)

@@ -1041,15 +1041,15 @@ public class TestDBClient
         Assert.HasCount(1, audits);
         Dictionary<string, object> audit = audits[0];
 
-        Assert.IsInstanceOfType(audit["Id"], typeof(Guid));
-        Assert.IsInstanceOfType(audit["SendTime"], typeof(DateTime));
+        Assert.IsInstanceOfType<Guid>(audit["Id"]);
+        Assert.IsInstanceOfType<DateTime>(audit["SendTime"]);
         DateTime sendTime = (DateTime)audit["SendTime"];
         Assert.IsTrue(sendTime < DateTime.UtcNow.AddSeconds(10) && sendTime > DateTime.UtcNow.AddSeconds(-10));
-        Assert.IsInstanceOfType(audit["Address"], typeof(string));
+        Assert.IsInstanceOfType<string>(audit["Address"]);
         Assert.AreEqual("mytest@email.net", (string)audit["Address"]);
-        Assert.IsInstanceOfType(audit["ErrorMessage"], typeof(string));
+        Assert.IsInstanceOfType<string>(audit["ErrorMessage"]);
         Assert.AreEqual("some error message", (string)audit["ErrorMessage"]);
-        Assert.IsInstanceOfType(audit["NotificationId"], typeof(Guid));
+        Assert.IsInstanceOfType<Guid>(audit["NotificationId"]);
 
     }
 

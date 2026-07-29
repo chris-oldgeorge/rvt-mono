@@ -1027,7 +1027,7 @@ public class TestOmnidotsApi
     private static void AssertTokenResponse(TokenResponse response)
     {
         Assert.IsNotNull(response);
-        Assert.IsInstanceOfType(response, typeof(TokenResponse));
+        Assert.IsInstanceOfType<TokenResponse>(response);
         Assert.IsTrue(response.Ok);
         Assert.AreEqual("702811da14ff4225973c4054ed52bb9f", response.Token);
     }

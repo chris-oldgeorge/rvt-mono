@@ -44,7 +44,7 @@ public class TestOmnidotsApiException
         });
 
         Assert.AreEqual("Failed ! Invalid ErrorResponse", exception.Message);
-        Assert.IsInstanceOfType(exception.InnerException, typeof(JsonException));
+        Assert.IsInstanceOfType<JsonException>(exception.InnerException);
 
         httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
             It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));
@@ -107,7 +107,7 @@ public class TestOmnidotsApiException
             await testObj.StoreMonitorsAsync(TestContext.CancellationToken);
         });
         Assert.AreEqual("Failed ! Invalid ErrorResponse", exception.Message);
-        Assert.IsInstanceOfType(exception.InnerException, typeof(JsonException));
+        Assert.IsInstanceOfType<JsonException>(exception.InnerException);
 
         httpClient.Verify(c => c.PostAsync("/api/v1/user/authenticate",
             It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()), Times.Exactly(1));

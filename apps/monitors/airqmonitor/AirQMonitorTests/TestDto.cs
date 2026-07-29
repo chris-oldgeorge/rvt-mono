@@ -50,7 +50,7 @@ public class TestDto
         });
 
         Assert.AreEqual("Failed ! LAeq(T) was not a number", exception.Message);
-        Assert.IsInstanceOfType(exception.InnerException, typeof(FormatException));
+        Assert.IsInstanceOfType<FormatException>(exception.InnerException);
         Assert.AreEqual("The input string '123.abc' was not in a correct format.", exception.InnerException!.Message);
 
     }

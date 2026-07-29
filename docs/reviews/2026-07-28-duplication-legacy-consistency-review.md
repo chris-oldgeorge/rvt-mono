@@ -135,6 +135,12 @@ with the same severity as anything else:
 
 ### Cross-monitor (the dominant cluster)
 - `AddEmailProvider(...)` ×5 (four byte-identical, one drifted to `var`).
+  **Resolved as intentional (2026-07-29):** the provider split
+  (docs/architecture/rvt-monitor-common/communications.md) deliberately makes
+  each host own provider selection — no facade, no vendor names in the
+  neutral projects (guard-enforced down to the literal string `SendGrid` in
+  `Rvt.Communication` source). `HostCommunicationsCompositionParityTests`
+  now pins the five copies byte-identical so they cannot drift.
 - `GetJobName` ×5; the dispatcher "parameterless ctor throws at runtime" hack
   is now ×5 (grew); each monitor maintains the job-name list twice
   (dispatcher set + runner switch = 10 hand-maintained lists).
@@ -185,8 +191,11 @@ with the same severity as anything else:
   contract for nothing.
 - Six near-identical startup-validation hosted services (two naming
   conventions); three options classes re-implementing the same config helpers;
-  registration naming drift across three conventions; the design spec's single
-  `AddMonitorCommunications` was never built — five hosts duplicate the block.
+  registration naming drift across three conventions; the retired
+  `Rvt.Monitor.Common.Infrastructure` facade's `AddMonitorCommunications` was
+  deliberately dissolved into per-host composition (not "never built" as this
+  review first stated); the five-host block is a documented decision, now
+  drift-pinned by `HostCommunicationsCompositionParityTests`.
 
 ## 5. Hexagonal architecture
 
@@ -267,8 +276,9 @@ enforced dead. `[Obsolete]` still missing from `IMessageService` itself, so no
 caller sees a warning. Retirement order (each step unblocks the next):
 
 1. Deletable now: dead members/fields listed in §3; add `[Obsolete]` to the
-   interface; generic startup-validation service; library-level
-   `AddMonitorCommunications`.
+   interface; generic startup-validation service. (A library-level
+   `AddMonitorCommunications` is withdrawn — it contradicts the guard-enforced
+   provider split; see §4.)
 2. One-file compat kills: retarget Omnidots' `AlertActivityTimeDto` alias;
    retarget AirQ/Svantek `NotificationDto` aliases; replace MyAtm's inverted
    adapter with the DI-registered service.
@@ -312,8 +322,11 @@ caller sees a warning. Retirement order (each step unblocks the next):
     ratchet debt), shared `TestRuleActivity`/`TestUtil`/composition tests.
 11. One vendor HTTP client in rvt-monitor-common (MyAtm's as the superset);
     move the Omnidots token seam to composition (needs the product decision).
-12. `AddRvtEmailProvider` + `GetJobName` + job-map base into the library
-    (kills the dual job lists and the ctor hack).
+12. ~~`AddRvtEmailProvider`~~ + `GetJobName` + job-map base into the library
+    (kills the dual job lists and the ctor hack). **Done for the job parts
+    (PR #22: `MonitorJobCatalog`, `MonitorJobArguments`). The email-provider
+    part is withdrawn: it contradicts the guard-enforced provider split —
+    hosts own provider selection; the ×5 block is pinned identical instead.**
 13. Frontend `gridQuery.ts` + `format.ts` (pick ONE locale policy) + one
     request-lifecycle idiom; fix the Help Admin whitelist bug and regenerate/
     pin the OpenAPI schema.

@@ -1,4 +1,3 @@
-using MyAtm.Api;
 using Rvt.Monitor.Common.Delivery;
 
 namespace MyAtm.Model.Dto;

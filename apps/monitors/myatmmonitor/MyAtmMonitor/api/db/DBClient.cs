@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using MyAtm.Api.Db.EntityFramework;
 using MyAtm.Api.Db.Mapping;
 using MyAtm.Api.Rules;
+using MyAtm.Model;
 using MyAtm.Model.Config;
 using MyAtm.Model.Dto;
 using Rvt.Monitor.Common.Data;

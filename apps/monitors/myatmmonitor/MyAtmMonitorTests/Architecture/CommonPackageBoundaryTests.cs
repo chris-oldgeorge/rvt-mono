@@ -7,6 +7,7 @@ namespace MyAtmMonitorTests.Architecture;
 [TestClass]
 public sealed class CommonPackageBoundaryTests
 {
+    private const string _monitorsScope = "apps/monitors";
     private const string CommonProject = "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj";
     private const string CommunicationAbstractionsProject = "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj";
     private const string CommunicationProject = "libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj";
@@ -99,6 +100,58 @@ public sealed class CommonPackageBoundaryTests
             .Order(StringComparer.Ordinal)];
 
         CollectionAssert.AreEqual(Array.Empty<string>(), violations, string.Join(Environment.NewLine, violations));
+    }
+
+    // G2 (2026-07-30 review): the reference-matrix guard above filters to RVT
+    // library targets before comparing, so a monitor referencing another
+    // monitor's project was structurally unguarded. This scan pins it shut.
+    [TestMethod]
+    public void MonitorProjects_DoNotReferenceOtherMonitorsProjects()
+    {
+        string root = RepositoryLayout.Root;
+        string[] violations = [.. Directory
+            .EnumerateFiles(Path.Combine(root, _monitorsScope), "*.csproj", SearchOption.AllDirectories)
+            .Where(path => !HasGeneratedDirectory(root, path))
+            .SelectMany(FindCrossMonitorReferences)
+            .Order(StringComparer.Ordinal)];
+
+        CollectionAssert.AreEqual(Array.Empty<string>(), violations, string.Join(Environment.NewLine, violations));
+    }
+
+    private static IEnumerable<string> FindCrossMonitorReferences(string projectPath)
+    {
+        string root = RepositoryLayout.Root;
+        string relativeProject = Relative(projectPath);
+        string? owner = MonitorDirectoryName(relativeProject);
+        if (owner is null)
+        {
+            yield break;
+        }
+
+        XDocument project = XDocument.Load(projectPath);
+        foreach (string? include in project.Descendants()
+                     .Where(element => element.Name.LocalName == "ProjectReference")
+                     .Select(element => (string?)element.Attribute("Include"))
+                     .Where(include => !string.IsNullOrWhiteSpace(include)))
+        {
+            string reference = ResolveProjectReference(root, projectPath, include!);
+            string? target = MonitorDirectoryName(reference);
+            if (target is not null && !string.Equals(target, owner, StringComparison.Ordinal))
+            {
+                yield return
+                    $"{relativeProject}: must not reference the {target} monitor's project {reference}.";
+            }
+        }
+    }
+
+    private static string? MonitorDirectoryName(string relativePath)
+    {
+        string[] segments = relativePath.Split('/');
+        return segments.Length >= 4 &&
+            string.Equals(segments[0], "apps", StringComparison.Ordinal) &&
+            string.Equals(segments[1], "monitors", StringComparison.Ordinal)
+            ? segments[2]
+            : null;
     }
 
     [TestMethod]
@@ -235,7 +288,7 @@ public sealed class CommonPackageBoundaryTests
     private static IEnumerable<string> FindActiveRvtPackageReferences()
     {
         string root = RepositoryLayout.Root;
-        foreach (string? scope in new[] { "apps/monitors", "apps/portal" })
+        foreach (string? scope in new[] { _monitorsScope, "apps/portal" })
         {
             foreach (string? projectPath in Directory.EnumerateFiles(
                          Path.Combine(root, scope),

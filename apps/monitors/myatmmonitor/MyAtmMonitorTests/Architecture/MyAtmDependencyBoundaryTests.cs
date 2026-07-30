@@ -1,4 +1,5 @@
 using System.Xml.Linq;
+using MyAtm.Api.Ports;
 using Rvt.Monitor.IntegrationTesting;
 
 namespace MyAtmMonitorTests.Architecture;
@@ -6,6 +7,78 @@ namespace MyAtmMonitorTests.Architecture;
 [TestClass]
 public sealed class MyAtmDependencyBoundaryTests
 {
+    private const string _monitorDirectory = "apps/monitors/myatmmonitor/MyAtmMonitor";
+
+    /// <summary>
+    /// <c>MyAtmApi</c> is the historical facade and still constructs the
+    /// vendor gateway itself; the composition root registers the transport,
+    /// database client, and gateway singleton. Both are listed so the guards
+    /// pass today while keeping every other file honest.
+    /// </summary>
+    private static readonly MonitorBoundaryContractDefinition _boundaryDefinition = new()
+    {
+        MonitorDirectory = _monitorDirectory,
+        ApiNamespaceRoot = "MyAtm.Api",
+        VendorGatewayPort = typeof(IMyAtmVendorGateway),
+        TransportMarkers =
+        [
+            "MyAtm.Api.Http",
+            "MyAtmHttpGateway",
+            "HttpWebClient",
+            "IHttpClient",
+            "HttpClient"
+        ],
+        PersistenceMarkers =
+        [
+            "MyAtmMonitorContext",
+            "Npgsql",
+            "Microsoft.EntityFrameworkCore"
+        ],
+        AdapterConstructionMarkers =
+        [
+            "new MyAtmHttpGateway",
+            "new HttpWebClient",
+            "new DBClient"
+        ],
+        AdapterConstructionAllowlist =
+        [
+            _monitorDirectory + "/api/MyAtmApi.cs",
+            _monitorDirectory + "/api/MyAtmMonitorServices.cs"
+        ],
+        // MonitorDeliveryAudit.Result is a DTO property that merely shares the
+        // Task.Result name; the surrounding method is synchronous mapping code.
+        BlockingCallAllowlist =
+        [
+            new BlockingCallAllowance(
+                _monitorDirectory + "/api/db/DBClient.cs",
+                "ErrorMessage = audit.Result,")
+        ]
+    };
+
+    [TestMethod]
+    public void UseCases_DependOnTheVendorPortRatherThanTheHttpAdapter() =>
+        MonitorDependencyBoundaryContract.VerifyUseCasesDependOnTheVendorPortRatherThanTheTransport(_boundaryDefinition);
+
+    [TestMethod]
+    public void ApplicationCodeOutsideTheDataAdapter_DoesNotReferenceEfCoreOrNpgsql() =>
+        MonitorDependencyBoundaryContract.VerifyPersistenceDetailStaysInsideTheDataAdapter(_boundaryDefinition);
+
+    [TestMethod]
+    public void ProductionCode_DoesNotBlockOnAsynchronousCalls() =>
+        MonitorDependencyBoundaryContract.VerifyProductionCodeDoesNotBlockOnAsynchronousCalls(_boundaryDefinition);
+
+    [TestMethod]
+    public void EveryVendorPortMethodIsAsynchronousAndCancellable() =>
+        MonitorDependencyBoundaryContract.VerifyEveryVendorPortMethodIsAsynchronousAndCancellable(_boundaryDefinition);
+
+    [TestMethod]
+    public void ConcreteAdapterConstruction_IsConfinedToTheCompositionAllowlist() =>
+        MonitorDependencyBoundaryContract.VerifyConcreteAdapterConstructionIsConfinedToTheCompositionAllowlist(_boundaryDefinition);
+
+    [TestMethod]
+    public void ModelLayer_DoesNotImportTheApiLayer() =>
+        MonitorDependencyBoundaryContract.VerifyTheModelLayerDoesNotImportTheApiLayer(_boundaryDefinition);
+
     [TestMethod]
     public void MapperlyPackageReferences_FollowMonitorAppAnalyzerPolicy()
     {

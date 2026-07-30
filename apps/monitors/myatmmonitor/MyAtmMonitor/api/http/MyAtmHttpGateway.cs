@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using MyAtm.Api.Ports;
+using MyAtm.Model;
 using MyAtm.Model.Json;
 using MyAtm.Model.Json.DeviceInfo;
 using Rvt.Monitor.Common.Diagnostics;

@@ -1,5 +1,6 @@
 using MyAtm.Api.Db;
 using MyAtm.Api.Rules;
+using MyAtm.Model;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Monitor.Common.Rules;

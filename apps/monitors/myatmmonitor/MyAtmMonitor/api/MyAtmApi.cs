@@ -3,6 +3,7 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Api.Ports;
 using MyAtm.Api.UseCases;
+using MyAtm.Model;
 using MyAtm.Model.Config;
 using MyAtm.Model.Json;
 using Rvt.Communication.Abstractions;

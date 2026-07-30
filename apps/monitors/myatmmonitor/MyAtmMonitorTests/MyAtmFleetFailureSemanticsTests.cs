@@ -5,6 +5,7 @@ using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Api.UseCases;
+using MyAtm.Model;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;

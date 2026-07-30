@@ -57,6 +57,29 @@ public sealed class ApplicationBoundaryArchitectureTests
         Assert.Empty(violations);
     }
 
+    // G5 (2026-07-30 review): adapters implement application ports and must not
+    // reach back into the API layer. The reporting pair below still maps API
+    // DTOs directly, so it is pinned as a frozen two-file baseline: fixing an
+    // entry should shrink the list, and no adapter file may join it.
+    [Fact]
+    public void AdapterSources_KeepTheApiImportBaselineFrozen()
+    {
+        string adaptersRoot = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa", "Adapters");
+        string[] baseline =
+        [
+            "Reporting/ReportGenerationClient.cs",
+            "Reporting/ReportGenerationGateway.cs"
+        ];
+        string[] offenders = [.. Directory
+            .EnumerateFiles(adaptersRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadLines(path).Any(line =>
+                line.Contains("RvtPortal.Spa.Api", StringComparison.Ordinal)))
+            .Select(path => Path.GetRelativePath(adaptersRoot, path).Replace('\\', '/'))
+            .Order(StringComparer.Ordinal)];
+
+        Assert.Equal(baseline, offenders);
+    }
+
     [Fact]
     public void HelpReadAdapter_StaysInTheHelpAdapterNamespace()
     {

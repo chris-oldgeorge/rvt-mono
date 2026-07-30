@@ -1,8 +1,8 @@
 using System.Text.Json;
 using Moq;
-using MyAtm.Api;
 using MyAtm.Api.Http;
 using MyAtm.Api.Ports;
+using MyAtm.Model;
 using MyAtm.Model.Json;
 
 namespace MyAtmMonitorTests;

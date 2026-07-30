@@ -1,5 +1,6 @@
 // File summary: Shared filter/order/page execution used by the generic and time-series search repositories.
 // Major updates:
+// - 2026-07-30 pending Took ownership of the default record bound after retiring the generic repository chain.
 // - 2026-07-14 pending Made the shared read path async and no-tracking; replaced PagedList with SQL count+skip/take.
 // - 2026-07-09 pending Extracted the generic repository's ReadFiltered core so the time-series reader can reuse it.
 
@@ -14,6 +15,8 @@ namespace RVT.DataAccess;
 // Function summary: Executes the shared filtered/ordered/paged query used across search repositories.
 internal static class SearchQueryExecutor
 {
+    internal const int DefaultMaximumRecords = 10000;
+
     // Function summary: Retrieves filtered rows for a set on the supplied context without tracking them.
     [SuppressMessage(
         "Maintainability",
@@ -31,7 +34,7 @@ internal static class SearchQueryExecutor
     {
         if (maximumRecords == 0)
         {
-            maximumRecords = GenericRepository<TEntity>.DAO_MAX_RECORDS;
+            maximumRecords = DefaultMaximumRecords;
         }
 
         // Search reads are projected or returned straight to callers, so change tracking is pure overhead.

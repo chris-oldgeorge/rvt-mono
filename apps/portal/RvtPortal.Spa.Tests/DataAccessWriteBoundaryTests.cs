@@ -1,9 +1,8 @@
 // File summary: Guards the rule that persistence adapters stage changes and never commit them themselves.
 // Major updates:
+// - 2026-07-30 pending Re-pointed the port guard at ISearchQueryReader after folding the single-method repository chain.
 // - 2026-07-14 pending Added guardrails after retiring the self-committing generic-repository write path.
 
-using System.Reflection;
-using RVT.DataAccess;
 using RVT.Entities.Ports.Persistence;
 
 namespace RvtPortal.Spa.Tests;
@@ -63,32 +62,12 @@ public sealed class DataAccessWriteBoundaryTests
     }
 
     [Fact]
-    // Function summary: Verifies the persistence ports expose reads only, keeping writes on the CQRS/DbContext path.
+    // Function summary: Verifies the remaining persistence port exposes reads only, keeping writes on the CQRS/DbContext path.
     public void PersistencePorts_DoNotExposeWriteOperations()
     {
-        Type[] ports =
-        [
-            typeof(IMonitorRepository),
-            typeof(ICompanyRepository),
-            typeof(IDeploymentRepository)
-        ];
-
-        string[] writeMembers = [.. ports
-            .SelectMany(port => port.GetMethods())
+        string[] writeMembers = [.. typeof(ISearchQueryReader).GetMethods()
             .Where(method => _writeMethodNames.Contains(method.Name))
             .Select(method => $"{method.DeclaringType?.Name}.{method.Name}")];
-
-        Assert.Empty(writeMembers);
-    }
-
-    [Fact]
-    // Function summary: Verifies the shared repository base offers no self-committing write helpers.
-    public void GenericRepository_ExposesNoWriteHelpers()
-    {
-        string[] writeMembers = [.. typeof(GenericRepository<>)
-            .GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
-            .Where(method => _writeMethodNames.Contains(method.Name))
-            .Select(method => method.Name)];
 
         Assert.Empty(writeMembers);
     }

@@ -1,5 +1,6 @@
 // File summary: Coordinates business-layer operations for monitor service workflows.
 // Major updates:
+// - 2026-07-30 pending Folded the single-method monitor/deployment repository hops into direct domain-context reads.
 // - 2026-07-23 Applied the explicit UTC/plain-timestamp conversion at non-date SampleTime query boundaries.
 // - 2026-07-22 Read vibration traces through the mapped OmnidotsTrace EF entity.
 // - 2026-07-09 pending Routed daily-average date conversion through the injected date-time provider.
@@ -64,38 +65,35 @@ public class MonitorService : IMonitorService
     private const string SampleTimeProperty = "SampleTime";
     private const string SerialIdProperty = "SerialId";
 
-    private readonly IMonitorRepository _monitorRepository;
+    private readonly RVTDbContext _domainContext;
     private readonly ISearchQueryReader _timeSeries;
     private readonly RVTSearchContext _searchContext;
-    private readonly IDeploymentRepository _deploymentRepository;
     private readonly IRvtDateTimeProvider _dateTimeProvider;
     // Function summary: Initializes this type with the dependencies required by its workflow.
-    public MonitorService(IMonitorRepository monitorRepository,
-        IDeploymentRepository deploymentRepository,
+    public MonitorService(RVTDbContext domainContext,
         ISearchQueryReader timeSeries,
         RVTSearchContext searchContext,
         IRvtDateTimeProvider dateTimeProvider)
     {
-        _monitorRepository = monitorRepository;
-        _deploymentRepository = deploymentRepository;
+        _domainContext = domainContext;
         _timeSeries = timeSeries;
         _searchContext = searchContext;
         _dateTimeProvider = dateTimeProvider;
     }
 
     // Function summary: Retrieves one data for callers.
-    public Task<Monitor?> ReadOneAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<Monitor?> ReadOneAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return _monitorRepository.GetByIdAsync(id, cancellationToken);
+        return await _domainContext.MonitorsList.FindAsync([id], cancellationToken);
     }
 
 
     #region Deployment
     //Returns current  Deployment if any
     // Function summary: Handles the deployment read one workflow for this module.
-    public Task<Deployment?> DeploymentReadOneAsync(Guid deploymentId, CancellationToken cancellationToken = default)
+    public async Task<Deployment?> DeploymentReadOneAsync(Guid deploymentId, CancellationToken cancellationToken = default)
     {
-        return _deploymentRepository.GetByIdAsync(deploymentId, cancellationToken);
+        return await _domainContext.Deployments.FindAsync([deploymentId], cancellationToken);
     }
     #endregion
 

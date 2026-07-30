@@ -29,4 +29,10 @@
     <Folder Include="Migrations\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- The shared search executor is internal; the test suite drives it directly now that the
+         generic repository seam that used to expose it publicly is retired. -->
+    <InternalsVisibleTo Include="RvtPortal.Spa.Tests" />
+  </ItemGroup>
+
 </Project>

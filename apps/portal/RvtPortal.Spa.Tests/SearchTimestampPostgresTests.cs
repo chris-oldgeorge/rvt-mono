@@ -277,7 +277,6 @@ public sealed class SearchTimestampPostgresTests
         await using RVTDbContext domainContext = CreateDomainContext(deployment);
         MonitorService monitorService = new(
             null!,
-            null!,
             new SearchQueryReader(searchContext),
             searchContext,
             null!);

@@ -75,7 +75,7 @@ RVT.Utilities/` is an untracked empty husk (bin/obj only) — delete.
 | # | Finding | Action |
 |---|---------|--------|
 | L1 (P2) | **The sync-alerting DB surface survived the durable migration in all four monitors (~40 members + 2 DTOs + their tests).** Dead in production: `WriteNotification` + `WriteNotificationAudit` (all four DBClients + `I*OperationalCommands`); `HasOpenNotification` (AirQ/MyAtm/Svantek); `ReadAlertContacts(…, out Guid)` (AirQ/Svantek); `ReadSiteInfo` + the whole `SiteInfoDto` incl. `ShouldReportForDate` (AirQ/Svantek); Omnidots `ReadNotifications`, `GetAveragePeakLevels`, `UpdateAlertRule`; MyAtm `UpdateAlertRule`. Pinned only by TestDbClient sections testing the dead members — deleting the cluster also shrinks the four TestDbClients the standing ruling deferred. **Do NOT delete** MyAtm `ClaimNextDueAsync`/`CompleteAsync`/`RetryAsync`/`DeadLetterAsync` — live via `IMonitorDeliveryOutboxQueries/Commands` from `MonitorDeliveryDispatcher`. | Delete members + interface declarations + dead-only tests |
-| L2 (P2) | **Seven portal API endpoints have no client caller** (grepped by path fragment + DTO/function name across all of RvtPortal.Client/src; only server tests exercise them): `GET api/monitors/options` (MonitorsController:101), `GET api/monitors/deployments/{id}` (:151), `PUT api/monitors/{id}/fleet-number` (:206, drags `SetMonitorFleetNumberCommand`), `GET api/monitors/{id}/removal-impact` (:278), `GET api/reports/{id}` (ReportsController:48 — client uses `reportLink` blob URLs), `GET api/sites/{id}/monitors` + `GET api/sites/{id}/notifications/open` (SitesController:220,231 — client renders from the embedded `SiteDetailResponse` lists with client-side paging; these two look intended-but-unadopted → **adopt-or-delete ruling**). | Delete (or adopt the two paged ones) |
+| L2 (P2) | **Seven portal API endpoints have no client caller** (grepped by path fragment + DTO/function name across all of RvtPortal.Client/src; only server tests exercise them): `GET api/monitors/options` (MonitorsController:101), `GET api/monitors/deployments/{id}` (:151), `PUT api/monitors/{id}/fleet-number` (:206, drags `SetMonitorFleetNumberCommand`), `GET api/monitors/{id}/removal-impact` (:278), `GET api/reports/{id}` (ReportsController:48 — client uses `reportLink` blob URLs), `GET api/sites/{id}/monitors` + `GET api/sites/{id}/notifications/open` (SitesController:220,231 — client renders from the embedded `SiteDetailResponse` lists with client-side paging; these two look intended-but-unadopted → **adopt-or-delete ruling**). | Delete (or adopt the two paged ones) — **ruled delete; all seven gone 2026-07-30 (PRs #50, #55)** |
 | L3 (P2) | `NotificationDto.GetMessage()` dead chain: `RvtNotificationDto.cs:49-75`, `ApiMessage` (:26, never read/written), `Policy` (:47) — zero callers (composition moved to `NotificationMessageComposer`). Drags `MonitorNotificationStyle` + `MonitorRulePolicy.NotificationStyle`, `DateTimeUtil.FormatString`, and the third (untrimmed) copy of the notification-URL builder. | Delete the chain (~4 test files touch it) |
 | L4 (P2) | `IMonitorEventPublisher.PublishAlert` (sync, `MonitorEventPublisher.cs:12,49-52`) — doc says "retained only for the legacy synchronous rule evaluator", which step 4 deleted. Zero callers. Deleting it fixes the sync-over-async default-interface hazard too. | Delete; make `PublishAlertAsync` the abstract member |
 | L5 (P3) | Async-migration sync twins with zero production callers: Svantek DBClient ×13 (`ReadLatestNotification`, `WriteSoundFile` + interface, `SetMonitorBatteryStatus`, `SetMonitorOffline`, `WriteMonitorList`, `ReadSiteMonitorsWithSiteHours`, `Create8hourAverage`, `WriteDailyAverage`, `InsertNoiseDtos` ×2, `InsertNoiseRecordsTable`, `WriteLatestTimestamp`, `UpdateMonitorStatus`, `ClearErrorMessages`); Omnidots ×5 (`InsertPeakRecords`, `InsertPeakRecordsTable`, `InsertVeffRecords`, `InsertVdvRecords`, `WriteLatestTimestamp`); MyAtm ×4 (`InsertDustDtos`, `InsertAccessoryDto`, `WriteFleetNr`, `WriteLatestTimestamp`). | Delete |
@@ -125,7 +125,7 @@ unifiable). The durable-alerts doc's claim that claim/lease fencing is
 | G4 (P2) | Monitors' model/→api/ layering unguarded, with 4 live violations: MyAtm `model/dto/{MyAtmDustImportCommit,MyAtmAlertCommit,DustMonitorDto,MyAtmRuleEvaluation}.cs` import `MyAtm.Api`. | Fix/relocate the four, add a model-must-not-import-api scan to G3's contract |
 | G5 (P2) | Portal Adapters→Api unguarded (prior P25): the two known offenders persist (`Adapters/Reporting/ReportGeneration{Client,Gateway}.cs:9`). | Two-file `Adapters/` baseline in the existing guard |
 | G6 (P3) | No guard against new `RvtConfig` static consumers (19 production files read it today). | Allowlist file-scan in CommonTests |
-| G7 (P3) | Rvt.Monitor.Common internal technology confinement unguarded (the M11 decision's enforcement): EF/Npgsql only under Data/ + Alerts/Persistence; Quartz under Scheduling/+Hosting/+background service; MQTTnet under Mqtt/. | Same file-scan shape as `CommunicationsBoundaryTests` |
+| G7 (P3) | Rvt.Monitor.Common internal technology confinement unguarded (the M11 decision's enforcement): EF/Npgsql only under Data/ + Alerts/Persistence; Quartz under Scheduling/+Hosting/+background service; MQTTnet under Mqtt/. | Same file-scan shape as `CommunicationsBoundaryTests` — **done 2026-07-30, PR #54 (`TechnologyConfinementTests`)** |
 | G8 (P3) | CI: two workflows duplicate contract-test steps and the 4-step setup preamble; no `paths` filters (docs-only PRs run everything); workflows are `pull_request`-only (direct pushes to main bypass all gates); Dockerfiles float `sdk:10.0` while global.json pins 10.0.302. Compose: `RvtConfig.cs:100` claims every deployed monitor declares `RVT__MONITOR_KIND`, but the reportingmonitor compose service doesn't (harmless today; fix the remark or the compose). | Composite action; paths filters with required-check-safe no-ops; doc fix |
 
 ---
@@ -201,24 +201,48 @@ unifiable). The durable-alerts doc's claim that claim/lease fencing is
 **P3 — batched cleanups**
 12. L5–L10 deletions; M4–M10 renames/moves/splits; B12 one-liners; G6–G8; solution/config hygiene.
 
-**Product rulings — all decided 2026-07-30:**
+**Product rulings — all decided 2026-07-30, executed same day (PRs #54, #55):**
 
 - **Timezone policy: UTC everywhere.** Contact send-windows stay UTC; rule
   activity windows (`AlertActivityTimeDto` local evaluation) move to UTC to
   match. Configured hours are UTC wall-clock and do not track DST; supersedes
   the earlier per-site timezone items. Consequence: quiet hours drift ±1h from
   local wall-clock across DST — accepted.
+  **Done 2026-07-30, PR #54: `DoesRuleApplyForTime` compares UTC time-of-day;
+  the dead `UtcToLocal`/`LocalToUtc` helpers and `RVT__LOCAL_TIME_ZONE` are
+  removed; a fixed BST-date test pins the UTC semantics.**
 - **Deleted global offline rules: honor `IsDeleted`.** Fix `ReadRules(null)`
   in all three monitors so deleted global rules stop alerting, matching site-
   rule semantics.
+  **Done 2026-07-30, PR #54 — in all _four_ monitors: the same defect existed
+  in AirQ, Svantek, MyAtm, and Omnidots, and no offline handler checked the
+  flag downstream. One integration test per monitor pins the exclusion.**
 - **Paged site endpoints: delete.** `GET api/sites/{id}/monitors` and
   `GET api/sites/{id}/notifications/open` go the way of the other five (L2);
   server-side paging can be rebuilt if site sizes ever demand it.
+  **Done 2026-07-30, PR #55 — L2 complete at seven of seven; endpoint,
+  mapper, response, application-service, and read-port support code deleted;
+  the shared site-detail pieces kept.**
 - **InMemory-provider branching: eliminate by migrating tests to Postgres.**
   Move the affected tests onto the integration DB (throwaway-schema pattern)
   and delete all 7 production branches — no provider sniffing remains.
+  **Done 2026-07-30, PR #55 — with a scope correction: the full inventory is
+  11 sites, not 7. The 5 InMemory-sniffing query fallbacks (Help ILike ×2,
+  removal-impact view ×2, report-rule search) are deleted, their coverage
+  migrated to real-Postgres tests on throwaway schemas. The remaining 6 are
+  `IsRelational()` guards protecting the InMemory test host itself
+  (transactions, ExecuteUpdate/raw SQL, schema validation); removing them
+  requires replatforming `SpaTestApplicationFactory` (~30 workflow test
+  files) onto a relational provider — recorded as a follow-up work item.**
 - **M11 no-split: signed off.** `Rvt.Monitor.Common` stays one package; the
   G7 technology-confinement guard is the enforcement mechanism.
+  **Done 2026-07-30, PR #54: `TechnologyConfinementTests` in CommonTests pins
+  EF/Npgsql to Data/ + Alerts/Persistence, Quartz to Scheduling//Hosting//the
+  background service, MQTTnet to Mqtt/ — no allowlist exceptions were needed;
+  current code already conforms.**
 - **Portal `DateTime.Today` ×5: inject `TimeProvider`, compute in UTC** —
   consistent with the timezone ruling and the six sibling classes that already
   inject it.
+  **Done 2026-07-30, PR #55: DashboardController/DashboardApplicationService
+  use `TimeProvider`, `MonitorData` uses the injected `IRvtDateTimeProvider`'s
+  UTC date; pinned by fake-clock tests at a 23:30 UTC instant.**

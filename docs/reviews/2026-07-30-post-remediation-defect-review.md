@@ -326,7 +326,24 @@ discovers only three top-level trees, so a new one would be ungraded.
 
 ---
 
-## §4 — Product rulings needed
+## §4 — Product rulings (all decided 2026-07-30)
+
+1. **Quiet hours gate on SEND time.** Plan deliveries unconditionally and move the
+   window check into the dispatcher against the current clock. Quiet hours mean
+   "don't contact me now", so a backfilled alert waits until the window reopens
+   rather than arriving at midnight.
+2. **The deployment hard-delete is conditioned on no data having arrived**, not on
+   elapsed time. The undo affordance stays, but only while the deployment window
+   holds no measurements; otherwise removal soft-ends it like every other path.
+   The unexplained one-hour rule goes.
+3. **The portal owns `omnidots_trace` naming: `omnidots_trace_index_id` wins.**
+   The monitor conforms — it is the deployed production reality after the
+   canonical-naming cutover, so no live column is renamed.
+4. **Reporting fails loudly AND backfills.** Aggregate per-rule failures and throw
+   so a failed run is visible, and derive periods from `LastGenerated` so a missed
+   period is regenerated on the next run instead of being lost.
+
+### Original framing
 
 1. **Quiet hours: event time or send time?** Contact send-windows are evaluated
    against the alert's *event* time, while the rule's activity window uses a

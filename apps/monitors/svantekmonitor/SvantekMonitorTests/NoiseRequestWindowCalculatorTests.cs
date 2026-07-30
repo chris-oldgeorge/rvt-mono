@@ -261,6 +261,25 @@ public sealed class NoiseRequestWindowCalculatorTests
         Assert.AreEqual(DateTimeKind.Utc, windows[0].End.Kind);
     }
 
+    [TestMethod]
+    public void Calculate_ClampsAFutureWatermarkSoAPoisonedMonitorRecovers()
+    {
+        NoiseRequestWindowCalculator calculator = CreateCalculator();
+
+        // A monitor whose stored watermark was poisoned by a future-dated
+        // vendor sample would otherwise start after the window end and never be
+        // asked for data again.
+        IReadOnlyList<NoiseRequestWindow> windows = calculator.Calculate(
+            deploymentStart: UtcNow.AddDays(-30),
+            watermark: UtcNow.AddYears(4),
+            lastStatusTimestamp: null,
+            utcNow: UtcNow);
+
+        Assert.HasCount(1, windows);
+        Assert.AreEqual(UtcNow.AddMinutes(-5), windows[0].Start);
+        Assert.AreEqual(UtcNow, windows[0].End);
+    }
+
     private static NoiseRequestWindowCalculator CreateCalculator() =>
         new(new SvantekImportOptions());
 }

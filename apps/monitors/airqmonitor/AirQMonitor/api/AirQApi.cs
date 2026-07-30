@@ -53,7 +53,7 @@ namespace AirQ.Api
             string? testLocalSerialId,
             TimeProvider timeProvider)
         {
-            IAirQVendorGateway gateway = new AirQHttpGateway(httpClient);
+            IAirQVendorGateway gateway = new AirQHttpGateway(httpClient, timeProvider);
             AirQTestLocalMonitorFilter testLocalFilter = AirQTestLocalMonitorFilter.Create(testLocal, testLocalSerialId);
             AirQMonitorReader monitorReader = new(dbClient, testLocalFilter);
             MonitorEventPublisher eventPublisher = new(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);

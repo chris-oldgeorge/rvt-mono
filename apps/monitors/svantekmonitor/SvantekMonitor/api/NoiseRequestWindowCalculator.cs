@@ -28,8 +28,12 @@ public sealed class NoiseRequestWindowCalculator
         DateTime? normalizedStatus = lastStatusTimestamp.HasValue ? NormalizeUtc(lastStatusTimestamp.Value) : null;
         DateTime normalizedNow = NormalizeUtc(utcNow);
 
+        // A watermark ahead of the wall clock would put the window start after
+        // its end, so the monitor would never be asked for data again. Clamping
+        // it to now lets a monitor poisoned by an earlier future-dated sample
+        // recover on its own.
         DateTime start = normalizedWatermark.HasValue
-            ? LaterOf(normalizedDeployment, SaturatingSubtract(normalizedWatermark.Value, _options.WatermarkOverlap))
+            ? LaterOf(normalizedDeployment, SaturatingSubtract(EarlierOf(normalizedWatermark.Value, normalizedNow), _options.WatermarkOverlap))
             : LaterOf(normalizedDeployment, SaturatingSubtract(normalizedNow, _options.MaximumInitialBackfill));
         DateTime candidateEnd = normalizedStatus.HasValue
             ? SaturatingAdd(normalizedStatus.Value, TimeSpan.FromHours(1))

@@ -14,10 +14,12 @@ namespace AirQ.Api.Http
     public class AirQHttpGateway : IAirQVendorGateway
     {
         private readonly IHttpClient _httpClient;
+        private readonly TimeProvider _timeProvider;
 
-        public AirQHttpGateway(IHttpClient httpClient)
+        public AirQHttpGateway(IHttpClient httpClient, TimeProvider? timeProvider = null)
         {
             _httpClient = httpClient;
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         public async Task<List<InstrumentResponse>> GetMonitorsAsync(
@@ -84,7 +86,10 @@ namespace AirQ.Api.Http
 
             List<SampleResponse> samples = ParseResponse<List<SampleResponse>>(response);
             DateTime watermark = latestDateTime;
-            List<SampleResponse> truncated = TruncateByLatestMills(samples, ref watermark);
+            List<SampleResponse> truncated = TruncateByLatestMills(
+                samples,
+                ref watermark,
+                _timeProvider.GetUtcNow().UtcDateTime);
             return new LatestSamplesResult(truncated, watermark);
         }
 
@@ -210,16 +215,22 @@ namespace AirQ.Api.Http
             }
         }
 
-        private static List<SampleResponse> TruncateByLatestMills(List<SampleResponse> samples, ref DateTime latestDateTime)
+        // The watermark is clamped to min(sampleTime, utcNow): a future-dated
+        // vendor sample that became the watermark would make every subsequent
+        // real sample compare as older and be discarded forever, so it is
+        // dropped instead of merely warned about.
+        private static List<SampleResponse> TruncateByLatestMills(List<SampleResponse> samples, ref DateTime latestDateTime, DateTime utcNow)
         {
             List<SampleResponse> removeList = [];
             foreach (SampleResponse sample in samples)
             {
                 DateTime utcDateTime = DateTimeUtil.ToUtc((DateTime)sample.Utc!);
 
-                if (utcDateTime > DateTime.UtcNow)
+                if (utcDateTime > utcNow)
                 {
-                    RvtLogger.Logger.LogWarning("TruncateByLatestMills WARNING sample UTC={Value1} timestamp in the future ", sample.Utc);
+                    RvtLogger.Logger.LogWarning("TruncateByLatestMills discarding sample UTC={Value1} timestamp in the future ", sample.Utc);
+                    removeList.Add(sample);
+                    continue;
                 }
 
                 if (utcDateTime > latestDateTime)

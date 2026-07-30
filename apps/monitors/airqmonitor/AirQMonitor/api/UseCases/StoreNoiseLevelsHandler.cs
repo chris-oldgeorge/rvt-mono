@@ -61,8 +61,15 @@ namespace AirQ.Api.UseCases
                         continue;
                     }
 
-                    DateTime lastDataTime = monitor.LastDataTime
-                        ?? _timeProvider.GetUtcNow().UtcDateTime.AddYears(-1);
+                    // A stored watermark ahead of the wall clock is not a usable
+                    // watermark - every real sample compares as older and is
+                    // discarded - so it is treated as absent, which lets a
+                    // monitor poisoned by an earlier future-dated sample recover
+                    // without a manual database edit.
+                    DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+                    DateTime lastDataTime = monitor.LastDataTime is DateTime watermark && watermark <= utcNow
+                        ? watermark
+                        : utcNow.AddYears(-1);
 
                     cancellationToken.ThrowIfCancellationRequested();
                     try

@@ -210,8 +210,16 @@ public sealed class StoreNoiseLevelsHandler
         }
 
         await _measurementCommands.InsertNoiseRecordsTableAsync(table, cancellationToken).ConfigureAwait(false);
+        DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+        // Clamp the watermark to min(sampleTime, utcNow). A future-dated vendor
+        // timestamp persisted as LastDataTime15Min would push every subsequent
+        // request window past the wall clock, so no data would ever be asked
+        // for again.
+        DateTime watermark = lastDataTime.Value > utcNow
+            ? DateTime.SpecifyKind(utcNow, lastDataTime.Value.Kind)
+            : lastDataTime.Value;
         DateTime start = monitor.PeriodStartDate;
-        DateTime end = lastDataTime.Value;
+        DateTime end = watermark;
         int startHour = (start.Hour / 8) * 8;
         start = new DateTime(start.Year, start.Month, start.Day, startHour, 0, 0, start.Kind);
         if (start == firstDataTime.Value)
@@ -229,9 +237,9 @@ public sealed class StoreNoiseLevelsHandler
 
         await _monitorCommands.WriteLatestTimestampAsync(
             monitor.SerialId,
-            lastDataTime.Value,
+            watermark,
             cancellationToken).ConfigureAwait(false);
-        if (monitor.Offline && lastDataTime > _timeProvider.GetUtcNow().UtcDateTime.AddDays(-1))
+        if (monitor.Offline && watermark > utcNow.AddDays(-1))
         {
             await _monitorCommands.SetMonitorOfflineAsync(
                 monitor.Id,
@@ -241,7 +249,7 @@ public sealed class StoreNoiseLevelsHandler
 
         cancellationToken.ThrowIfCancellationRequested();
         List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId);
-        await _ruleProcessor.ProcessRulesAsync(monitor, rules, monitor.PeriodStartDate, lastDataTime.Value, cancellationToken).ConfigureAwait(false);
+        await _ruleProcessor.ProcessRulesAsync(monitor, rules, monitor.PeriodStartDate, watermark, cancellationToken).ConfigureAwait(false);
     }
 
     private static DataTable CreateResultsTable()

@@ -127,7 +127,6 @@ namespace AirQ.Api.UseCases
                                 endperiod = start.AddHours(8);
                             }
 
-                            _monitorCommands.WriteLatestTimestamp(monitor.SerialId, lastDataTime);
                             if (monitor.Offline)
                             {
                                 _monitorCommands.SetMonitorOffline(monitor.Id, false);
@@ -137,6 +136,15 @@ namespace AirQ.Api.UseCases
 
                             List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId);
                             await _ruleProcessor.ProcessRulesV2Async(monitor, rules, processingStart, (DateTime)lastDataTime, dtos, cancellationToken);
+                            // The watermark is written last, after rules have been
+                            // evaluated. Advancing it first meant a rule-processing
+                            // failure moved the start of the next run past the
+                            // samples that were never evaluated, losing those
+                            // alerts permanently. Re-evaluating the same samples is
+                            // safe: window boundaries are derived from the unchanged
+                            // watermark, so RuleAlertSignals.Create produces the
+                            // same source event key and the durable stack dedupes.
+                            _monitorCommands.WriteLatestTimestamp(monitor.SerialId, lastDataTime);
                         }
 
                     }

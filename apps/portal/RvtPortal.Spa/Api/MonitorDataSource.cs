@@ -8,16 +8,16 @@
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
+using RvtPortal.Application.Time;
 using RvtPortal.Spa.Application.Monitors;
 
 namespace RvtPortal.Spa.Api;
 
 public interface IMonitorDataSource
 {
-    Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request);
+    Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(string serialId, DateTime fromDate, DateTime toDate);
 
@@ -40,7 +40,7 @@ public sealed class MonitorDataSource : IMonitorDataSource
     }
 
     // Function summary: Reads deployment graph/grid data through the legacy monitor calculation service.
-    public Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request)
+    public Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request, CancellationToken cancellationToken = default)
     {
         return MonitorData.GetDeploymentData(
             monitorService,
@@ -54,7 +54,8 @@ public sealed class MonitorDataSource : IMonitorDataSource
             request.Page,
             request.PageSize,
             request.Sort,
-            request.SortDir);
+            request.SortDir,
+            cancellationToken);
     }
 
     // Function summary: Returns trace indexes for one serial number over a half-open time range.

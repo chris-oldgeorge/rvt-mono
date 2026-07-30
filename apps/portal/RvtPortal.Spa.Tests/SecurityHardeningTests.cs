@@ -36,9 +36,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
-using RVT.BusinessLogic.Notifications;
-using RVT.BusinessLogic.Ports.Notifications;
 using RVT.Entities;
+using RvtPortal.Application.Notifications;
+using RvtPortal.Application.Ports.Notifications;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Users;
 using RvtPortal.Spa.Data;
@@ -549,6 +549,7 @@ public class SecurityHardeningTests
                 validatorScope.ServiceProvider.GetServices<IUserValidator<ApplicationUser>>(),
                 validator => ReferenceEquals(validator, throwingValidator));
         }
+
         ApplicationUser target = await SeedUserAsync(app, AdminEmail, Password, RoleNames.RVTAdmin);
         HttpClient client = CreateClient(app);
         await LoginAsync(client);
@@ -874,6 +875,7 @@ public class SecurityHardeningTests
                     services.RemoveAll<IDbContextOptionsConfiguration<ApplicationDbContext>>();
                     services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(identityConnection));
                 }
+
                 if (userValidator is not null)
                 {
                     services.AddSingleton(userValidator);

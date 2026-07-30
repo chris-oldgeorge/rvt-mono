@@ -1,8 +1,4 @@
-// File summary: Defines transport-neutral vendor-integration ports used by RVT business workflows.
-// Major updates:
-// - 2026-07-15 pending Introduced the vibration vendor gateway port for the hexagonal vendor-adapter refactor.
-
-namespace RVT.BusinessLogic.Ports.Vendors;
+namespace RvtPortal.Application.Ports.Vendors;
 
 // Function summary: Carries the outcome of a vendor synchronization attempt without exposing transport details.
 public sealed record VendorSyncResult(bool Succeeded, string? Error)

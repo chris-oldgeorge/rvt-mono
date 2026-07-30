@@ -206,18 +206,6 @@ public class MonitorRemovalResponse : MutationResponse
     public MonitorRemovalImpactResponse Impact { get; set; } = new();
 }
 
-public class FleetNumberMutationRequest
-{
-    public string FleetNumber { get; set; } = "";
-}
-
-public class MonitorOptionsResponse
-{
-    public List<OptionItem> MonitorTypes { get; set; } = [];
-    public List<OptionItem> Contracts { get; set; } = [];
-    public List<OptionItem> Sites { get; set; } = [];
-}
-
 public class MonitorAssignmentRequest
 {
     public required Guid ContractId { get; set; }

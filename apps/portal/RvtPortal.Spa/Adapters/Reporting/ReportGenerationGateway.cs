@@ -4,9 +4,9 @@
 // - 2026-07-08 pending Moved reporting-service gateway implementation into the reporting adapter namespace.
 // - 2026-07-05 pending Added report-generation gateway adapter for report-rule business workflows.
 
-using RVT.BusinessLogic.Application;
-using RVT.BusinessLogic.Reports;
+using RvtPortal.Application.Common;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Application.ReportRules;
 
 namespace RvtPortal.Spa.Adapters.Reporting;
 
@@ -20,7 +20,7 @@ public sealed class ReportGenerationGateway : IReportGenerationGateway
         this.client = client;
     }
 
-    public async Task<ApplicationResult<ReportGenerationResponseModel>> RequestGenerationAsync(
+    public async Task<UseCaseResult<ReportGenerationResponseModel>> RequestGenerationAsync(
         Guid reportRuleId,
         ReportGenerationRequestModel request,
         CancellationToken cancellationToken)
@@ -37,14 +37,14 @@ public sealed class ReportGenerationGateway : IReportGenerationGateway
                 cancellationToken);
             if (response == null)
             {
-                return ApplicationResult<ReportGenerationResponseModel>.NotFound($"Report rule '{reportRuleId}' was not found.");
+                return UseCaseResult<ReportGenerationResponseModel>.NotFound($"Report rule '{reportRuleId}' was not found.");
             }
 
-            return ApplicationResult<ReportGenerationResponseModel>.Success(ToGenerationModel(response));
+            return UseCaseResult<ReportGenerationResponseModel>.Success(ToGenerationModel(response));
         }
         catch (ReportGenerationServiceException exception)
         {
-            return ApplicationResult<ReportGenerationResponseModel>.ExternalServiceUnavailable(exception.Message, exception.StatusCode);
+            return UseCaseResult<ReportGenerationResponseModel>.ExternalServiceUnavailable(exception.Message, exception.StatusCode);
         }
     }
 

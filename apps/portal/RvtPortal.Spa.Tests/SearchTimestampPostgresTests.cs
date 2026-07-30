@@ -443,7 +443,7 @@ public sealed class SearchTimestampPostgresTests
             _monitor = monitor;
         }
 
-        public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request)
+        public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request, CancellationToken cancellationToken = default)
         {
             SearchQueryResult<MyAtmDustLevel> levels = await _monitorService.GetMyAtmDustLevels(
                 _monitor.SerialId,
@@ -491,7 +491,7 @@ public sealed class SearchTimestampPostgresTests
             _monitor = monitor;
         }
 
-        public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request)
+        public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request, CancellationToken cancellationToken = default)
         {
             OmnidotsTracesIndex? index = await _inner.GetTraceIndexAsync(request.TraceId!.Value);
             Assert.NotNull(index);

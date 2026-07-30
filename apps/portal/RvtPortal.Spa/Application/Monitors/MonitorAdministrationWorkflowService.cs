@@ -4,9 +4,7 @@
 
 using System.Security.Claims;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic.Ports.Storage;
-using RVT.DataAccess.Context;
+using RvtPortal.Application.Ports.Storage;
 using RvtPortal.Spa.Api;
 
 namespace RvtPortal.Spa.Application.Monitors;
@@ -16,17 +14,11 @@ public interface IMonitorAdministrationWorkflowService
     // Function summary: Returns an authorized monitor detail by monitor id.
     Task<MonitorDetailResponse?> GetDetailAsync(Guid monitorId, ClaimsPrincipal user, CancellationToken cancellationToken);
 
-    // Function summary: Returns an authorized monitor detail by deployment id.
-    Task<MonitorDetailResponse?> GetDeploymentDetailAsync(Guid deploymentId, ClaimsPrincipal user, CancellationToken cancellationToken);
-
     // Function summary: Updates monitor metadata and optional deployment coordinates.
     Task<MonitorDetailWorkflowResult> UpdateAsync(Guid monitorId, MonitorMutationRequest request, ClaimsPrincipal user, CancellationToken cancellationToken);
 
     // Function summary: Uploads a current deployment picture and returns refreshed monitor detail.
     Task<MonitorDetailWorkflowResult> UploadPictureAsync(Guid monitorId, IUploadedContent? picture, CancellationToken cancellationToken);
-
-    // Function summary: Sets a monitor fleet number and returns refreshed monitor detail.
-    Task<MonitorDetailWorkflowResult> SetFleetNumberAsync(Guid monitorId, string fleetNumber, ClaimsPrincipal user, CancellationToken cancellationToken);
 
     // Function summary: Assigns a monitor to a contract and returns refreshed monitor detail.
     Task<MonitorDetailWorkflowResult> AssignToContractAsync(Guid monitorId, Guid contractId, ClaimsPrincipal user, CancellationToken cancellationToken);
@@ -81,19 +73,16 @@ public sealed class MonitorRemovalWorkflowResult
 
 public sealed class MonitorAdministrationWorkflowService : IMonitorAdministrationWorkflowService
 {
-    private readonly RVTDbContext domainContext;
     private readonly IMediator mediator;
     private readonly IMonitorAdministrationReadService monitorReads;
     private readonly IMonitorReadAuthorizationService authorizationService;
 
     // Function summary: Initializes monitor workflows with command dispatch, read models, and detail authorization.
     public MonitorAdministrationWorkflowService(
-        RVTDbContext domainContext,
         IMediator mediator,
         IMonitorAdministrationReadService monitorReads,
         IMonitorReadAuthorizationService authorizationService)
     {
-        this.domainContext = domainContext;
         this.mediator = mediator;
         this.monitorReads = monitorReads;
         this.authorizationService = authorizationService;
@@ -103,19 +92,6 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
     public Task<MonitorDetailResponse?> GetDetailAsync(Guid monitorId, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         return BuildAuthorizedDetailAsync(monitorId, null, user, cancellationToken);
-    }
-
-    // Function summary: Returns an authorized monitor detail by deployment id.
-    public async Task<MonitorDetailResponse?> GetDeploymentDetailAsync(Guid deploymentId, ClaimsPrincipal user, CancellationToken cancellationToken)
-    {
-        Guid? monitorId = await domainContext.Deployments
-            .AsNoTracking()
-            .Where(deployment => deployment.Id == deploymentId)
-            .Select(deployment => (Guid?)deployment.MonitorId)
-            .SingleOrDefaultAsync(cancellationToken);
-        return monitorId.HasValue
-            ? await BuildAuthorizedDetailAsync(monitorId.Value, deploymentId, user, cancellationToken)
-            : null;
     }
 
     // Function summary: Updates monitor metadata and optional deployment coordinates.
@@ -140,17 +116,6 @@ public sealed class MonitorAdministrationWorkflowService : IMonitorAdministratio
                 Detail = result.Detail,
                 Errors = result.Errors
             };
-    }
-
-    // Function summary: Sets a monitor fleet number and returns refreshed monitor detail.
-    public async Task<MonitorDetailWorkflowResult> SetFleetNumberAsync(
-        Guid monitorId,
-        string fleetNumber,
-        ClaimsPrincipal user,
-        CancellationToken cancellationToken)
-    {
-        MonitorMutationCommandResult result = await mediator.Send(new SetMonitorFleetNumberCommand(monitorId, fleetNumber), cancellationToken);
-        return await BuildDetailResultAsync(result, monitorId, null, user, cancellationToken);
     }
 
     // Function summary: Assigns a monitor to a contract and returns refreshed monitor detail.

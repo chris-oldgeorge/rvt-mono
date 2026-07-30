@@ -1,9 +1,4 @@
-// File summary: Defines transport-neutral storage ports used by RVT business workflows.
-// Major updates:
-// - 2026-07-08 pending Introduced storage ports for the hexagonal-at-the-edges refactor.
-// - 2026-07-08 pending Added monitor-picture cleanup for compensating failed database persistence.
-
-namespace RVT.BusinessLogic.Ports.Storage;
+namespace RvtPortal.Application.Ports.Storage;
 
 public interface IUploadedContent
 {

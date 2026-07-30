@@ -3,10 +3,9 @@
 // - 2026-07-15 pending Added after DateTime.Today bounds (Kind=Local) were found to throw against notification_time.
 
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using RVT.BusinessLogic;
-using RVT.BusinessLogic.Application.Paging;
 using RVT.DataAccess.Context;
+using RvtPortal.Application.Common;
+using RvtPortal.Application.Time;
 using RvtPortal.Spa.Application.Dashboard;
 using RvtPortal.Spa.Tests.Support;
 
@@ -27,7 +26,7 @@ public sealed class DashboardBreachTimestamptzTests
         DbContextOptions<RVTDbContext> options = TestDbContexts.Npgsql<RVTDbContext>(connectionString);
         await using RVTDbContext context = new(options);
 
-        RvtDateTimeProvider provider = new(Options.Create(new RvtTimeZoneOptions { Local = "Europe/London" }));
+        RvtDateTimeProvider provider = new(new RvtTimeZoneOptions { Local = "Europe/London" });
         DashboardBreachApplicationService service = new(context, provider);
 
         // request.Date == null is the path that used DateTime.Today (Kind=Local); before the fix this threw when

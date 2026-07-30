@@ -4,10 +4,10 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic;
-using RVT.BusinessLogic.Application.Paging;
 using RVT.DataAccess.Context;
 using RVT.Entities;
+using RvtPortal.Application.Common;
+using RvtPortal.Application.Time;
 
 namespace RvtPortal.Spa.Application.Dashboard;
 

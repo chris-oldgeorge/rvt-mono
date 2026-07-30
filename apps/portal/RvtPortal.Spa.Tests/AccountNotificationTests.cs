@@ -2,8 +2,8 @@
 // Major updates:
 // - 2026-07-15 pending Added on migrating account emails from MessageService to AccountMessenger + IEmailDelivery.
 
-using RVT.BusinessLogic.Notifications;
-using RVT.BusinessLogic.Ports.Notifications;
+using RvtPortal.Application.Notifications;
+using RvtPortal.Application.Ports.Notifications;
 
 namespace RvtPortal.Spa.Tests;
 

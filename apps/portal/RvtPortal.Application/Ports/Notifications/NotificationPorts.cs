@@ -1,8 +1,4 @@
-// File summary: Defines transport-neutral notification ports used by RVT business workflows.
-// Major updates:
-// - 2026-07-15 pending Introduced the email delivery port for the hexagonal notification-adapter refactor.
-
-namespace RVT.BusinessLogic.Ports.Notifications;
+namespace RvtPortal.Application.Ports.Notifications;
 
 // Function summary: Carries the outcome of an email delivery attempt without exposing transport details.
 public sealed record EmailDeliveryResult(bool Succeeded, string? ProviderResponse)

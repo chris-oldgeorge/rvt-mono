@@ -159,7 +159,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
                 Page: 1,
                 PageSize: 1,
                 Sort: "SampleTime",
-                SortDir: OrderByDirectionEnum.Descending));
+                SortDir: OrderByDirectionEnum.Descending), cancellationToken);
 
             if (data.DustLevels?.Value.FirstOrDefault() is { } dust)
             {

@@ -6,5 +6,5 @@ namespace RVT.Entities.Ports.Persistence;
 
 public interface IMonitorRepository
 {
-    Task<Monitor?> GetByIdAsync(Guid id);
+    Task<Monitor?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 }

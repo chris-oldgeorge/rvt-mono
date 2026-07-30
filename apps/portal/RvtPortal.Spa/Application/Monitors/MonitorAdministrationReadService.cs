@@ -5,10 +5,10 @@
 
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic.Ports.Storage;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Identity;
+using RvtPortal.Application.Ports.Storage;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Sites;
 using MonitorEntity = RVT.Entities.Monitor;
@@ -22,9 +22,6 @@ public interface IMonitorAdministrationReadService
         MonitorInventoryRequest request,
         PortalUserContext actor,
         CancellationToken cancellationToken);
-
-    // Function summary: Returns monitor edit and assignment option lists.
-    Task<MonitorOptionsModel> OptionsAsync(PortalUserContext actor, CancellationToken cancellationToken);
 
     // Function summary: Returns monitor assignment context for a site and optional selected contract.
     Task<MonitorAssignmentContextResult> GetAssignmentContextAsync(
@@ -52,9 +49,6 @@ public interface IMonitorAdministrationReadService
         MonitorInventoryRequest request,
         PortalUserContext actor,
         CancellationToken cancellationToken);
-
-    // Function summary: Returns removal impact counts for a monitor, or null when the monitor is missing.
-    Task<MonitorRemovalImpactResponse?> GetRemovalImpactAsync(Guid monitorId, CancellationToken cancellationToken);
 }
 
 public sealed record MonitorInventoryRequest(
@@ -98,13 +92,6 @@ public sealed class MonitorUnattachedInventoryResult
     public string Sort { get; init; } = "";
     public string SortDir { get; init; } = "";
     public bool CanRemove { get; init; }
-}
-
-public sealed class MonitorOptionsModel
-{
-    public List<MonitorOptionModel> MonitorTypes { get; init; } = [];
-    public List<MonitorOptionModel> Contracts { get; init; } = [];
-    public List<MonitorOptionModel> Sites { get; init; } = [];
 }
 
 public sealed class MonitorOptionModel
@@ -228,48 +215,6 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
         };
     }
 
-    // Function summary: Returns monitor edit and assignment option lists.
-    public async Task<MonitorOptionsModel> OptionsAsync(PortalUserContext actor, CancellationToken cancellationToken)
-    {
-        IQueryable<Guid> visibleSiteIds = VisibleSiteIdsQuery(actor);
-        IQueryable<Contract> contractsQuery = domainContext.Contracts
-            .AsNoTracking()
-            .Where(contract =>
-                contract.SiteiD != null &&
-                visibleSiteIds.Contains(contract.SiteiD.Value));
-        if (!actor.IsAdmin)
-        {
-            contractsQuery = actor.CompanyId.HasValue && (actor.IsInstaller || IsCompanyUser(actor))
-                ? contractsQuery.Where(contract => contract.CompanyId == actor.CompanyId.Value)
-                : contractsQuery.Where(_ => false);
-        }
-
-        List<MonitorOptionModel> contracts = await contractsQuery
-            .Include(contract => contract.Site)
-            .OrderBy(contract => contract.ContractNumber)
-            .Select(contract => new MonitorOptionModel
-            {
-                Value = contract.Id.ToString(),
-                Label = contract.Site == null
-                    ? contract.ContractNumber
-                    : $"{contract.ContractNumber} - {contract.Site.SiteName}"
-            })
-            .ToListAsync(cancellationToken);
-        List<MonitorOptionModel> sites = await domainContext.Sites
-            .AsNoTracking()
-            .Where(site => !site.Archived && visibleSiteIds.Contains(site.Id))
-            .OrderBy(site => site.SiteName)
-            .Select(site => new MonitorOptionModel { Value = site.Id.ToString(), Label = site.SiteName })
-            .ToListAsync(cancellationToken);
-
-        return new MonitorOptionsModel
-        {
-            MonitorTypes = [.. Enum.GetValues<MonitorTypeEnum>().Select(value => new MonitorOptionModel { Value = value.ToString(), Label = value.ToString() })],
-            Contracts = contracts,
-            Sites = sites
-        };
-    }
-
     // Function summary: Returns monitor assignment context for a site and optional selected contract.
     public async Task<MonitorAssignmentContextResult> GetAssignmentContextAsync(
         Guid siteId,
@@ -385,11 +330,13 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             request.Page,
             request.PageSize,
             BuildRoleContext(actor)), cancellationToken);
+        IReadOnlyDictionary<Guid, MonitorRemovalImpactResponse> impacts = await impactReader.BuildForPageAsync(
+            [.. result.Results.Select(row => new MonitorRemovalImpactKey(row.Id, row.SerialId))],
+            cancellationToken);
         List<UnattachedMonitorListItem> enrichedRows = new();
         foreach (MonitorListItem row in result.Results)
         {
-            MonitorRemovalImpactResponse impact = await impactReader.BuildAsync(row.Id, row.SerialId, cancellationToken);
-            enrichedRows.Add(BuildUnattachedListItem(row, impact));
+            enrichedRows.Add(BuildUnattachedListItem(row, impacts[row.Id]));
         }
 
         return new MonitorUnattachedInventoryResult
@@ -406,15 +353,6 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             SortDir = request.SortDir,
             CanRemove = actor.IsAdmin
         };
-    }
-
-    // Function summary: Returns removal impact counts for a monitor, or null when the monitor is missing.
-    public async Task<MonitorRemovalImpactResponse?> GetRemovalImpactAsync(Guid monitorId, CancellationToken cancellationToken)
-    {
-        MonitorEntity? monitor = await FindMonitorAsync(monitorId, cancellationToken);
-        return monitor == null
-            ? null
-            : await impactReader.BuildAsync(monitorId, monitor.SerialId, cancellationToken);
     }
 
     // Function summary: Builds the role context passed into database-backed monitor list queries.
@@ -521,30 +459,6 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
         return [.. siteIds];
-    }
-
-    // Function summary: Builds the site-id graph visible to the actor for monitor option metadata.
-    private IQueryable<Guid> VisibleSiteIdsQuery(PortalUserContext actor)
-    {
-        if (actor.IsAdmin)
-        {
-            return domainContext.Sites.Select(site => site.Id);
-        }
-
-        if (actor.IsInstaller)
-        {
-            return actor.CompanyId.HasValue
-                ? domainContext.Contracts
-                    .Where(contract => contract.SiteiD != null && contract.CompanyId == actor.CompanyId.Value)
-                    .Select(contract => contract.SiteiD!.Value)
-                : domainContext.Sites.Where(_ => false).Select(site => site.Id);
-        }
-
-        return IsCompanyUser(actor) && actor.UserId.HasValue
-            ? domainContext.SiteUsers
-                .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, timeProvider.GetUtcNow().UtcDateTime))
-                .Select(siteUser => siteUser.SiteId)
-            : domainContext.Sites.Where(_ => false).Select(site => site.Id);
     }
 
     // Function summary: Selects the requested contract or the only contract when exactly one exists.

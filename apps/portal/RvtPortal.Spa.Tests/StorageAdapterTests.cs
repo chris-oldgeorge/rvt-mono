@@ -6,7 +6,7 @@ using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
-using RVT.BusinessLogic.Ports.Storage;
+using RvtPortal.Application.Ports.Storage;
 using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Adapters.Storage;

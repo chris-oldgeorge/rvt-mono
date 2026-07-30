@@ -22,18 +22,14 @@ public class ApiContractStabilityTests
         IReadOnlyCollection<ApiRoute> routes = ApiRouteSnapshot.ForController<MonitorsController>();
 
         AssertRoute(routes, "GET", "api/monitors");
-        AssertRoute(routes, "GET", "api/monitors/options");
         AssertRoute(routes, "GET", "api/monitors/assignment");
         AssertRoute(routes, "GET", "api/monitors/{id:guid}");
-        AssertRoute(routes, "GET", "api/monitors/deployments/{deploymentId:guid}");
         AssertRoute(routes, "PUT", "api/monitors/{id:guid}");
         AssertRoute(routes, "POST", "api/monitors/{id:guid}/picture");
         AssertRoute(routes, "GET", "api/monitors/{id:guid}/picture");
-        AssertRoute(routes, "PUT", "api/monitors/{id:guid}/fleet-number");
         AssertRoute(routes, "POST", "api/monitors/{id:guid}/contract-assignment");
         AssertRoute(routes, "DELETE", "api/monitors/{id:guid}/contract-assignment");
         AssertRoute(routes, "GET", "api/monitors/unattached");
-        AssertRoute(routes, "GET", "api/monitors/{id:guid}/removal-impact");
         AssertRoute(routes, "DELETE", "api/monitors/{id:guid}/unattached");
         AssertRoute(routes, "POST", "api/monitors/default-alert-levels");
     }
@@ -79,7 +75,6 @@ public class ApiContractStabilityTests
 
         IReadOnlyCollection<ApiRoute> reportRoutes = ApiRouteSnapshot.ForController<ReportsController>();
         AssertRoute(reportRoutes, "GET", "api/reports");
-        AssertRoute(reportRoutes, "GET", "api/reports/{id:guid}");
 
         IReadOnlyCollection<ApiRoute> contentRoutes = ApiRouteSnapshot.ForController<ReportContentController>();
         AssertRoute(contentRoutes, "GET", "api/report-content/sites/{siteId:guid}/customer-logo");

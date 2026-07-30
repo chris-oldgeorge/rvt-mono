@@ -1,11 +1,6 @@
-// File summary: Provides injectable clock and configured time-zone conversion services for business workflows.
-// Major updates:
-// - 2026-07-09 pending Added DI/options-based clock and time-zone provider to replace static DateExtensions configuration reads.
-
 using System.Globalization;
-using Microsoft.Extensions.Options;
 
-namespace RVT.BusinessLogic;
+namespace RvtPortal.Application.Time;
 
 public sealed class RvtTimeZoneOptions
 {
@@ -27,28 +22,26 @@ public interface IRvtDateTimeProvider
 
 public sealed class RvtDateTimeProvider : IRvtDateTimeProvider
 {
-    private readonly TimeZoneInfo localTimeZone;
-
-    // Function summary: Initializes the provider with an options-backed local time-zone identifier.
-    public RvtDateTimeProvider(IOptions<RvtTimeZoneOptions> options)
+    // Function summary: Initializes the provider with the configured local time-zone identifier.
+    public RvtDateTimeProvider(RvtTimeZoneOptions options)
     {
-        localTimeZone = ResolveTimeZone(options.Value.Local);
+        LocalTimeZone = ResolveTimeZone(options.Local);
     }
 
     public DateTime UtcNow => DateTime.UtcNow;
 
-    public TimeZoneInfo LocalTimeZone => localTimeZone;
+    public TimeZoneInfo LocalTimeZone { get; }
 
     // Function summary: Converts a UTC timestamp to the configured local time zone.
     public DateTime UtcToLocal(DateTime utcDateTime)
     {
-        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc), localTimeZone);
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc), LocalTimeZone);
     }
 
     // Function summary: Converts a configured-local timestamp to UTC.
     public DateTime LocalToUtc(DateTime localDateTime)
     {
-        return TimeZoneInfo.ConvertTimeToUtc(new DateTime(localDateTime.Ticks, DateTimeKind.Unspecified), localTimeZone);
+        return TimeZoneInfo.ConvertTimeToUtc(new DateTime(localDateTime.Ticks, DateTimeKind.Unspecified), LocalTimeZone);
     }
 
     // Function summary: Formats UTC time in the configured local time zone.

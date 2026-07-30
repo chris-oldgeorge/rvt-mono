@@ -19,7 +19,6 @@
     <Project Path="apps/monitors/svantekmonitor/SvantekMonitorTests/SvantekMonitorTests.csproj" />
   </Folder>
   <Folder Name="/Apps/Portal/">
-    <Project Path="apps/portal/RVT.BusinessLogic/RVT.BusinessLogic.csproj" />
     <Project Path="apps/portal/RVT.DataAccess/RVT.DataAccess.csproj" />
     <Project Path="apps/portal/RVT.Entities/RVT.Entities.csproj" />
     <Project Path="apps/portal/RVT.ReleaseAudit/RVT.ReleaseAudit.csproj" />

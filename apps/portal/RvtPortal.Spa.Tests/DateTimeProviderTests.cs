@@ -2,8 +2,7 @@
 // Major updates:
 // - 2026-07-09 pending Added regression coverage for DI/options-based time-zone conversion.
 
-using Microsoft.Extensions.Options;
-using RVT.BusinessLogic;
+using RvtPortal.Application.Time;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -13,10 +12,10 @@ public sealed class DateTimeProviderTests
     // Function summary: Verifies the date-time provider uses the injected local time-zone option for UTC/local conversion.
     public void RvtDateTimeProvider_UsesConfiguredTimeZone()
     {
-        RvtDateTimeProvider provider = new(Options.Create(new RvtTimeZoneOptions
+        RvtDateTimeProvider provider = new(new RvtTimeZoneOptions
         {
             Local = "South Africa Standard Time"
-        }));
+        });
         DateTime utc = new(2026, 1, 15, 10, 0, 0, DateTimeKind.Utc);
 
         DateTime local = provider.UtcToLocal(utc);

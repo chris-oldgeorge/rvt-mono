@@ -35,18 +35,17 @@
 using MediatR;
 using Microsoft.Extensions.Options;
 using Rvt.Communication.SendGridMail;
-using RVT.BusinessLogic;
-using RVT.BusinessLogic.Notifications;
-using RVT.BusinessLogic.Ports.Notifications;
-using RVT.BusinessLogic.Ports.Storage;
-using RVT.BusinessLogic.Ports.Vendors;
-using RVT.BusinessLogic.Reports;
 using RVT.DataAccess;
 using RVT.Entities.Ports.Persistence;
 using RvtPortal.Application.Common;
 using RvtPortal.Application.Help.Ports;
 using RvtPortal.Application.Identity;
+using RvtPortal.Application.Notifications;
+using RvtPortal.Application.Ports.Notifications;
+using RvtPortal.Application.Ports.Storage;
+using RvtPortal.Application.Ports.Vendors;
 using RvtPortal.Application.Sites.Ports;
+using RvtPortal.Application.Time;
 using RvtPortal.Spa.Adapters.Archive;
 using RvtPortal.Spa.Adapters.Help;
 using RvtPortal.Spa.Adapters.Notifications;
@@ -170,7 +169,8 @@ public static class ServiceCollectionExtensions
 
         // Business-layer + data-access service registrations (formerly InitBusinessLogic).
         services.AddOptions<RvtTimeZoneOptions>();
-        services.AddSingleton<IRvtDateTimeProvider, RvtDateTimeProvider>();
+        services.AddSingleton<IRvtDateTimeProvider>(provider =>
+            new RvtDateTimeProvider(provider.GetRequiredService<IOptions<RvtTimeZoneOptions>>().Value));
         // The EF contexts are registered by ConfigureDatabases in Program.cs (AddDbContext, with the shared
         // connection and provider options). InitDataAccess used to TryAddScoped them here, which never won the
         // registration and only resolved at all via a parameterless-constructor fallback that read appsettings

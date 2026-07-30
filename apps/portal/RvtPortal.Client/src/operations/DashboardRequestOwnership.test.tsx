@@ -23,6 +23,8 @@ vi.mock('../api/client', () => ({
 }));
 
 const date = '2026-05-24';
+// Calendar days arrive as server DateTime values, not bare 'YYYY-MM-DD' strings.
+const calendarDayDate = '2026-05-24T00:00:00Z';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -90,7 +92,7 @@ function calendarMonth(deploymentId: string, monitorId: string, fleetNumber = de
     endDate: '2026-05-31T00:00:00Z',
     unit: 'ug/m3',
     deployments: dashboardSummary().calendarDeployments,
-    days: [{ date, isCurrentMonth: true, status: 'Alert', average: 1, notificationCount: 1 }],
+    days: [{ date: calendarDayDate, isCurrentMonth: true, status: 'Alert', average: 1, notificationCount: 1 }],
   };
 }
 
@@ -243,6 +245,42 @@ describe('Portal dashboard request ownership', () => {
   beforeEach(() => {
     Object.values(api).forEach((request) => request.mockReset());
     api.getDashboardSummary.mockResolvedValue(dashboardSummary());
+  });
+
+  it('queries and labels the calendar day by the served UTC date west of UTC', async () => {
+    const originalTimeZone = process.env.TZ;
+    process.env.TZ = 'America/Los_Angeles';
+    try {
+      api.getCalendarMonth.mockResolvedValue(calendarMonth('deployment-a', 'monitor-a'));
+      api.getCalendarDay.mockResolvedValue(calendarDay('monitor-a', 'Deployment A'));
+
+      render(
+        <CalendarPanel locationPath="/calendar?deploymentId=deployment-a&year=2026&month=5" onRequestError={vi.fn()} />,
+      );
+      expect(await screen.findByText('Deployment A / Dust')).toBeInTheDocument();
+
+      expect(within(screen.getByRole('grid')).getByText('24')).toBeInTheDocument();
+      expect(api.getCalendarDay).toHaveBeenCalledWith(
+        { monitorId: 'monitor-a', year: 2026, month: 5, day: 24 },
+        expect.anything(),
+      );
+    } finally {
+      process.env.TZ = originalTimeZone;
+    }
+  });
+
+  it('fetches the calendar summary once across a deployment change', async () => {
+    api.getCalendarMonth.mockResolvedValue(calendarMonth('deployment-a', 'monitor-a'));
+    api.getCalendarDay.mockResolvedValue(calendarDay('monitor-a', 'Deployment A'));
+
+    render(
+      <CalendarPanel locationPath="/calendar?deploymentId=deployment-a&year=2026&month=5" onRequestError={vi.fn()} />,
+    );
+    expect(await screen.findByText('Deployment A / Dust')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Deployment'), { target: { value: 'deployment-b' } });
+    await waitFor(() => expect(api.getCalendarMonth).toHaveBeenCalledTimes(2));
+
+    expect(api.getDashboardSummary).toHaveBeenCalledTimes(1);
   });
 
   it('hides a previous calendar day when a same-date deployment change has no completed day response', async () => {

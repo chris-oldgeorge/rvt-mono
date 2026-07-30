@@ -272,6 +272,20 @@ describe('App', () => {
     expect(await screen.findByText(/P8-DUST \/ Dust/i)).toBeInTheDocument();
   });
 
+  it('requests calendar day detail with the served calendar date in the query string', async () => {
+    globalThis.history.replaceState(null, '', '/calendar');
+    stubFetch({ auth: { isAuthenticated: true, user: adminUser } });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { level: 1, name: /^calendar$/i })).toBeInTheDocument();
+    await waitFor(() => expect(fetchedUrls().some((url) => url.pathname === '/api/dashboard/calendar/day')).toBe(true));
+
+    const dayRequests = fetchedUrls().filter((url) => url.pathname === '/api/dashboard/calendar/day');
+    expect(dayRequests.map((url) => url.search)).toEqual(['?monitorId=monitor-id&year=2026&month=5&day=24']);
+    expect(await screen.findByText(/^61/)).toBeInTheDocument();
+  });
+
   it('renders the contracts operations route for RVT admin users', async () => {
     globalThis.history.replaceState(null, '', '/contracts');
     stubFetch({ auth: { isAuthenticated: true, user: adminUser } });
@@ -2175,6 +2189,24 @@ function fetchedUrls() {
   return fetchMock.mock.calls.map(([input]) => new URL(input.toString(), 'http://localhost'));
 }
 
+// Function summary: Mirrors the calendar-day validation in DashboardController so a malformed day query fails tests.
+function isValidCalendarDayQuery(params: URLSearchParams) {
+  const year = Number(params.get('year'));
+  const month = Number(params.get('month'));
+  const day = Number(params.get('day'));
+
+  return (
+    Boolean(params.get('monitorId')) &&
+    Number.isInteger(year) &&
+    Number.isInteger(month) &&
+    Number.isInteger(day) &&
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    day <= 31
+  );
+}
+
 // Function summary: Handles the stub fetch workflow for this module.
 function stubFetch({
   auth,
@@ -2401,6 +2433,9 @@ function stubFetch({
       }
 
       if (url.pathname === '/api/dashboard/calendar/day') {
+        if (!isValidCalendarDayQuery(url.searchParams)) {
+          return jsonResponse({ title: 'Bad Request', detail: 'A valid calendar day is required.' }, 400);
+        }
         return jsonResponse({
           monitorId: 'monitor-id',
           displayDay: '2026-05-24T00:00:00Z',

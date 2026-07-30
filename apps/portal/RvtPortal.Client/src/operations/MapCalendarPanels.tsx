@@ -361,8 +361,9 @@ function CalendarDayButton({
   selectedDate: string | null;
   onSelect: (date: string) => void;
 }>) {
-  const date = new Date(day.date);
-  const dayNumber = date.getDate();
+  // Read the calendar date the server meant instead of the viewer's local date,
+  // which shifted the printed day number west of UTC.
+  const dayNumber = parseCalendarDate(day.date).day;
   const isSelected = selectedDate === day.date;
   return (
     <button className={calendarDayClassName(day, isSelected)} type="button" onClick={() => onSelect(day.date)}>
@@ -471,8 +472,10 @@ function defaultSelectedDate(month: CalendarMonthResponse) {
 }
 
 // Function summary: Converts a calendar ISO date into the day-query fields without browser time-zone conversion.
+// The server sends a DateTime ('2026-05-24T00:00:00Z'), so the leading 'YYYY-MM-DD' is
+// taken before splitting; parsing the whole value yielded NaN day numbers.
 function parseCalendarDate(value: string) {
-  const [year, month, day] = value.split('-').map(Number);
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
   return { year, month, day };
 }
 

@@ -311,8 +311,8 @@ async function readProblemDetails(response: Response) {
   };
 }
 // Function summary: Retrieves health data for callers.
-export function getHealth() {
-  return getJson<GetHealthResponse>('/api/health');
+export function getHealth(options: ApiRequestOptions = {}) {
+  return getJson<GetHealthResponse>('/api/health', options);
 }
 // Function summary: Retrieves current auth data for callers.
 export function getCurrentAuth() {
@@ -344,8 +344,8 @@ export function setInitialPassword(request: SetInitialPasswordRequest) {
   return sendJson<AuthStateResponse>('/api/auth/confirm-email', 'POST', request);
 }
 // Function summary: Retrieves profile data for callers.
-export function getProfile() {
-  return getJson<ProfileResponse>('/api/auth/profile');
+export function getProfile(options: ApiRequestOptions = {}) {
+  return getJson<ProfileResponse>('/api/auth/profile', options);
 }
 // Function summary: Updates profile data for the current workflow.
 export function updateProfile(request: UpdateProfileRequest) {

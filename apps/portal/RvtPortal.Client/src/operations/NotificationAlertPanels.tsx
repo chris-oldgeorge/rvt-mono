@@ -27,7 +27,7 @@ import {
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn } from '../components/DataGrid';
-import { FormField, Notice, SubmitButton } from '../components/FormControls';
+import { ConfirmDialog, FormField, Notice, SubmitButton } from '../components/FormControls';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { formatDateTime, formatNumber } from '../format';
 import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
@@ -593,6 +593,7 @@ function AlertLevelsListPanel({
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteLevel, setConfirmDeleteLevel] = useState<AlertLevelItem | null>(null);
   const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryAlertLevelsRequest> | null>(null);
   const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryAlertLevelsRequest> | null>(null);
   const { claimRequest, ownsRequest, currentGeneration } = useRequestLifecycle();
@@ -662,9 +663,6 @@ function AlertLevelsListPanel({
   }, [claimRequest, execution, monitorId, onRequestError, ownsRequest, page, sortDir, sortKey]);
 
   async function handleDelete(level: AlertLevelItem) {
-    if (!globalThis.confirm(`Delete ${level.alertType} ${level.alertField} alert level?`)) {
-      return;
-    }
     const mutationGeneration = currentGeneration();
     setNotice(null);
     setError(null);
@@ -747,11 +745,25 @@ function AlertLevelsListPanel({
                 {
                   label: 'Delete alert level',
                   icon: <Trash2 size={16} aria-hidden="true" />,
-                  onClick: handleDelete,
+                  onClick: (level) => setConfirmDeleteLevel(level),
                 },
               ]
             : []
         }
+      />
+      <ConfirmDialog
+        open={confirmDeleteLevel !== null}
+        title="Delete alert level"
+        message={`Delete ${confirmDeleteLevel?.alertType ?? ''} ${confirmDeleteLevel?.alertField ?? ''} alert level?`}
+        confirmLabel="Delete"
+        onCancel={() => setConfirmDeleteLevel(null)}
+        onConfirm={() => {
+          const level = confirmDeleteLevel;
+          setConfirmDeleteLevel(null);
+          if (level) {
+            void handleDelete(level);
+          }
+        }}
       />
     </section>
   );

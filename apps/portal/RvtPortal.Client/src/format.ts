@@ -7,20 +7,28 @@
 
 const locale = 'en-GB';
 
-// Function summary: Formats an ISO date as a medium en-GB date, or '' when absent.
+// Function summary: Formats an ISO date as a medium en-GB date, '' when absent, or the raw value when malformed.
 export function formatDate(value?: string | null) {
   if (!value) {
     return '';
   }
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(value));
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date);
 }
 
-// Function summary: Formats an ISO timestamp as a medium en-GB date with short time, or '' when absent.
+// Function summary: Formats an ISO timestamp as a medium en-GB date with short time, '' when absent, or the raw value when malformed.
 export function formatDateTime(value?: string | null, timeZone?: string) {
   if (!value) {
     return '';
   }
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(new Date(value));
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone }).format(date);
 }
 
 // Function summary: Formats a calendar month as 'July 2026'.

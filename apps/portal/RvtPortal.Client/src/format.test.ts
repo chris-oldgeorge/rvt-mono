@@ -18,6 +18,12 @@ describe('format', () => {
     expect(formatDateTime('')).toBe('');
   });
 
+  it('returns malformed input verbatim instead of throwing during render', () => {
+    expect(formatDate('not-a-date')).toBe('not-a-date');
+    expect(formatDate('2026-13-45T99:99:99Z')).toBe('2026-13-45T99:99:99Z');
+    expect(formatDateTime('garbage', 'UTC')).toBe('garbage');
+  });
+
   it('formats calendar months', () => {
     expect(formatMonthYear(2026, 7)).toBe('July 2026');
   });

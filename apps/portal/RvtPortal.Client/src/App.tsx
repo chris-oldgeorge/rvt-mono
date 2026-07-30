@@ -31,7 +31,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from 'lucide-react';
-import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { Component, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ErrorInfo, ReactNode, SubmitEvent } from 'react';
 import {
   changePassword,
@@ -40,6 +40,7 @@ import {
   getCurrentAuth,
   getHealth,
   getProfile,
+  isAbortError,
   isForbidden,
   isUnauthorized,
   login,
@@ -315,6 +316,9 @@ export function App() {
   const [route, setRoute] = useState<AppRoute>(() => getRouteFromLocation());
   const [locationPath, setLocationPath] = useState(currentLocationPath);
   const [auth, setAuth] = useState<AuthStateResponse | null>(null);
+  // Carried in memory rather than a query string so the address never lands
+  // in browser history, server logs, or referrer headers.
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
 
   useEffect(() => {
     // Function summary: Handles the on pop state workflow for this module.
@@ -349,7 +353,7 @@ export function App() {
       return <PublicNotFoundPage onNavigate={navigate} />;
     }
     if (route === 'forgot-password') {
-      return <ForgotPasswordPage onNavigate={navigate} />;
+      return <ForgotPasswordPage initialEmail={forgotPasswordEmail} onNavigate={navigate} />;
     }
     if (route === 'reset-password') {
       return <ResetPasswordPage onNavigate={navigate} />;
@@ -357,7 +361,16 @@ export function App() {
     if (route === 'confirm-email') {
       return <ConfirmEmailPage onAuthenticated={setAuth} onNavigate={navigate} />;
     }
-    return <LoginPage onAuthenticated={setAuth} onNavigate={navigate} />;
+    return (
+      <LoginPage
+        onAuthenticated={setAuth}
+        onNavigate={navigate}
+        onForgotPassword={(email) => {
+          setForgotPasswordEmail(email);
+          navigate('/forgot-password');
+        }}
+      />
+    );
   }
 
   const protectedRoute: ProtectedRoute =
@@ -725,10 +738,11 @@ function PublicNotFoundPage({ onNavigate }: PublicPageProps) {
 type LoginPageProps = PublicPageProps &
   Readonly<{
     onAuthenticated: (auth: AuthStateResponse) => void;
+    onForgotPassword: (email: string) => void;
   }>;
 
 // Function summary: Renders the LoginPage React component and wires its local UI behavior.
-function LoginPage({ onAuthenticated, onNavigate }: LoginPageProps) {
+function LoginPage({ onAuthenticated, onForgotPassword, onNavigate }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -781,13 +795,7 @@ function LoginPage({ onAuthenticated, onNavigate }: LoginPageProps) {
               <span>Password</span>
             </label>
             <div className="legacy-reset-row">
-              <button
-                className="legacy-text-link"
-                type="button"
-                onClick={() =>
-                  onNavigate(email ? `/forgot-password?email=${encodeURIComponent(email)}` : '/forgot-password')
-                }
-              >
+              <button className="legacy-text-link" type="button" onClick={() => onForgotPassword(email)}>
                 Reset your password?
               </button>
             </div>
@@ -811,8 +819,8 @@ function LoginPage({ onAuthenticated, onNavigate }: LoginPageProps) {
 }
 
 // Function summary: Renders the ForgotPasswordPage React component and wires its local UI behavior.
-function ForgotPasswordPage({ onNavigate }: PublicPageProps) {
-  const [email, setEmail] = useState(() => new URLSearchParams(globalThis.location.search).get('email') ?? '');
+function ForgotPasswordPage({ initialEmail = '', onNavigate }: PublicPageProps & Readonly<{ initialEmail?: string }>) {
+  const [email, setEmail] = useState(initialEmail);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1074,6 +1082,14 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
   const isAdminRouteActive = adminItems.some((item) => item.route === contentRoute);
   const visibleShellError = shellError?.route === route ? shellError.message : null;
 
+  // The current route is read through a ref so the error handlers stay
+  // reference-stable across navigation; otherwise the health/profile fetch
+  // effect below would refire on every route change.
+  const routeRef = useRef(route);
+  useEffect(() => {
+    routeRef.current = route;
+  }, [route]);
+
   const handleAccessRequestError = useCallback(
     (error: unknown) => {
       if (isUnauthorized(error)) {
@@ -1083,17 +1099,17 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
       }
       if (isForbidden(error)) {
         setShellError({
-          route,
+          route: routeRef.current,
           message: 'You do not have permission to use that part of the portal.',
         });
-        if (route !== 'access-denied') {
+        if (routeRef.current !== 'access-denied') {
           onNavigate('/access-denied');
         }
         return true;
       }
       return false;
     },
-    [onAuthChanged, onNavigate, route],
+    [onAuthChanged, onNavigate],
   );
 
   const handleRequestError = useCallback(
@@ -1108,14 +1124,21 @@ function PortalShell({ auth, locationPath, route, onAuthChanged, onNavigate }: P
       if (handleAccessRequestError(error)) {
         return;
       }
-      setShellError({ route, message: (error as Error).message });
+      setShellError({ route: routeRef.current, message: (error as Error).message });
     },
-    [handleAccessRequestError, route],
+    [handleAccessRequestError],
   );
 
   useEffect(() => {
-    getHealth().then(setHealth).catch(handleShellRequestError);
-    getProfile().then(setProfile).catch(handleShellRequestError);
+    const controller = new AbortController();
+    const reportError = (error: unknown) => {
+      if (!isAbortError(error)) {
+        handleShellRequestError(error);
+      }
+    };
+    getHealth({ signal: controller.signal }).then(setHealth).catch(reportError);
+    getProfile({ signal: controller.signal }).then(setProfile).catch(reportError);
+    return () => controller.abort();
   }, [handleShellRequestError]);
 
   async function handleLogout() {

@@ -10,8 +10,8 @@ This repository contains three RVT modules:
 
 This reviewable build advances the client release from monorepo source commit
 `a9b1bd2` (the source recorded by the previous `RVT-monitors`
-`release-candidate`) through `95eeb18c`. The range contains 115 commits and
-changes 453 files.
+`release-candidate`) through `1914383c`. The range contains 129 commits and
+changes 466 files.
 
 ### Monitor correctness, resilience, and security
 
@@ -37,6 +37,9 @@ changes 453 files.
   shared kernel.
 - Aligned the Omnidots monitor trace schema with the Portal-owned canonical
   column and added cross-component schema-fixture coverage.
+- Prevented future-dated samples and pre-backfill rule windows from advancing
+  monitor watermarks, and represented empty averaging windows as missing data
+  instead of a false zero-decibel reading.
 
 ### Portal backend and PostgreSQL convergence
 
@@ -57,6 +60,9 @@ changes 453 files.
 - Standardized invalid-sort failures on the shared Problem Details response.
 - Hardened storage, upload, archive, notification, report-generation, and
   vendor adapter boundaries identified by the full code review.
+- Preserved the contract's final day in site archives, resolved archive tables
+  through the active PostgreSQL search path, and exercised archive exports
+  against real PostgreSQL.
 
 ### Portal client behavior and maintainability
 

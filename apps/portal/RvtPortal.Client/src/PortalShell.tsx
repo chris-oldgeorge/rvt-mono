@@ -29,7 +29,7 @@ import { CompaniesPanel, UsersPanel } from './admin/AdminPanels';
 import { HelpAdminPanel } from './admin/HelpAdminPanel';
 import { ContractsPanel } from './operations/ContractPanels';
 import { SitesPanel } from './operations/SitePanels';
-import { NotificationsPanel } from './operations/NotificationAlertPanels';
+import { NotificationsPanel } from './operations/NotificationPanels';
 import { DashboardPanel } from './operations/DashboardPanels';
 import { HelpPanel } from './operations/HelpPanel';
 import { FormField, Notice, SubmitButton } from './components/FormControls';

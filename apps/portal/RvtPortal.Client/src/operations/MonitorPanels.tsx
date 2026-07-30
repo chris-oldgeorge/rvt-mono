@@ -32,7 +32,7 @@ import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
 import { FormField, Notice, SubmitButton } from '../components/FormControls';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { safeHref } from '../safeUrl';
-import { AlertLevelsPanel } from './NotificationAlertPanels';
+import { AlertLevelsPanel } from './AlertLevelPanels';
 import { MonitorAssignmentPanel } from './MonitorAssignmentPanel';
 import { MonitorDetailPanel } from './MonitorDetailPanel';
 import { UnattachedMonitorRemovalPanel } from './MonitorRemovalPanel';

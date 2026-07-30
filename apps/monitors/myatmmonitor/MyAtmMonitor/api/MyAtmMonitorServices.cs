@@ -108,7 +108,6 @@ public static class MyAtmMonitorServices
             provider.GetRequiredService<MyAtmMonitorOptions>().DevicePageSize,
             provider.GetRequiredService<MyAtmMonitorOptions>().MaxDevicePagesPerRun));
         services.AddSingleton<CheckForOfflineMonitorsHandler>();
-        services.AddSingleton<ClearMonitorsOfflineFlagHandler>();
         services.AddSingleton<ClearOlderErrorMessagesHandler>();
         services.AddSingleton(provider => new StoreDustLevelsHandler(
             provider.GetRequiredService<IMyAtmVendorGateway>(),

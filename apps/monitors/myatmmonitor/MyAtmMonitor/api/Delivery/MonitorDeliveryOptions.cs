@@ -27,7 +27,7 @@ public sealed record MonitorDeliveryOptions
 
         if (!MonitorDeliveryProducers.IsKnown(Producer))
         {
-            failures.Add("Producer must be 'MyAtm' or 'Svantek'.");
+            failures.Add("Producer must be 'MyAtm'.");
         }
 
         if (string.IsNullOrWhiteSpace(InsertTopic))

@@ -21,7 +21,6 @@ namespace MyAtm.Api
 
         private readonly StoreMonitorsHandler _storeMonitors;
         private readonly CheckForOfflineMonitorsHandler _checkForOfflineMonitors;
-        private readonly ClearMonitorsOfflineFlagHandler _clearMonitorsOfflineFlag;
         private readonly ClearOlderErrorMessagesHandler _clearOlderErrorMessages;
         private readonly StoreDustLevelsHandler _storeDustLevels;
         private readonly ProcessDustLevelsHandler _processDustLevels;
@@ -96,7 +95,6 @@ namespace MyAtm.Api
                 dbClient,
                 ruleProcessor,
                 TimeProvider.System);
-            _clearMonitorsOfflineFlag = new ClearMonitorsOfflineFlagHandler(monitorReader, dbClient);
             _clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
             _storeDustLevels = new StoreDustLevelsHandler(
                 gateway,
@@ -126,14 +124,6 @@ namespace MyAtm.Api
         {
             cancellationToken.ThrowIfCancellationRequested();
             return _checkForOfflineMonitors.RunAsync(customerId, cancellationToken);
-        }
-
-
-        public Task ClearMonitorsOfflineFlagAsync(int customerId, CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            _clearMonitorsOfflineFlag.Run(customerId);
-            return Task.CompletedTask;
         }
 
 

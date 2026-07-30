@@ -385,11 +385,13 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             request.Page,
             request.PageSize,
             BuildRoleContext(actor)), cancellationToken);
+        IReadOnlyDictionary<Guid, MonitorRemovalImpactResponse> impacts = await impactReader.BuildForPageAsync(
+            [.. result.Results.Select(row => new MonitorRemovalImpactKey(row.Id, row.SerialId))],
+            cancellationToken);
         List<UnattachedMonitorListItem> enrichedRows = new();
         foreach (MonitorListItem row in result.Results)
         {
-            MonitorRemovalImpactResponse impact = await impactReader.BuildAsync(row.Id, row.SerialId, cancellationToken);
-            enrichedRows.Add(BuildUnattachedListItem(row, impact));
+            enrichedRows.Add(BuildUnattachedListItem(row, impacts[row.Id]));
         }
 
         return new MonitorUnattachedInventoryResult

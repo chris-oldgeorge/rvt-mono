@@ -1,5 +1,6 @@
 // File summary: Exposes API endpoints used by the React portal for notifications controller workflows.
 // Major updates:
+// - 2026-07-31 pending Capped the batch-close notification-id list alongside the existing validation.
 // - 2026-07-09 pending Routed notification close and batch-close write workflows through the notification application service.
 // - 2026-07-09 pending Routed notification list/detail reads through the notification application service.
 // - 2026-06-26 pending Scoped notification attribution to effective deployment/contract ownership windows.
@@ -23,6 +24,14 @@ namespace RvtPortal.Spa.Api;
 [Route("api/notifications")]
 public class NotificationsController : ControllerBase
 {
+    /// <summary>
+    /// The most notifications one batch close may name. Without it a single authenticated caller could post
+    /// two hundred thousand ids and have them turned into one `IN (…)` inside a write transaction. Unlike a page
+    /// size - which every list endpoint silently clamps - an over-long batch is rejected rather than truncated:
+    /// closing the first 500 of a larger request and reporting success would be a lie about what was written.
+    /// </summary>
+    public const int MaximumBatchCloseIds = 500;
+
     private readonly INotificationApplicationService notifications;
     private readonly ICurrentUserContextFactory currentUserContextFactory;
 
@@ -116,6 +125,13 @@ public class NotificationsController : ControllerBase
         if (ids.Count == 0)
         {
             ModelState.AddModelError(nameof(NotificationBatchCloseRequest.NotificationIds), "Select at least one notification to close.");
+        }
+
+        if (ids.Count > MaximumBatchCloseIds)
+        {
+            ModelState.AddModelError(
+                nameof(NotificationBatchCloseRequest.NotificationIds),
+                $"Close at most {MaximumBatchCloseIds} notifications at a time.");
         }
 
         if (request.Note?.Length > 255)

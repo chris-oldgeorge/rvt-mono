@@ -106,11 +106,20 @@ namespace AirQ.Api
                         string serialId = monitorDto.SerialId!;
                         foreach (RvtAlertRuleDto? rule in rules)
                         {
-                            double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Starthour, Starthour.AddHours(1));
+                            double? level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Starthour, Starthour.AddHours(1));
+                            if (!level.HasValue)
+                            {
+                                // No samples in the window is no reading, not
+                                // 0.0 dB: evaluating it would clear a latched
+                                // rule and re-fire the breach on the next
+                                // populated window.
+                                continue;
+                            }
+
                             previousAlert = await ruleEvaluator.EvaluateAsync(
                                 NewRuleEvaluationRequest(monitorDto, activityTime: end, alertTime: Starthour.AddHours(1), publishTime: end),
                                 rule,
-                                level,
+                                level.Value,
                                 previousAlert,
                                 cancellationToken);
 
@@ -130,11 +139,16 @@ namespace AirQ.Api
                         string serialId = monitorDto.SerialId!;
                         foreach (RvtAlertRuleDto? rule in rules)
                         {
-                            double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Startday, Startday.AddDays(1));
+                            double? level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Startday, Startday.AddDays(1));
+                            if (!level.HasValue)
+                            {
+                                continue;
+                            }
+
                             previousAlert = await ruleEvaluator.EvaluateAsync(
                                 NewRuleEvaluationRequest(monitorDto, activityTime: end, alertTime: Startday.AddDays(1), publishTime: end),
                                 rule,
-                                level,
+                                level.Value,
                                 previousAlert,
                                 cancellationToken);
                         }

@@ -2,6 +2,7 @@ using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Api.Ports;
 using AirQ.Api.UseCases;
+using AirQ.Model.Config;
 using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Mqtt;
@@ -51,9 +52,10 @@ namespace AirQ.Api
             IAlertIngressPort alertIngress,
             bool testLocal,
             string? testLocalSerialId,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            AirQImportOptions? importOptions = null)
         {
-            IAirQVendorGateway gateway = new AirQHttpGateway(httpClient);
+            IAirQVendorGateway gateway = new AirQHttpGateway(httpClient, timeProvider);
             AirQTestLocalMonitorFilter testLocalFilter = AirQTestLocalMonitorFilter.Create(testLocal, testLocalSerialId);
             AirQMonitorReader monitorReader = new(dbClient, testLocalFilter);
             MonitorEventPublisher eventPublisher = new(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
@@ -70,7 +72,8 @@ namespace AirQ.Api
                 dbClient,
                 eventPublisher,
                 ruleProcessor,
-                timeProvider);
+                timeProvider,
+                importOptions);
             _storeNoiseLevelsForDate = new StoreNoiseLevelsForDateHandler(gateway, monitorReader, dbClient, dbClient);
             _storeAllNoiseLevelsForYesterday = new StoreAllNoiseLevelsForYesterdayHandler(_storeNoiseLevelsForDate);
             _notifySiteAverages = new NotifySiteAveragesHandler(dbClient, dbClient, dbClient, dbClient, ruleProcessor);

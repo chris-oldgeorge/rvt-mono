@@ -1,5 +1,6 @@
 using AirQ.Api.Db;
 using AirQ.Api.Ports;
+using AirQ.Model.Config;
 using AirQ.Model.Dto;
 using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,7 @@ namespace AirQ.Api.UseCases
         private readonly IMonitorEventPublisher _eventPublisher;
         private readonly AirQRuleProcessor _ruleProcessor;
         private readonly TimeProvider _timeProvider;
+        private readonly AirQImportOptions _importOptions;
 
         public StoreNoiseLevelsHandler(
             IAirQVendorGateway gateway,
@@ -33,7 +35,8 @@ namespace AirQ.Api.UseCases
             IAirQOperationalCommands operationalCommands,
             IMonitorEventPublisher eventPublisher,
             AirQRuleProcessor ruleProcessor,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            AirQImportOptions? importOptions = null)
         {
             _gateway = gateway;
             _monitorReader = monitorReader;
@@ -44,6 +47,8 @@ namespace AirQ.Api.UseCases
             _eventPublisher = eventPublisher;
             _ruleProcessor = ruleProcessor;
             _timeProvider = timeProvider;
+            _importOptions = importOptions ?? new AirQImportOptions();
+            _importOptions.Validate();
         }
 
         public async Task RunAsync(string userId, string userAuth, CancellationToken cancellationToken = default)
@@ -61,8 +66,15 @@ namespace AirQ.Api.UseCases
                         continue;
                     }
 
-                    DateTime lastDataTime = monitor.LastDataTime
-                        ?? _timeProvider.GetUtcNow().UtcDateTime.AddYears(-1);
+                    // A stored watermark ahead of the wall clock is not a usable
+                    // watermark - every real sample compares as older and is
+                    // discarded - so it is treated as absent, which lets a
+                    // monitor poisoned by an earlier future-dated sample recover
+                    // without a manual database edit.
+                    DateTime utcNow = _timeProvider.GetUtcNow().UtcDateTime;
+                    DateTime lastDataTime = monitor.LastDataTime is DateTime watermark && watermark <= utcNow
+                        ? watermark
+                        : utcNow.AddYears(-1);
 
                     cancellationToken.ThrowIfCancellationRequested();
                     try
@@ -85,8 +97,16 @@ namespace AirQ.Api.UseCases
                         if (dtos.Count > 0)
                         {
                             _measurementCommands.InsertNoiseDtos(monitor.SerialId, dtos);
+                            // An unwatermarked monitor is seeded a year back, and
+                            // that seed used to drive both the averaging loop and
+                            // the rule windows: roughly 1,095 Create8hourAverage
+                            // calls plus 8,760 hour windows, each its own context
+                            // and aggregate query, inside the fleet loop. Clamp
+                            // the processing start the same way the vendor request
+                            // window is clamped.
+                            DateTime processingStart = ClampToInitialBackfill(preLastDate, lastDataTime);
                             //process 8 hour averages.
-                            DateTime start = preLastDate;
+                            DateTime start = processingStart;
                             DateTime end = dtos.Last().SampleTime;
                             int starthour = (start.Hour / 8) * 8;
                             start = new DateTime(start.Year, start.Month, start.Day, starthour, 0, 0);//This should now be 00:00, 08:00 or 16:00, start time for an averge
@@ -116,7 +136,7 @@ namespace AirQ.Api.UseCases
                             await _eventPublisher.PublishDataInsertedAsync((DateTime)lastDataTime!, monitor.SerialId, cancellationToken: cancellationToken);
 
                             List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId);
-                            await _ruleProcessor.ProcessRulesV2Async(monitor, rules, preLastDate, (DateTime)lastDataTime, dtos, cancellationToken);
+                            await _ruleProcessor.ProcessRulesV2Async(monitor, rules, processingStart, (DateTime)lastDataTime, dtos, cancellationToken);
                         }
 
                     }
@@ -157,6 +177,12 @@ namespace AirQ.Api.UseCases
                 _operationalCommands.HandleException("StoreNoiseLevels", e);
                 throw;
             }
+        }
+
+        private DateTime ClampToInitialBackfill(DateTime start, DateTime end)
+        {
+            DateTime earliest = end - _importOptions.MaximumInitialBackfill;
+            return start > earliest ? start : earliest;
         }
     }
 }

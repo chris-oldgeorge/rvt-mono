@@ -335,5 +335,41 @@ public class TestSvantekApi
         mqttClient.VerifyNoOtherCalls();
     }
 
+    // A site-day with no samples has no average: writing 0.0 would put a
+    // fabricated silent day into the reports table and unlatch the rule.
+    [TestMethod]
+    public async Task TestNotifySiteAverages_EmptySiteDay_WritesNoDailyAverage()
+    {
+        SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+                                 out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
+
+        DateTime date = new(2023, 10, 2);
+        SiteMonitorsWithSiteHoursDto monitor = new(
+            Guid.NewGuid(),
+            "123",
+            "Device1",
+            0,
+            false,
+            Guid.NewGuid(),
+            "Site",
+            TimeSpan.Parse("09:00:00"),
+            TimeSpan.Parse("17:00:00"));
+        dbClient.Setup(c => c.ReadSiteMonitorsWithSiteHoursAsync(date, It.IsAny<CancellationToken>())).
+            ReturnsAsync([monitor]);
+        dbClient.Setup(c => c.GetAverageNoiseLevel("Device1", "LAeq", date + monitor.StartTime!.Value, date + monitor.EndTime!.Value)).
+            Returns((double?)null);
+
+        await testObj.NotifySiteAveragesAsync(date, TestContext.CancellationToken);
+
+        dbClient.Verify(c => c.ReadSiteMonitorsWithSiteHoursAsync(date, It.IsAny<CancellationToken>()), Times.Exactly(1));
+        dbClient.Verify(c => c.GetAverageNoiseLevel("Device1", "LAeq", date + monitor.StartTime!.Value, date + monitor.EndTime!.Value),
+            Times.Exactly(1));
+        dbClient.VerifyNoOtherCalls();
+
+        httpClient.VerifyNoOtherCalls();
+        messageClient.VerifyNoOtherCalls();
+        mqttClient.VerifyNoOtherCalls();
+    }
+
     public TestContext TestContext { get; set; } = null!;
 }

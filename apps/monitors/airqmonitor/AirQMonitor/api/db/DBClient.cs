@@ -189,7 +189,9 @@ namespace AirQ.Api.Db
             context.SaveChanges();
         }
 
-        public double GetAverageNoiseLevel(string serialNumber, string columnName, DateTime start, DateTime end)
+        // An empty window returns null rather than 0.0: a fabricated silent
+        // reading would clear latched rules and fabricate daily averages.
+        public double? GetAverageNoiseLevel(string serialNumber, string columnName, DateTime start, DateTime end)
         {
             using AirQMonitorContext context = CreateContext();
             MonitorAggregateField<AirQNoiseLevelEntity> field = AirQAggregateFields.Resolve(columnName);
@@ -197,7 +199,7 @@ namespace AirQ.Api.Db
                 .Where(row => row.SerialId == serialNumber)
                 .Where(row => row.SampleTime > start && row.SampleTime <= end);
 
-            return (field.UseMaximum ? query.Max(field.Selector) : query.Average(field.Selector)) ?? 0.0;
+            return field.UseMaximum ? query.Max(field.Selector) : query.Average(field.Selector);
         }
 
         public void SetMonitorOffline(Guid monitorId, bool offline)

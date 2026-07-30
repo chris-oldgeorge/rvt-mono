@@ -47,20 +47,27 @@ public sealed class NotifySiteAveragesHandler
 
                 DateTime periodStart = date + monitor.StartTime.Value;
                 DateTime periodEnd = date + monitor.EndTime.Value;
-                double level = _ruleQueries.GetAverageNoiseLevel(
+                double? average = _ruleQueries.GetAverageNoiseLevel(
                     monitor.SerialId,
                     "LAeq",
                     periodStart,
                     periodEnd);
+                if (!average.HasValue)
+                {
+                    // A site-day with no samples has no average. Writing 0.0
+                    // would put a fabricated silent day into the reports table
+                    // and clear any latched site-hours rule.
+                    continue;
+                }
 
                 await _measurementCommands.WriteDailyAverageAsync(
                     monitor.SiteId,
                     monitor.Id,
                     "lAeq",
-                    level,
+                    average.Value,
                     date,
                     cancellationToken).ConfigureAwait(false);
-                await ProcessRulesAsync(monitor, level, periodEnd, cancellationToken).ConfigureAwait(false);
+                await ProcessRulesAsync(monitor, average.Value, periodEnd, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception)
             {

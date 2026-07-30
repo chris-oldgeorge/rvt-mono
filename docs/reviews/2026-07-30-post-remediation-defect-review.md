@@ -271,6 +271,59 @@ monitor's.
 
 ## §2 — P2
 
+> **All resolved 2026-07-31** — PRs #83 (frontend), #84 (shared kernel), #85
+> (monitors), #86 (operations), #87 (portal), plus #88 clearing pre-existing
+> baseline drift. The §3 P3 batches landed inside the same five slices.
+>
+> **Corrections to this section, found during execution:**
+> - **M-8 was the review's only SUSPECTED monitor item — it is CONFIRMED**, and
+>   fixing it exposed a *second* unbounded path the review missed: Omnidots peak
+>   **bootstrap** resolves from the deployment date, so a three-year-old
+>   deployment would have issued ~2,190 requests in one run. Capped at 7 days.
+> - **PB-17's SUSPECTED `FilterExpression` item is CONFIRMED** — `ToQueryString`
+>   showed `WHERE m.serial_id = 'SER-…'` inlined as a literal. Values are now
+>   captured and compile to `@Value`.
+> - **PB-7 is partly wrong.** It states no FK exists, so nothing cascades. That
+>   holds only for the EF-built shape: a database imported from the SQL Server
+>   snapshot carries `FK_NotificationSettings_SiteUsers` (renamed by the
+>   canonical naming script), without cascade. The migration therefore drops the
+>   constraint under **both** names it could already carry.
+> - **PB-5 overstates `RVTSearchContext`.** It does not branch the entity model
+>   shape — every entity, property, key, relationship and view mapping is
+>   identical on both providers; only the column-type name and default-value SQL
+>   differ, which is provider dialect by definition. Kept and documented; four
+>   suites rely on SQLite for in-process transaction coverage without a
+>   container.
+> - **SK's `Enabled`-defaults item is not drift.** The 2026-07-16 communications
+>   design states email-on-by-default with SMS/MQTT opt-in. Flipping either
+>   silently changes live delivery on every host that sets neither variable.
+>   Documented, values unchanged — **still open if unification is wanted.**
+> - **OP-1's fix needed more than escalation.** Re-running in `--all` mode when a
+>   policy input changes does *not* close the hole: the ratchet permits decreases
+>   by design, so `--all` reports the same decreases and exits 0. Treating a
+>   baseline entry the inventory can no longer reproduce as a **violation** is
+>   what actually bites.
+> - **PB-4 was not the cheap fix this document implies.** The ratchet grades a
+>   rename as a full new file, so `Application` → `UseCases` resurfaced 202
+>   baselined diagnostics, and rewriting baseline path keys is forbidden (a PR
+>   may never widen its own baseline). They were paid down instead — 76 field
+>   prefixes plus formatter fixes.
+>
+> **Deliberately not done, recorded here:** the full MyAtm-style single-transaction
+> commit for AirQ/Svantek (M-2 shipped the ordering fix only); suppressing MQTT
+> outbox rows entirely when the broker is disabled (built, tested, reverted —
+> it changes observable outbox contents and is an Omnidots product call);
+> `OmnidotsMonitorJobs` surfacing `AlertDispatchResult.ClaimFailure` as a job
+> failure (one line, left to the Omnidots owner); and making SchemaDeploy
+> genuinely schema-independent (it now refuses a non-`public` connection instead —
+> see OP-5).
+>
+> **Two defects were found by the fixes rather than by the review:** the
+> engineering-standards verifier read any line starting with `--- ` as a
+> unified-diff file header, so a removed SQL comment aborted it with nothing
+> graded; and four AirQ tests computed their expected "yesterday" from
+> `DateTime.Today`, passing only because this host's local and UTC dates agree.
+
 ### Shared kernel and communications
 
 | # | Finding | Location |

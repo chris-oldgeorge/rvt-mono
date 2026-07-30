@@ -27,7 +27,8 @@ import {
 } from './api/client';
 import { CompaniesPanel, UsersPanel } from './admin/AdminPanels';
 import { HelpAdminPanel } from './admin/HelpAdminPanel';
-import { ContractsPanel, SitesPanel } from './operations/ContractSitePanels';
+import { ContractsPanel } from './operations/ContractPanels';
+import { SitesPanel } from './operations/SitePanels';
 import { NotificationsPanel } from './operations/NotificationAlertPanels';
 import { DashboardPanel } from './operations/DashboardPanels';
 import { HelpPanel } from './operations/HelpPanel';

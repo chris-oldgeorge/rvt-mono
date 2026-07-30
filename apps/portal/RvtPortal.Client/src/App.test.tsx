@@ -26,7 +26,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, AppErrorBoundary } from './App';
-import { SitesPanel } from './operations/ContractSitePanels';
+import { SitesPanel } from './operations/SitePanels';
 import { MonitorsPanel } from './operations/MonitorPanels';
 import { ReportsPanel } from './operations/ReportPanels';
 

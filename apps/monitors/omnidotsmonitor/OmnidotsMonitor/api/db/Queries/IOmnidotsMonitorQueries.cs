@@ -5,7 +5,7 @@ namespace Omnidots.Api.Db;
 
 public interface IOmnidotsMonitorQueries
 {
-    List<VibrationMonitorDto> ReadMonitorList(DateTime? lastDataTime);
+    List<VibrationMonitorDto> ReadMonitorList();
 
     VibrationMonitorDto ReadMonitor(string serialId);
 

@@ -8,8 +8,6 @@ public interface ISvantekOperationalCommands
 
     void UpdateAlertRule(RvtAlertRuleDto dto);
 
-    bool WriteSoundFile(Guid notificationId, string fileName);
-
     Task<bool> WriteSoundFileAsync(
         Guid notificationId,
         string fileName,

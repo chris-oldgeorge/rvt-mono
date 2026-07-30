@@ -43,7 +43,7 @@ public sealed class TestMonitorJobScheduling
             out Mock<IAlertIngressPort>? messageService);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Returns(OmnidotsFixture.AuthenticateTask());
-        dbClient.Setup(client => client.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(1));
+        dbClient.Setup(client => client.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(1));
 
         string? requestedUrl = null;
         httpClient.Setup(client => client.GetAsync(It.Is<string>(url => url.StartsWith(endpoint, StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
@@ -79,7 +79,7 @@ public sealed class TestMonitorJobScheduling
         database.As<IOmnidotsImportCursorQueries>();
         database.As<IOmnidotsMeasurementImportCommands>();
         database.As<IOmnidotsTraceQueries>();
-        database.Setup(client => client.ReadMonitorList(null))
+        database.Setup(client => client.ReadMonitorList())
             .Returns(OmnidotsFixture.MonitorsList(1, utcNow - TimeSpan.FromHours(2)));
         TaskCompletionSource delivery = new(TaskCreationOptions.RunContinuationsAsynchronously);
         Mock<IOmnidotsMonitoringNotifier> notifier = new(MockBehavior.Strict);
@@ -136,7 +136,7 @@ public sealed class TestMonitorJobScheduling
                 url.StartsWith("/api/v1/get_peak_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
             .Callback<string, CancellationToken>((url, _) => requestedUrl = url)
             .Returns(OmnidotsFixture.StringTask(OmnidotsFixture.PeakRecordsJson()));
-        dbClient.Setup(client => client.ReadMonitorList(null)).Returns([monitor]);
+        dbClient.Setup(client => client.ReadMonitorList()).Returns([monitor]);
         cursorQueries.Setup(query => query.ReadImportCursor("1", OmnidotsMeasurementSeries.Peak))
             .Returns(cursor);
         cursorQueries.Setup(query => query.ReadLatestMeasurementTime("1", OmnidotsMeasurementSeries.Peak))
@@ -157,8 +157,6 @@ public sealed class TestMonitorJobScheduling
             It.IsAny<string>(), It.IsAny<OmnidotsMeasurementSeries>()), Times.Never);
         importCommands.Verify(command => command.ImportPeakRecords(
             "1", It.Is<DataTable>(table => table.Rows.Count == 2), It.IsAny<DateTime>()), Times.Once);
-        dbClient.Verify(command => command.InsertPeakRecordsTable(It.IsAny<DataTable>()), Times.Never);
-        dbClient.Verify(command => command.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>()), Times.Never);
     }
 
     [TestMethod]
@@ -183,7 +181,7 @@ public sealed class TestMonitorJobScheduling
                 url.StartsWith("/api/v1/get_peak_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
             .Callback<string, CancellationToken>((url, _) => requestedUrl = url)
             .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
-        dbClient.Setup(client => client.ReadMonitorList(null)).Returns([monitor]);
+        dbClient.Setup(client => client.ReadMonitorList()).Returns([monitor]);
         cursorQueries.Setup(query => query.ReadLatestMeasurementTime("1", OmnidotsMeasurementSeries.Peak))
             .Returns(latestMeasurement);
 
@@ -219,7 +217,7 @@ public sealed class TestMonitorJobScheduling
                 url.StartsWith("/api/v1/get_peak_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
             .Callback<string, CancellationToken>((url, _) => requestedUrl = url)
             .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
-        dbClient.Setup(client => client.ReadMonitorList(null)).Returns([monitor]);
+        dbClient.Setup(client => client.ReadMonitorList()).Returns([monitor]);
 
         Assert.AreEqual(0, await RunJob(api, "StorePeakRecordsLastDataTime"));
 
@@ -243,7 +241,7 @@ public sealed class TestMonitorJobScheduling
             out Mock<IAlertIngressPort>? messageService);
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
             .Returns(OmnidotsFixture.AuthenticateTask());
-        dbClient.Setup(client => client.ReadMonitorList(null)).Returns(OmnidotsFixture.MonitorsList(1));
+        dbClient.Setup(client => client.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(1));
         httpClient.Setup(client => client.GetAsync(It.Is<string>(url =>
                 url.StartsWith("/api/v1/get_veff_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
             .Returns(OmnidotsFixture.StringTask("invalid-json"));

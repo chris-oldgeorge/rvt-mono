@@ -87,17 +87,17 @@ namespace OmnidotsAdapterTests
             DateTime veffTime = peakTime.AddMinutes(10);
             DateTime vdvTime = peakTime.AddMinutes(20);
 
-            _testObj!.InsertPeakRecordsTable(PeakTable(serialId, peakTime.AddMinutes(-1), peakTime));
-            _testObj.InsertVeffRecords(serialId,
+            _testObj!.ImportPeakRecords(serialId, PeakTable(serialId, peakTime.AddMinutes(-1), peakTime), peakTime);
+            _testObj.ImportVeffRecords(serialId,
             [
                 VeffRecord(veffTime.AddMinutes(-1)),
                 VeffRecord(veffTime)
-            ]);
-            _testObj.InsertVdvRecords(serialId,
+            ], veffTime);
+            _testObj.ImportVdvRecords(serialId,
             [
                 VdvRecord(vdvTime.AddMinutes(-1)),
                 VdvRecord(vdvTime)
-            ]);
+            ], vdvTime);
 
             DateTime? latestPeak = _testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Peak);
             DateTime? latestVeff = _testObj.ReadLatestMeasurementTime(serialId, OmnidotsMeasurementSeries.Veff);
@@ -212,7 +212,7 @@ namespace OmnidotsAdapterTests
             VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1).Single();
             DateTime existingLastDataTime = Utc(2026, 7, 14, 13, 0);
             _testObj!.WriteMonitorList([monitor]);
-            _testObj.WriteLatestTimestamp(monitor.SerialId, existingLastDataTime);
+            SetMonitorLastDataTime(monitor.SerialId, existingLastDataTime);
 
             _testObj.ImportPeakRecords(monitor.SerialId, PeakTable(monitor.SerialId), default);
             _testObj.ImportVeffRecords(monitor.SerialId, [], default);
@@ -269,7 +269,7 @@ namespace OmnidotsAdapterTests
             DateTime importedSample = Utc(2026, 7, 14, 15, 30);
             DateTime existingLastDataTime = importedSample.AddMinutes(1);
             _testObj!.WriteMonitorList([monitor]);
-            _testObj.WriteLatestTimestamp(monitor.SerialId, existingLastDataTime);
+            SetMonitorLastDataTime(monitor.SerialId, existingLastDataTime);
 
             _testObj.ImportPeakRecords(
                 monitor.SerialId,
@@ -280,24 +280,6 @@ namespace OmnidotsAdapterTests
                 monitor.SerialId,
                 OmnidotsMeasurementSeries.Peak));
             Assert.AreEqual(existingLastDataTime, _testObj.ReadMonitor(monitor.SerialId).LastDataTime);
-        }
-
-        [TestMethod]
-        public void InsertPeakRecordsTable_MixedSerialRows_ImportsEachSerialIndependently()
-        {
-            const string firstSerial = "mixed-first";
-            const string secondSerial = "mixed-second";
-            DateTime firstTime = Utc(2026, 7, 14, 16, 0);
-            DateTime secondTime = firstTime.AddMinutes(1);
-            DataTable table = PeakTable(firstSerial, firstTime);
-            AddPeakRow(table, secondSerial, secondTime);
-
-            _testObj!.InsertPeakRecordsTable(table);
-
-            Assert.AreEqual(1, CountRows(_database!.ConnectionString, "omnidots_peak_level", firstSerial));
-            Assert.AreEqual(1, CountRows(_database.ConnectionString, "omnidots_peak_level", secondSerial));
-            Assert.AreEqual(firstTime, _testObj.ReadImportCursor(firstSerial, OmnidotsMeasurementSeries.Peak));
-            Assert.AreEqual(secondTime, _testObj.ReadImportCursor(secondSerial, OmnidotsMeasurementSeries.Peak));
         }
 
         [TestMethod]
@@ -390,13 +372,38 @@ namespace OmnidotsAdapterTests
             int numMonitors = 5;
             List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(numMonitors, null, true);
             _testObj!.WriteMonitorList(monitorsIn);
-            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
+            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList();
 
             AssertMonitorsList(monitorsIn, monitorsOut);
 
             // write again - should  be same number of monitors
             _testObj!.WriteMonitorList(monitorsIn);
             AssertMonitorsList(monitorsIn, monitorsOut);
+        }
+
+        [TestMethod]
+        public void ReadMonitorList_MissingStatusRow_ReturnsDefaultStatusInsteadOfThrowing()
+        {
+            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(2, null, true);
+            _testObj!.WriteMonitorList(monitorsIn);
+            string missingStatusSerialId = monitorsIn[0].SerialId;
+
+            using (NpgsqlConnection connection = _database!.OpenConnection())
+            {
+                connection.Open();
+                using NpgsqlCommand command = new(
+                    "DELETE FROM omnidots_monitor_status WHERE serial_id = $1;",
+                    connection);
+                command.Parameters.AddWithValue(missingStatusSerialId);
+                Assert.AreEqual(1, command.ExecuteNonQuery());
+            }
+
+            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList();
+
+            Assert.HasCount(2, monitorsOut);
+            VibrationMonitorDto degraded = monitorsOut.Single(monitor => monitor.SerialId == missingStatusSerialId);
+            Assert.IsNotNull(degraded.MonitorStatus);
+            Assert.AreEqual(missingStatusSerialId, degraded.MonitorStatus.SerialId);
         }
 
 
@@ -491,6 +498,52 @@ namespace OmnidotsAdapterTests
             table.Rows.Add(row);
         }
 
+        // Builds the peak DataTable exactly as StorePeakRecordsHandler does in
+        // production before it calls ImportPeakRecords.
+        private static DataTable PeakTableFromDtos(string serialId, IEnumerable<PeakRecordDto> dtos)
+        {
+            DataTable table = PeakTable(serialId);
+            foreach (PeakRecordDto dto in dtos)
+            {
+                DataRow row = table.NewRow();
+                row["SerialId"] = serialId;
+                row["SampleTime"] = dto.SampleTime;
+                if (dto.X != null)
+                {
+                    row["XFdom"] = dto.X.Fdom;
+                    row["XVtop"] = dto.X.Vtop;
+                    row["XVtopOverflow"] = dto.X.VtopOverflow;
+                }
+                if (dto.Y != null)
+                {
+                    row["YFdom"] = dto.Y.Fdom;
+                    row["YVtop"] = dto.Y.Vtop;
+                    row["YVtopOverflow"] = dto.Y.VtopOverflow;
+                }
+                if (dto.Z != null)
+                {
+                    row["ZFdom"] = dto.Z.Fdom;
+                    row["ZVtop"] = dto.Z.Vtop;
+                    row["ZVtopOverflow"] = dto.Z.VtopOverflow;
+                }
+                table.Rows.Add(row);
+            }
+
+            return table;
+        }
+
+        private static void SetMonitorLastDataTime(string serialId, DateTime lastDataTime)
+        {
+            using NpgsqlConnection connection = _database!.OpenConnection();
+            connection.Open();
+            using NpgsqlCommand command = new(
+                "UPDATE monitor SET last_data_time_1_min = $1 WHERE serial_id = $2;",
+                connection);
+            command.Parameters.AddWithValue(lastDataTime);
+            command.Parameters.AddWithValue(serialId);
+            Assert.AreEqual(1, command.ExecuteNonQuery());
+        }
+
         private void AssertMonitorsList(List<VibrationMonitorDto> expected, List<VibrationMonitorDto> actual)
         {
             string connectionString = _database!.ConnectionString;
@@ -561,7 +614,7 @@ namespace OmnidotsAdapterTests
             string serialId = "12345";
             List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(1);
             _testObj!.WriteMonitorList(monitorsIn);
-            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
+            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList();
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
 
@@ -641,25 +694,6 @@ namespace OmnidotsAdapterTests
         }
 
         [TestMethod]
-        public void TestWriteLatestTimestamp()
-        {
-
-            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(1);
-            Assert.HasCount(1, monitors);
-
-            _testObj!.WriteMonitorList(monitors);
-
-            DateTime lastDataTime = DateTime.Parse("2023-10-18T14:35:42Z").ToUniversalTime();
-            _testObj.WriteLatestTimestamp("1", lastDataTime);
-
-            monitors = _testObj.ReadMonitorList(null);
-            Assert.HasCount(1, monitors);
-
-            VibrationMonitorDto monitor = monitors[0];
-            Assert.AreEqual(lastDataTime, monitor.LastDataTime);
-        }
-
-        [TestMethod]
         public void TestInsertPeakRecord_Success()
         {
             string serialId = "123";
@@ -679,7 +713,7 @@ namespace OmnidotsAdapterTests
             ];
             peakRecords[0].SampleTime = sampleTime;
 
-            _testObj!.InsertPeakRecords(serialId, peakRecords);
+            _testObj!.ImportPeakRecords(serialId, PeakTableFromDtos(serialId, peakRecords), sampleTime);
 
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
@@ -719,7 +753,7 @@ namespace OmnidotsAdapterTests
             {
                 SampleTime = sampleTime
             };
-            _testObj!.InsertPeakRecords(serialId: serialId, dtos: [record]);
+            _testObj!.ImportPeakRecords(serialId, PeakTableFromDtos(serialId, [record]), sampleTime);
 
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
@@ -753,9 +787,9 @@ namespace OmnidotsAdapterTests
                                            epocMillis: epocMillis) ];
             records[0].SampleTime = sampleTime;
 
-            _testObj!.InsertVeffRecords(serialId, records);
+            _testObj!.ImportVeffRecords(serialId, records, sampleTime);
             // insert same record twice, should only be 1 read
-            _testObj!.InsertVeffRecords(serialId, records);
+            _testObj!.ImportVeffRecords(serialId, records, sampleTime);
 
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
@@ -795,9 +829,9 @@ namespace OmnidotsAdapterTests
                                            vdvZ: vdvZ) ];
             records[0].SampleTime = sampleTime;
 
-            _testObj!.InsertVdvRecords(serialId, records);
+            _testObj!.ImportVdvRecords(serialId, records, sampleTime);
             // insert same record twice, should only be 1 read
-            _testObj!.InsertVdvRecords(serialId, records);
+            _testObj!.ImportVdvRecords(serialId, records, sampleTime);
 
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);

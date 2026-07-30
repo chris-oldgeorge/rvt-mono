@@ -43,7 +43,7 @@ namespace Omnidots.Api.UseCases
         public async Task RunAsync(DateTime last, CancellationToken cancellationToken = default)
         {
             long startedAt = _timeProvider.GetTimestamp();
-            List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors(last);
+            List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
             _options.Validate();
             IReadOnlyList<VibrationMonitorDto> eligibleMonitors = EligibleMonitors(monitors);
             IReadOnlyDictionary<string, DateTime> latestTraceEndTimes = _options.Enabled

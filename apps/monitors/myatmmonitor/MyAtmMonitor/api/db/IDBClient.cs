@@ -9,7 +9,6 @@ namespace MyAtm.Api.Db
         IMyAtmHealthQueries,
         IMyAtmSiteScheduleQueries,
         IMyAtmMonitorCommands,
-        IMyAtmMeasurementCommands,
         IMyAtmOperationalCommands,
         IMyAtmDustImportCommands,
         IMyAtmAlertCommitCommands,

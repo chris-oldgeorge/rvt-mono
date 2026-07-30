@@ -252,93 +252,6 @@ namespace MyAtm.Api.Db
             context.SaveChanges();
         }
 
-        public void WriteLatestTimestamp(string serialNumber, DateTime lastDataTime, Period period)
-        {
-            using MyAtmMonitorContext context = CreateContext();
-            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.SerialId == serialNumber);
-            if (monitor == null)
-            {
-                return;
-            }
-
-            DateTime utcLastDataTime = DateTimeUtil.AsUtc(lastDataTime);
-            switch (period)
-            {
-                case Period.Minutes1:
-                    monitor.LastDataTime1Min = utcLastDataTime;
-                    break;
-                case Period.Minutes15:
-                    monitor.LastDataTime15Min = utcLastDataTime;
-                    break;
-                case Period.Hours1:
-                    monitor.LastDataTime1Hour = utcLastDataTime;
-                    break;
-                case Period.Hours24:
-                    monitor.LastDataTime24Hour = utcLastDataTime;
-                    break;
-
-                default:
-                    throw AdapterException.Of("WriteLatestTimestamp Unknown Period " + period);
-            }
-
-            context.SaveChanges();
-        }
-
-        public void WriteFleetNr(string serialNumber, string fleetNr)
-        {
-            using MyAtmMonitorContext context = CreateContext();
-            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.SerialId == serialNumber);
-            if (monitor == null)
-            {
-                return;
-            }
-
-            monitor.FleetNr = fleetNr;
-            context.SaveChanges();
-        }
-
-        public void InsertDustDtos(List<DustDto> dtos)
-        {
-            if (dtos.Count == 0)
-            {
-                return;
-            }
-
-            using MyAtmMonitorContext context = CreateContext();
-            Dictionary<(string SerialId, DateTime SampleTime, int Avrg), DustDto> pendingDtos = [];
-
-            foreach (DustDto dto in dtos)
-            {
-                pendingDtos.TryAdd((dto.SerialId, DateTimeUtil.AsUtc(dto.SampleTime), dto.Avrg), dto);
-            }
-
-            HashSet<string> serialIds = pendingDtos.Keys
-                .Select(key => key.SerialId)
-                .ToHashSet(StringComparer.Ordinal);
-            DateTime earliest = pendingDtos.Keys.Min(key => key.SampleTime);
-            DateTime latest = pendingDtos.Keys.Max(key => key.SampleTime);
-
-            HashSet<(string SerialId, DateTime, int Avrg)> existingKeys = [.. context.DustLevels
-                .AsNoTracking()
-                .Where(row => serialIds.Contains(row.SerialId))
-                .Where(row => row.SampleTime >= earliest && row.SampleTime <= latest)
-                .Select(row => new { row.SerialId, row.SampleTime, row.Avrg })
-                .AsEnumerable()
-                .Select(row => (row.SerialId, DateTimeUtil.AsUtc(row.SampleTime), row.Avrg))];
-
-            foreach (((string SerialId, DateTime SampleTime, int Avrg) key, DustDto? dto) in pendingDtos)
-            {
-                if (existingKeys.Contains(key))
-                {
-                    continue;
-                }
-
-                context.DustLevels.Add(ToDustLevelEntityUtc(dto));
-            }
-
-            context.SaveChanges();
-        }
-
         public async Task<DustImportCommitResult> CommitDustImportAsync(
             MyAtmDustImportCommit commit,
             CancellationToken cancellationToken = default)
@@ -638,23 +551,6 @@ namespace MyAtm.Api.Db
 
             await transaction.CommitAsync(cancellationToken);
             return true;
-        }
-
-        public void InsertAccessoryDto(AccessoryInfoDto dto)
-        {
-            using MyAtmMonitorContext context = CreateContext();
-            DateTime sampleTime = DateTimeUtil.AsUtc(dto.SampleTime);
-
-            bool exists = context.AccessoryInfo.Any(row =>
-                row.SerialId == dto.SerialId &&
-                row.SampleTime == sampleTime);
-            if (exists)
-            {
-                return;
-            }
-
-            context.AccessoryInfo.Add(ToAccessoryInfoEntityUtc(dto));
-            context.SaveChanges();
         }
 
         public async Task InsertAccessoryPageAsync(

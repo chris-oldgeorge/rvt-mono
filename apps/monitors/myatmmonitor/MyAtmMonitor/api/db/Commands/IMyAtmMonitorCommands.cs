@@ -7,10 +7,6 @@ namespace MyAtm.Api.Db
     {
         void WriteMonitorList(List<DustMonitorDto> devices);
 
-        void WriteLatestTimestamp(string serialNumber, DateTime lastDataTime, Period period);
-
-        void WriteFleetNr(string serialNumber, string fleetNr);
-
         void SetMonitorOffline(Guid monitorId, bool offline);
     }
 }

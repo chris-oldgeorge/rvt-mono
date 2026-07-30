@@ -10,8 +10,6 @@ public interface ISvantekMonitorQueries
         DateTime? lastDataTime,
         CancellationToken cancellationToken = default);
 
-    List<SiteMonitorsWithSiteHoursDto> ReadSiteMonitorsWithSiteHours(DateTime day);
-
     Task<List<SiteMonitorsWithSiteHoursDto>> ReadSiteMonitorsWithSiteHoursAsync(
         DateTime day,
         CancellationToken cancellationToken = default);

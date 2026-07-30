@@ -65,8 +65,6 @@ public sealed class TestRules
         Assert.AreEqual(rule.RuleId, commit.AlertOccurrences[0].RuleId);
         Assert.HasCount(1, commit.AlertOccurrences[0].Contacts);
 
-        dbClient.Verify(client => client.InsertDustDtos(It.IsAny<List<DustDto>>()), Times.Never);
-        dbClient.Verify(client => client.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<Period>()), Times.Never);
         mqttClient.VerifyNoOtherCalls();
     }
 

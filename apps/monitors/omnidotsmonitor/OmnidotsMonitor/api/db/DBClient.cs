@@ -102,7 +102,9 @@ namespace Omnidots.Api.Db
             context.SaveChanges();
         }
 
-        public List<VibrationMonitorDto> ReadMonitorList(DateTime? lastDataTime)
+        // Returns every deployed vibration monitor; the result is intentionally
+        // unfiltered by last-data time (offline detection filters in memory).
+        public List<VibrationMonitorDto> ReadMonitorList()
         {
             using OmnidotsMonitorContext context = CreateContext();
 
@@ -127,7 +129,13 @@ namespace Omnidots.Api.Db
             return [.. rows
                 .Select(row => OmnidotsDbMapper.ToVibrationMonitorDto(
                     row.Monitor,
-                    statuses[row.Monitor.SerialId],
+                    statuses.TryGetValue(row.Monitor.SerialId, out OmnidotsMonitorStatusEntity? status)
+                        ? status
+                        : new OmnidotsMonitorStatusEntity
+                        {
+                            Id = Guid.Empty,
+                            SerialId = row.Monitor.SerialId
+                        },
                     row.Sensor,
                     row.Sensor.Lastseen,
                     row.DeployDate))];
@@ -205,89 +213,6 @@ namespace Omnidots.Api.Db
                 ErrorTime = DateTime.UtcNow
             });
             context.SaveChanges();
-        }
-
-        public void WriteLatestTimestamp(string serialId, DateTime lastDataTime)
-        {
-            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
-            {
-                RvtLogger.Logger.LogDebug("WriteLatestTimestamp for serialId={Value1} lastDataTime={Value2}", serialId, lastDataTime);
-            }
-
-            using OmnidotsMonitorContext context = CreateContext();
-            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row =>
-                row.SerialId == serialId &&
-                row.TypeOfMonitor == VibrationMonitorDto.MONITOR_TYPE_VIBRATION);
-            if (monitor == null)
-            {
-                return;
-            }
-
-            monitor.LastDataTime1Min = lastDataTime;
-            context.SaveChanges();
-        }
-
-        public void InsertPeakRecords(string serialId, List<PeakRecordDto> dtos)
-        {
-            if (dtos.Count == 0)
-            {
-                return;
-            }
-
-            DataTable table = CreatePeakRecordsTable(serialId, dtos);
-            ImportPeakRecords(serialId, table, dtos.Max(dto => dto.SampleTime));
-        }
-
-        public void InsertPeakRecordsTable(DataTable table)
-        {
-            if (table.Rows.Count == 0)
-            {
-                return;
-            }
-
-            foreach (IGrouping<string, DataRow> serialGroup in table.Rows
-                         .Cast<DataRow>()
-                         .GroupBy(row => RequiredString(row, "SerialId"), StringComparer.Ordinal))
-            {
-                DataTable serialTable = table.Clone();
-                foreach (DataRow? row in serialGroup)
-                {
-                    serialTable.ImportRow(row);
-                }
-
-                DateTime newestSampleAt = serialGroup.Max(row => RequiredDateTime(row, "SampleTime"));
-                ImportPeakRecords(serialGroup.Key, serialTable, newestSampleAt);
-            }
-        }
-
-        public void InsertVeffRecords(string serialId, List<VeffRecordDto> dtos)
-        {
-            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
-            {
-                RvtLogger.Logger.LogDebug("Inserting VEFF Records serialId={Value1} number of records={Value2}", serialId, dtos.Count);
-            }
-
-            if (dtos.Count == 0)
-            {
-                return;
-            }
-
-            ImportVeffRecords(serialId, dtos, dtos.Max(dto => dto.SampleTime));
-        }
-
-        public void InsertVdvRecords(string serialId, List<VdvRecordDto> dtos)
-        {
-            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
-            {
-                RvtLogger.Logger.LogDebug("Inserting VDV Records serialId={Value1} number of records={Value2}", serialId, dtos.Count);
-            }
-
-            if (dtos.Count == 0)
-            {
-                return;
-            }
-
-            ImportVdvRecords(serialId, dtos, dtos.Max(dto => dto.SampleTime));
         }
 
         public DateTime? ReadImportCursor(string serialId, OmnidotsMeasurementSeries series)
@@ -737,46 +662,6 @@ namespace Omnidots.Api.Db
 
         internal static DateTime? NormalizeLatestMeasurementTime(DateTime? value) =>
             value == null ? null : NormalizeUtc(value.Value);
-
-        private static DataTable CreatePeakRecordsTable(string serialId, IEnumerable<PeakRecordDto> dtos)
-        {
-            DataTable table = new("Results");
-            table.Columns.Add("SerialId", typeof(string));
-            table.Columns.Add("SampleTime", typeof(DateTime));
-            foreach (string? columnName in new[]
-                     {
-                         "XFdom", "XVtop", "XVtopOverflow",
-                         "YFdom", "YVtop", "YVtopOverflow",
-                         "ZFdom", "ZVtop", "ZVtopOverflow"
-                     })
-            {
-                table.Columns.Add(columnName, typeof(double)).AllowDBNull = true;
-            }
-
-            foreach (PeakRecordDto dto in dtos)
-            {
-                DataRow row = table.NewRow();
-                row["SerialId"] = serialId;
-                row["SampleTime"] = dto.SampleTime;
-                SetNullableDouble(row, "XFdom", dto.X?.Fdom);
-                SetNullableDouble(row, "XVtop", dto.X?.Vtop);
-                SetNullableDouble(row, "XVtopOverflow", dto.X?.VtopOverflow);
-                SetNullableDouble(row, "YFdom", dto.Y?.Fdom);
-                SetNullableDouble(row, "YVtop", dto.Y?.Vtop);
-                SetNullableDouble(row, "YVtopOverflow", dto.Y?.VtopOverflow);
-                SetNullableDouble(row, "ZFdom", dto.Z?.Fdom);
-                SetNullableDouble(row, "ZVtop", dto.Z?.Vtop);
-                SetNullableDouble(row, "ZVtopOverflow", dto.Z?.VtopOverflow);
-                table.Rows.Add(row);
-            }
-
-            return table;
-        }
-
-        private static void SetNullableDouble(DataRow row, string columnName, double? value)
-        {
-            row[columnName] = value.HasValue ? value.Value : DBNull.Value;
-        }
 
         private static OmnidotsPeakLevelEntity ToPeakLevelEntity(DataRow row)
         {

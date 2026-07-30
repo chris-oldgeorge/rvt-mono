@@ -18,11 +18,11 @@ namespace Omnidots.Api
             _testLocal = testLocal;
         }
 
-        public List<VibrationMonitorDto> ReadMonitors(DateTime? lastDataTime = null)
+        public List<VibrationMonitorDto> ReadMonitors()
         {
             try
             {
-                return OmnidotsTestLocalMonitorFilter.Apply(_monitorQueries.ReadMonitorList(lastDataTime), _testLocal);
+                return OmnidotsTestLocalMonitorFilter.Apply(_monitorQueries.ReadMonitorList(), _testLocal);
             }
             catch (Exception e)
             {

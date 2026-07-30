@@ -79,21 +79,21 @@ namespace SvantekMonitorTests
         [DataRow("2023-11-21T12:00:00Z", "2023-11-21T16:00:00Z", 5, 1)]
         [DataRow("2023-11-21T12:00:00Z", "2023-11-21T16:01:00Z", 5, 0)]
         [TestMethod]
-        public void TestMonitorsList(string lastDate, string queryDate, int numMonitors, int numExpectedMonitors)
+        public async Task TestMonitorsList(string lastDate, string queryDate, int numMonitors, int numExpectedMonitors)
 
         {
             DateTime? lastDataTime = String.IsNullOrEmpty(lastDate) ? null : PostgreSqlFixtureDateTime.ParseUtc(lastDate);
             DateTime? queryLastdataTime = String.IsNullOrEmpty(queryDate) ? null : PostgreSqlFixtureDateTime.ParseUtc(queryDate);
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(numMonitors);
             Assert.HasCount(numMonitors, monitorsIn);
-            _testObj!.WriteMonitorList(monitorsIn);
+            await _testObj!.WriteMonitorListAsync(monitorsIn, TestContext.CancellationToken);
 
             if (lastDataTime != null)
             {
                 for (int i = 0; i < monitorsIn.Count; i++)
                 {
                     DateTime dt = ((DateTime)lastDataTime!).AddHours(i);
-                    _testObj.WriteLatestTimestamp(monitorsIn[i].SerialId, dt);
+                    await _testObj.WriteLatestTimestampAsync(monitorsIn[i].SerialId, dt, TestContext.CancellationToken);
                 }
             }
 
@@ -145,16 +145,16 @@ namespace SvantekMonitorTests
         }
 
         [TestMethod]
-        public void TestWriteLatestTimestamp()
+        public async Task TestWriteLatestTimestamp()
         {
             List<NoiseMonitorDto> monitors = CreateMonitorsList(1, "E123");
             Assert.HasCount(1, monitors);
 
-            _testObj!.WriteMonitorList(monitors);
+            await _testObj!.WriteMonitorListAsync(monitors, TestContext.CancellationToken);
 
             DateTime lastDataTime = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T14:35:42Z");
             string serialId = "E1230";
-            _testObj.WriteLatestTimestamp(serialId, lastDataTime);
+            await _testObj.WriteLatestTimestampAsync(serialId, lastDataTime, TestContext.CancellationToken);
 
             List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
@@ -206,12 +206,12 @@ namespace SvantekMonitorTests
         [DataRow("2023-09-18T00:15:00.000+00:00", "2023-09-18T00:15:00Z")]
         [DataRow("2023-10-30T12:30:00.000+00:00", "2023-10-30T12:30:00Z")]
         [DataRow("2023-03-20T07:30:00.000+00:00", "2023-03-20T07:30:00Z")]
-        public void TestInsertNoiseDto_DaylightSaving_Success(string actual, string expected)
+        public async Task TestInsertNoiseDto_DaylightSaving_Success(string actual, string expected)
         {
             DateTime actualDt = PostgreSqlFixtureDateTime.ParseUtc(actual);
             List<SampleResponse> samples = SvantekFixture.SamplesResponseObjects(actualDt);
             string serialId = "E1234";
-            _testObj!.InsertNoiseDtos(serialId, [new NoiseDto(samples[0])]);
+            await InsertNoiseDtosAsync(serialId, [new NoiseDto(samples[0])], TestContext.CancellationToken);
 
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
@@ -242,7 +242,7 @@ namespace SvantekMonitorTests
             NoiseDto dto = new(sampleTime: sampleTime, lAeq: 44.75, lAmax: 61.28, lA90: 43.00,
                 lA10: 44.47, lCeq: 54.19, lCmax: 82.81, lC90: 47.56, lC10: 51.22);
 
-            _testObj!.InsertNoiseDtos(serialId, [dto]);
+            await InsertNoiseDtosAsync(serialId, [dto], TestContext.CancellationToken);
 
             await using NpgsqlConnection connection = _database!.OpenConnection();
             await connection.OpenAsync(TestContext.CancellationToken);
@@ -259,15 +259,15 @@ namespace SvantekMonitorTests
         }
 
         [TestMethod]
-        public void TestInsertNoiseDtos_DuplicateSampleIgnored()
+        public async Task TestInsertNoiseDtos_DuplicateSampleIgnored()
         {
             string serialId = "E5678";
             DateTime sampleTime = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T14:35:42Z");
             NoiseDto dto = new(sampleTime: sampleTime, lAeq: 1, lAmax: 2, lA90: 3,
                 lA10: 4, lCeq: 5, lCmax: 6, lC90: 7, lC10: 8);
 
-            _testObj!.InsertNoiseDtos(serialId, [dto, dto]);
-            _testObj.InsertNoiseDtos(serialId, [dto]);
+            await InsertNoiseDtosAsync(serialId, [dto, dto], TestContext.CancellationToken);
+            await InsertNoiseDtosAsync(serialId, [dto], TestContext.CancellationToken);
 
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
@@ -281,7 +281,7 @@ namespace SvantekMonitorTests
         }
 
         [TestMethod]
-        public void TestReadAlertRules()
+        public async Task TestReadAlertRules()
         {
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
@@ -289,7 +289,7 @@ namespace SvantekMonitorTests
 
             string serialId = "E2345";
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            _testObj!.WriteMonitorList(monitorsIn);
+            await _testObj!.WriteMonitorListAsync(monitorsIn, TestContext.CancellationToken);
             List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
@@ -335,14 +335,14 @@ namespace SvantekMonitorTests
         }
 
         [TestMethod]
-        public void UpdateAlertRule()
+        public async Task UpdateAlertRule()
         {
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
 
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            _testObj!.WriteMonitorList(monitorsIn);
+            await _testObj!.WriteMonitorListAsync(monitorsIn, TestContext.CancellationToken);
             List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
             Guid monitorId = monitorsOut[0].Id;
@@ -365,18 +365,18 @@ namespace SvantekMonitorTests
         }
 
         [TestMethod]
-        public void TestSetMonitorOffline()
+        public async Task TestSetMonitorOffline()
         {
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
-            _testObj!.WriteMonitorList(monitorsIn);
+            await _testObj!.WriteMonitorListAsync(monitorsIn, TestContext.CancellationToken);
 
             foreach (NoiseMonitorDto m in monitorsIn)
             {
                 Assert.IsFalse(m.Offline);
-                _testObj.SetMonitorOffline(m.Id, true);
+                await _testObj.SetMonitorOfflineAsync(m.Id, true, TestContext.CancellationToken);
             }
             List<NoiseMonitorReadDto> monitorsOut = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitorsOut);
@@ -388,10 +388,10 @@ namespace SvantekMonitorTests
         }
 
         [TestMethod]
-        public void TestCatalogueRefreshPreservesRuntimeOwnedMonitorAndDeploymentState()
+        public async Task TestCatalogueRefreshPreservesRuntimeOwnedMonitorAndDeploymentState()
         {
             NoiseMonitorDto monitor = CreateMonitorsList(1, "catalogue-refresh-")[0];
-            _testObj!.WriteMonitorList([monitor]);
+            await _testObj!.WriteMonitorListAsync([monitor], TestContext.CancellationToken);
 
             Guid ReadPersistedMonitorId()
             {
@@ -470,14 +470,14 @@ namespace SvantekMonitorTests
             Guid firstRefreshMonitorId = Guid.NewGuid();
             Assert.AreNotEqual(initialMonitorId, firstRefreshMonitorId);
             monitor.Id = firstRefreshMonitorId;
-            _testObj.WriteMonitorList([monitor]);
+            await _testObj.WriteMonitorListAsync([monitor], TestContext.CancellationToken);
             Assert.AreEqual(initialMonitorId, ReadPersistedMonitorId());
 
             Guid secondRefreshMonitorId = Guid.NewGuid();
             Assert.AreNotEqual(initialMonitorId, secondRefreshMonitorId);
             Assert.AreNotEqual(firstRefreshMonitorId, secondRefreshMonitorId);
             monitor.Id = secondRefreshMonitorId;
-            _testObj.WriteMonitorList([monitor]);
+            await _testObj.WriteMonitorListAsync([monitor], TestContext.CancellationToken);
             Assert.AreEqual(initialMonitorId, ReadPersistedMonitorId());
 
             using NpgsqlConnection verifyConnection = _database!.OpenConnection();
@@ -541,7 +541,7 @@ namespace SvantekMonitorTests
 
 
         [TestMethod]
-        public void TestGetAverageNoiseLevel()
+        public async Task TestGetAverageNoiseLevel()
         {
             string serialId = "98231";
             DateTime startTime = PostgreSqlFixtureDateTime.ParseUtc("2023-10-17T14:37:42Z");
@@ -582,7 +582,7 @@ namespace SvantekMonitorTests
                 NoiseDto dto = new(sampleTime: startTime.AddMinutes(i).AddSeconds(1), lAeq: LAeq, lAmax: LAMax, lA90: LA90,
                             lA10: LA10, lCeq: LCeq, lCmax: LCMax, lC90: LC90, lC10: LC10);
 
-                _testObj!.InsertNoiseDtos(serialId, [dto]);
+                await InsertNoiseDtosAsync(serialId, [dto], TestContext.CancellationToken);
             }
 
             double avgLAeq = _testObj!.GetAverageNoiseLevel(serialId, "LAeq", startTime, startTime.AddMinutes(15));
@@ -610,13 +610,13 @@ namespace SvantekMonitorTests
         {
             string serialId = "E8765";
             DateTime sampleTime = PostgreSqlFixtureDateTime.ParseUtc("2023-10-18T16:00:00Z");
-            _testObj!.InsertNoiseDtos(serialId,
+            await InsertNoiseDtosAsync(serialId,
             [
                 new(sampleTime.AddHours(-7), 10, 20, 30, 40, 50, 60, 70, 80),
                 new(sampleTime, 30, 40, 50, 60, 70, 80, 90, 100)
-            ]);
+            ], TestContext.CancellationToken);
 
-            _testObj.Create8hourAverage(serialId, sampleTime);
+            await _testObj!.Create8hourAverageAsync(serialId, sampleTime, TestContext.CancellationToken);
 
             await using NpgsqlConnection connection = _database!.OpenConnection();
             await connection.OpenAsync(TestContext.CancellationToken);
@@ -632,6 +632,41 @@ namespace SvantekMonitorTests
             Assert.AreEqual(DateTimeKind.Utc, persistedSampleTime.Kind);
             Assert.AreEqual(20.0, reader.GetDouble(2));
             Assert.AreEqual(2, reader.GetInt32(3));
+        }
+
+        // Inserts noise samples through the production async path
+        // (InsertNoiseRecordsTableAsync), mirroring the DataTable shape built by
+        // StoreNoiseLevelsHandler.
+        private static Task InsertNoiseDtosAsync(
+            string serialId,
+            IEnumerable<NoiseDto> dtos,
+            CancellationToken cancellationToken)
+        {
+            DataTable table = new() { TableName = "Results" };
+            table.Columns.Add("SerialId", typeof(string));
+            table.Columns.Add("SampleTime", typeof(DateTime));
+            foreach (string field in new[] { "LAeq", "LAmax", "LA90", "LA10", "LCeq", "LCmax", "LC90", "LC10" })
+            {
+                table.Columns.Add(field, typeof(double)).AllowDBNull = true;
+            }
+
+            foreach (NoiseDto dto in dtos)
+            {
+                DataRow row = table.NewRow();
+                row["SerialId"] = serialId;
+                row["SampleTime"] = dto.SampleTime;
+                row["LAeq"] = (object?)dto.LAeq ?? DBNull.Value;
+                row["LAmax"] = (object?)dto.LAmax ?? DBNull.Value;
+                row["LA90"] = (object?)dto.LA90 ?? DBNull.Value;
+                row["LA10"] = (object?)dto.LA10 ?? DBNull.Value;
+                row["LCeq"] = (object?)dto.LCeq ?? DBNull.Value;
+                row["LCmax"] = (object?)dto.LCmax ?? DBNull.Value;
+                row["LC90"] = (object?)dto.LC90 ?? DBNull.Value;
+                row["LC10"] = (object?)dto.LC10 ?? DBNull.Value;
+                table.Rows.Add(row);
+            }
+
+            return _testObj!.InsertNoiseRecordsTableAsync(table, cancellationToken);
         }
 
         private static List<NoiseMonitorDto> CreateMonitorsList(int numMonitors, string serialId = "monitor")
@@ -715,7 +750,7 @@ namespace SvantekMonitorTests
         }
 
         [TestMethod]
-        public void TestWriteSiteAverage()
+        public async Task TestWriteSiteAverage()
         {
 
             Guid siteId = Guid.NewGuid();
@@ -723,7 +758,7 @@ namespace SvantekMonitorTests
             string field = "foo";
             double level = 99.43;
             DateTime timestamp = DateTime.UtcNow;
-            _testObj!.WriteDailyAverage(siteId, monitorId, field, level, timestamp);
+            await _testObj!.WriteDailyAverageAsync(siteId, monitorId, field, level, timestamp, TestContext.CancellationToken);
 
             List<SiteAverage> siteAverages = ReadSiteAverages(_database!.ConnectionString);
 

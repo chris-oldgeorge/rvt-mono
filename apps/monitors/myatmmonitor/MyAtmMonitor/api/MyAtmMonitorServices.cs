@@ -67,7 +67,6 @@ public static class MyAtmMonitorServices
         services.AddSingleton<IMyAtmMeasurementQueries>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton<IMyAtmSiteScheduleQueries>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton<IMyAtmMonitorCommands>(provider => provider.GetRequiredService<IDBClient>());
-        services.AddSingleton<IMyAtmMeasurementCommands>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton<IMyAtmOperationalCommands>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton<IMyAtmHealthQueries>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton<IMyAtmDustImportCommands>(provider => provider.GetRequiredService<IDBClient>());

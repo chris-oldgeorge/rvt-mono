@@ -156,6 +156,36 @@ public class DashboardMapCalendarTests
     }
 
     [Fact]
+    // Function summary: Verifies the calendar month default and open-deployment end date come from the injected UTC clock.
+    public async Task CalendarMonth_DefaultsToInjectedUtcClock()
+    {
+        // 23:30 UTC: every zone east of UTC is already on the next local day, so the old server-local
+        // DateTime.Today fallback would shift both the defaulted month and the open deployment's end date.
+        DateTimeOffset nowUtc = new(2026, 6, 10, 23, 30, 0, TimeSpan.Zero);
+        using SpaTestApplicationFactory factory = new();
+        DashboardScenarioIds ids = await SeedDashboardScenarioAsync(factory);
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        using WebApplicationFactory<Program> fixedTimeFactory = WithTimeProvider(factory, nowUtc);
+        HttpClient client = CreateClient(fixedTimeFactory);
+
+        // A session cookie, not RememberMe: the fixed clock stamps a persistent cookie's Expires attribute
+        // with the fake date, and the real-time client cookie container would discard it as already expired.
+        await client.PostAsJsonAsync("/api/auth/login", new LoginRequest
+        {
+            Email = AdminEmail,
+            Password = Password,
+            RememberMe = false
+        });
+
+        CalendarMonthResponse? month = await client.GetFromJsonAsync<CalendarMonthResponse>(
+            $"/api/dashboard/calendar/month?deploymentId={ids.DeploymentId}");
+
+        Assert.Equal(2026, month!.Year);
+        Assert.Equal(6, month.Month);
+        Assert.Equal(new DateTime(2026, 6, 10), month.EndDate.Date);
+    }
+
+    [Fact]
     // Function summary: Handles the master admin breaches alerts returns vibration rows for the requested day workflow for this module.
     public async Task MasterAdminBreachesAlerts_ReturnsVibrationRowsForTheRequestedDay()
     {

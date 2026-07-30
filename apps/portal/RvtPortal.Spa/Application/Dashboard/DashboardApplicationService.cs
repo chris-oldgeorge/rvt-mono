@@ -750,7 +750,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
     }
 
     // Function summary: Clamps a calendar month into the deployment's valid display range.
-    private static DateTime ClampCalendarMonth(Deployment deployment, DateTime selectedMonth)
+    private DateTime ClampCalendarMonth(Deployment deployment, DateTime selectedMonth)
     {
         DateTime firstDeploymentMonth = MonthStart(deployment.StartDate);
         DateTime lastDate = CalendarMaxDate(deployment);
@@ -774,9 +774,11 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
     }
 
     // Function summary: Returns the maximum date a deployment can show on the dashboard calendar.
-    private static DateTime CalendarMaxDate(Deployment deployment)
+    private DateTime CalendarMaxDate(Deployment deployment)
     {
-        DateTime today = DateTime.Today;
+        // The UTC business day comes from the injected clock; DateTime.Today read the server-local
+        // zone and could not be faked in tests.
+        DateTime today = timeProvider.GetUtcNow().UtcDateTime.Date;
         if (deployment.EndDate.HasValue && deployment.EndDate.Value.Date < today)
         {
             return deployment.EndDate.Value.Date;

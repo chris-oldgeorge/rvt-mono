@@ -890,7 +890,7 @@ function toDateTimeInput(value: string | null) {
 // The value is seeded from the query string, so a hand-edited or bookmarked URL can carry
 // a value Date cannot parse; toISOString() then threw inside the request effect and the
 // error boundary replaced the whole shell.
-export function fromDateToApi(value: string) {
+function fromDateToApi(value: string) {
   if (!value) {
     return null;
   }

@@ -4,7 +4,7 @@
 // - 2026-07-30 pending Extracted from MonitorPanels.tsx during the monitor panel split.
 
 import { BarChart3, Bell, Edit3, Eye, Image, MapPinned, SlidersHorizontal, Trash2, Wrench } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ApiError,
   getInstallerMonitor,
@@ -45,6 +45,9 @@ export function MonitorDetailPanel({
   const [error, setError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  // One array per monitor: rebuilding it inline gave the map, the marker list and the
+  // visibility check three different arrays, remounting Leaflet on every render.
+  const markers = useMemo(() => (monitor ? monitorDetailMarkers(monitor) : []), [monitor]);
   const backPath = returnToOr(locationPath, '/monitors');
   const detailPath = currentRoutePath(locationPath);
   useEffect(() => {
@@ -217,14 +220,14 @@ export function MonitorDetailPanel({
               <img className="monitor-location-image" src={monitor.pictureLink} alt="Monitor location" />
             </section>
           )}
-          {monitorDetailMarkers(monitor).length > 0 && (
+          {markers.length > 0 && (
             <section className="subsection">
               <div className="subsection-heading">
                 <MapPinned size={18} aria-hidden="true" />
                 <h3>Location Map</h3>
               </div>
-              <MonitorMap markers={monitorDetailMarkers(monitor)} label="Monitor detail map" />
-              <MonitorMarkerList markers={monitorDetailMarkers(monitor)} />
+              <MonitorMap markers={markers} label="Monitor detail map" />
+              <MonitorMarkerList markers={markers} />
             </section>
           )}
           {monitor.deploymentSummary && (

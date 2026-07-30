@@ -85,6 +85,9 @@ export function SiteDetailPanel({
   const [error, setError] = useState<string | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
+  // One array per site: rebuilding it inline gave the map, the marker list and the
+  // visibility check three different arrays, remounting Leaflet on every render.
+  const markers = useMemo(() => (site ? siteMonitorMarkers(site) : []), [site]);
   const backPath = returnToOr(locationPath, '/sites');
   const detailPath = currentRoutePath(locationPath);
   useEffect(() => {
@@ -225,10 +228,10 @@ export function SiteDetailPanel({
               )}
             </div>
           </div>
-          {siteMonitorMarkers(site).length > 0 && (
+          {markers.length > 0 && (
             <NestedSection title="Map" icon={<MapPinned size={18} aria-hidden="true" />}>
-              <MonitorMap markers={siteMonitorMarkers(site)} label="Site detail map" />
-              <MonitorMarkerList markers={siteMonitorMarkers(site)} />
+              <MonitorMap markers={markers} label="Site detail map" />
+              <MonitorMarkerList markers={markers} />
             </NestedSection>
           )}
           <NestedSection title="Contracts" icon={<FileText size={18} aria-hidden="true" />}>

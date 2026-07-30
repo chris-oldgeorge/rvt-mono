@@ -86,10 +86,11 @@ database volume; the TimescaleDB base image may use Docker-managed anonymous
 storage. `rvt_sonar_ci` is only the Compose seed/admin database, never a test
 target. Each manual workflow derives a database name from its GitHub run ID and
 attempt, force-drops a stale database with that name, creates it, installs
-`timescaledb` and `pgcrypto`, and exports the four job-scoped test/deployment
-connections. After the Release build it applies the three EF migration contexts
+`timescaledb` and `pgcrypto`, and exports the three job-scoped test/deployment
+connections (`RVT__POSTGRES_INTEGRATION_CONNECTION`, `RVT_EF_CONNECTION`, and
+`RVT_DEPLOY_CONNECTION`). After the Release build it applies the three EF migration contexts
 (`RVTDbContext`, `RVTSearchContext`, and `ApplicationDbContext`) with job-local
-`dotnet-ef` `10.0.7`, then runs `RVT.SchemaDeploy` before coverage. The final
+`dotnet-ef` `10.0.10`, then runs `RVT.SchemaDeploy` before coverage. The final
 `always()` workflow step removes only that job database; it does not use Docker.
 
 ## Replace a runner

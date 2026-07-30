@@ -3,7 +3,7 @@
 This subfolder contains the recovered local observability container stack from the
 Windows VM project. It starts and provisions the collector, Grafana, Prometheus,
 Tempo, and Loki stack from the macOS clone. The monitor apps share their
-OpenTelemetry setup through `Rvt.Monitor.Common` `0.2.0-rc.1`, and emit OTLP logs, traces,
+OpenTelemetry setup through `Rvt.Monitor.Common` `1.0.0-rc.1`, and emit OTLP logs, traces,
 and metrics when `OpenTelemetry__Enabled=true`.
 
 This runbook starts a local OpenTelemetry collector with Grafana, Prometheus, Tempo, and Loki for the RVT monitor apps:
@@ -109,7 +109,7 @@ Legacy monitor code used Serilog-style bare `{}` placeholders in many Microsoft 
 
 ## .NET Package Versions
 
-The monitor apps get OpenTelemetry through `Rvt.Monitor.Common` `0.2.0-rc.1` with these package versions:
+The monitor apps get OpenTelemetry through `Rvt.Monitor.Common` `1.0.0-rc.1` with these package versions:
 
 - `OpenTelemetry.Exporter.OpenTelemetryProtocol` `1.16.0`
 - `OpenTelemetry.Extensions.Hosting` `1.16.0`

@@ -217,17 +217,22 @@ in `SecurityHardeningTests`.
 ## Documentation and client releases
 
 - **Internal design and planning documents never ship to the client.** The
-  sanitized export (`docs/release/export-client-release.ps1`) copies only
-  git-tracked files and applies `docs/release/client-release-exclusions.txt`.
-  When you add an internal docs folder, add it to that exclusion list in the same
-  change.
-- **Release evidence does ship** — `PARITY_MATRIX`, `CUTOVER_RUNBOOK`,
-  `FUNCTIONALITY_READINESS_MATRIX`, `README`, and the deploy docs an operator
-  needs. Keep the two categories distinct.
+  sanitized export (`scripts/export-client-release.sh`) copies only git-tracked
+  files and applies `docs/release/client-release-exclusions.txt`;
+  `scripts/verify-client-release.sh` re-checks the result against the same
+  policy. When you add an internal docs folder, add it to that exclusion list in
+  the same change.
+- **`docs/release/**` is excluded wholesale**, so the release evidence
+  (`PARITY_MATRIX`, `CUTOVER_RUNBOOK`, `FUNCTIONALITY_READINESS_MATRIX`) is
+  *internal* evidence and does not ship. What ships to an operator is the module
+  READMEs and deploy documentation outside that tree. Keep the two categories
+  distinct, and check the policy rather than assuming.
 - The exclusion format has **no negation**: you cannot exclude a folder and
   re-include one file. If one file in a folder must ship, list the excluded files
-  individually (as `docs/sonar/` does to keep `globalization-suppressions.md`,
-  which code `[SuppressMessage]` justifications point at).
+  individually rather than excluding the folder — for example
+  `docs/development/portal/sonar/` must keep shipping
+  `globalization-suppressions.md`, which code `[SuppressMessage]` justifications
+  point at.
 - **Record deliberate non-changes.** When something looks like a bug but is a
   product decision, mark it as a design decision at the code, with what changing
   it would take — see the calendar time-zone note in

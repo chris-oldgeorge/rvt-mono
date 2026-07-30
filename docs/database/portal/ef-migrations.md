@@ -26,6 +26,9 @@ produces an empty migration (proving model and snapshot agree), and `dotnet ef d
 The DDL of the superseded migrations is not lost - it is in git history, and the parts that still matter are
 deployable SQL under `database/{provider}/`.
 
+The baseline is no longer the whole domain chain: `20260723234806_EnforceSiteWriteUniqueness` follows it. Read
+"a single baseline" as "one squash point", not "one migration forever" - normal migrations accumulate after it.
+
 ## Three contexts, three chains, one database
 
 `RVTDbContext`, `RVTSearchContext` and `ApplicationDbContext` map disjoint halves of a *single* database, and
@@ -37,10 +40,13 @@ each has its own migration chain and its own history table:
 | `RVTSearchContext` | `RVT.DataAccess/Migrations/Search` | `__EFMigrationsHistorySearch` | time-series tables |
 | `ApplicationDbContext` | `RvtPortal.Spa/Data/Migrations` | `__EFMigrationsHistoryIdentity` | ASP.NET Identity tables |
 
-The separate history tables are not cosmetic. If they shared the default `__EFMigrationsHistory`, each context
-would read the other contexts' migrations as its own: `database update --context RVTSearchContext` would find
-`CanonicalBaseline` already recorded, conclude nothing was pending, and silently never create the time-series
-tables. The names are pinned in `RvtDatabaseServiceCollectionExtensions`.
+The separate history tables are not cosmetic. EF compares migration *IDs*, so a shared
+`__EFMigrationsHistory` would not make one chain mistake another's rows for its own - it would make each
+context read, report and manage all three chains' history as its own. `migrations list` for any context would
+show the other two chains' migrations as applied, `database update` would treat rows it does not own as its
+state, and a rollback or a re-baseline of one context would corrupt the record of the other two. Separate
+tables keep each chain's history private to the chain that wrote it. The names are pinned in
+`RvtDatabaseServiceCollectionExtensions`.
 
 ## Building a database from scratch
 
@@ -114,8 +120,9 @@ unmapped by EF; the database supplies the value. Databases that already have the
 `RvtPortal.Spa.Tests/UnmappedColumnDefaultTests` guards this: a static test reads `create_unmapped_schema.sql`
 and fails the build if any unmapped `ADD COLUMN` is NOT NULL without a default, and an opt-in test (set
 `RVT__POSTGRES_INTEGRATION_CONNECTION`) inserts a monitor and an alert rule against a real PostgreSQL schema to prove
-EF's INSERT survives it. The rest of the suite runs on InMemory/SQLite, which build their schema from the model
-and so cannot see an unmapped column at all.
+EF's INSERT survives it. The portal host suite runs against a real PostgreSQL schema too (see
+`SpaTestApplicationFactory`, replatformed off EF InMemory on 2026-07-30); the narrow unit tests that still use
+InMemory/SQLite build their schema from the model and so cannot see an unmapped column at all.
 
 ## Adopting an existing database
 

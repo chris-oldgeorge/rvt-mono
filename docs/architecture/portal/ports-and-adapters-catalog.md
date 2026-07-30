@@ -6,7 +6,7 @@ This catalog records the current pragmatic "hexagonal at the edges" structure. T
 
 - `RvtPortal.Spa.Api`: inbound HTTP adapter. It owns routes, auth attributes, request normalization, response status codes, and DTO mapping.
 - `RvtPortal.Application`: BCL-only application boundary for extracted slices. It owns Sites and Help use cases, policies, transport-neutral contracts, results, and inward-facing ports.
-- `RVT.BusinessLogic`: legacy application/business boundary for slices not yet extracted. Move those slices deliberately and incrementally; do not move them opportunistically while changing unrelated behavior.
+- `RvtPortal.Spa.Application`: the host's own application layer, holding the slices not yet extracted into `RvtPortal.Application`. Move those slices deliberately and incrementally; do not move them opportunistically while changing unrelated behavior. (`RVT.BusinessLogic` was dissolved into these two on 2026-07-30 and no longer exists; the folder holding this layer may be renamed, so the boundary that matters is the assembly, not the path.)
 - `RVT.DataAccess`: persistence adapter. It owns EF contexts, repositories, provider-specific database plumbing, and canonical database mappings.
 - `RvtPortal.Spa.Adapters`: host-owned outbound adapters for systems that need ASP.NET Core, HTTP, file paths, Blob clients, or Identity.
 
@@ -14,7 +14,7 @@ This catalog records the current pragmatic "hexagonal at the edges" structure. T
 
 | Inbound adapter | Use-case boundary | Notes |
 |---|---|---|
-| `RvtPortal.Spa.Api.ReportRulesController` | `RVT.BusinessLogic.Reports.IReportRuleApplicationService` | Thin HTTP adapter for report-rule list/detail/options/mutations/recipients/manual generation. Keeps API routes and DTOs unchanged. |
+| `RvtPortal.Spa.Api.ReportRulesController` | `RvtPortal.Spa.Application.ReportRules.IReportRuleApplicationService` | Thin HTTP adapter for report-rule list/detail/options/mutations/recipients/manual generation. Keeps API routes and DTOs unchanged. |
 | `RvtPortal.Spa.Api.SitesController` | `RvtPortal.Application.Sites.ISiteApplicationService` | Complete Sites HTTP adapter. Routes, authorization attributes, payloads, request normalization, ProblemDetails mapping, and file responses remain at the HTTP edge. |
 | `RvtPortal.Spa.Api.HelpController` | `RvtPortal.Application.Help.IHelpApplicationService` | Published and administrative Help HTTP adapter. Admin creation uses `POST /api/help/admin/articles`; host attributes and application policy independently enforce roles. |
 | `RvtPortal.Spa.Api.MonitorsController` | MediatR monitor commands/readers plus storage port calls | Monitor picture upload wraps `IFormFile` in `FormFileUpload`; command handlers no longer depend on ASP.NET upload types. |
@@ -24,11 +24,11 @@ This catalog records the current pragmatic "hexagonal at the edges" structure. T
 
 | Port | Location | Adapter | Purpose |
 |---|---|---|---|
-| `IReportGenerationGateway` | `RVT.BusinessLogic/Reports/IReportGenerationGateway.cs` | `RvtPortal.Spa.Adapters.Reporting.ReportGenerationGateway` | Business-layer port for manual report generation orchestration. The adapter maps reporting-service responses locally so it does not depend on API-layer DTO mappers. |
+| `IReportGenerationGateway` | `RvtPortal.Spa/Application/ReportRules/IReportGenerationGateway.cs` | `RvtPortal.Spa.Adapters.Reporting.ReportGenerationGateway` | Business-layer port for manual report generation orchestration. The adapter maps reporting-service responses locally so it does not depend on API-layer DTO mappers. |
 | `IReportGenerationClient` | `RvtPortal.Spa/Adapters/Reporting/ReportGenerationClient.cs` | `ReportingServiceReportGenerationClient` | Adapter-internal HTTP client for the containerized reporting service. This is not injected into controllers. |
-| `ICustomerLogoStorage` | `RVT.BusinessLogic/Ports/Storage/StoragePorts.cs` | `RvtPortal.Spa.Adapters.Storage.CustomerLogoStorage` | Stores and streams customer logos without exposing file-system details to API/business workflows. |
-| `IMonitorPictureStorage` | `RVT.BusinessLogic/Ports/Storage/StoragePorts.cs` | `RvtPortal.Spa.Adapters.Storage.MonitorPictureStorage` | Stores, streams, and deletes monitor pictures through local App_Data or Azure Blob-backed storage so handlers can compensate failed database persistence. |
-| `IUploadedContent` | `RVT.BusinessLogic/Ports/Storage/StoragePorts.cs` | `RvtPortal.Spa.Adapters.Storage.FormFileUpload` | Keeps ASP.NET Core `IFormFile` out of application command/storage port signatures. |
+| `ICustomerLogoStorage` | `RvtPortal.Application/Ports/Storage/StoragePorts.cs` | `RvtPortal.Spa.Adapters.Storage.CustomerLogoStorage` | Stores and streams customer logos without exposing file-system details to API/business workflows. |
+| `IMonitorPictureStorage` | `RvtPortal.Application/Ports/Storage/StoragePorts.cs` | `RvtPortal.Spa.Adapters.Storage.MonitorPictureStorage` | Stores, streams, and deletes monitor pictures through local App_Data or Azure Blob-backed storage so handlers can compensate failed database persistence. |
+| `IUploadedContent` | `RvtPortal.Application/Ports/Storage/StoragePorts.cs` | `RvtPortal.Spa.Adapters.Storage.FormFileUpload` | Keeps ASP.NET Core `IFormFile` out of application command/storage port signatures. |
 | `ISiteReadPort` | `RvtPortal.Application/Sites/Ports/ISiteReadPort.cs` | `RvtPortal.Spa.Adapters.Sites.EfSiteReadAdapter` | Materialized Sites reads with SQL-side filtering, counting, sorting, paging, and projection. |
 | `ISiteWritePort` | `RvtPortal.Application/Sites/Ports/ISiteWritePort.cs` | `RvtPortal.Spa.Adapters.Sites.EfSiteWriteAdapter` | Explicit staged Sites mutations and the relational conditional contract claim. |
 | `IApplicationUnitOfWork` | `RvtPortal.Application/Common/IApplicationUnitOfWork.cs` | `RvtPortal.Spa.Application.Common.EfCoreUnitOfWork` | Application-facing execute/save transaction semantics backed by the existing shared three-context transaction adapter. |
@@ -42,10 +42,10 @@ This catalog records the current pragmatic "hexagonal at the edges" structure. T
 
 | Persistence boundary | Location | Notes |
 |---|---|---|
-| EF contexts | `RVT.DataAccess/Context` | `RVTDbContext`, `RVTSearchContext`, and `ApplicationDbContext` remain the persistence adapters. The portal host registers one scoped provider `DbConnection` for these contexts so database-backed command handlers can share a transaction. |
+| EF contexts | `RVT.DataAccess/Context` (`RVTDbContext`, `RVTSearchContext`) and `RvtPortal.Spa/Data` (`ApplicationDbContext`) | All three remain the persistence adapters. The portal host registers one scoped provider `DbConnection` for these contexts so database-backed command handlers can share a transaction. |
 | Unit of Work | `RvtPortal.Spa/Application/Common/EfCoreUnitOfWork.cs` | Implements both the legacy host `IUnitOfWork` and application-owned `IApplicationUnitOfWork`. It coordinates domain, search, and Identity persistence over the existing scoped provider connection. Non-database side effects stay outside this transaction and need compensation or post-commit dispatch. |
 | Provider selection | `RVT.DataAccess/Configuration` | Shared-connection Npgsql EF options, `IRvtDatabaseConnectionFactory`, and related database options keep PostgreSQL infrastructure outside controllers. |
-| Repositories/search projections | `RVT.DataAccess` | Existing repository interfaces are still registered by `InitBusinessLogic`. Future work should avoid adding new controller-owned persistence queries where a business use case already exists. |
+| Repositories/search projections | `RVT.DataAccess` | Existing repository interfaces are still registered by `ServiceCollectionExtensions.AddRvtPortalBusinessServices`. Future work should avoid adding new controller-owned persistence queries where a business use case already exists. |
 
 ## Current Dependency Direction
 

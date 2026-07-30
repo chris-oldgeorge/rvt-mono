@@ -145,7 +145,7 @@ RVT__MQTT_USERNAME=client1-authn-ID
 Run the current local suite against already-running monitor API containers with:
 
 ```sh
-scripts/run-testlocal-suite.sh
+apps/monitors/scripts/run-testlocal-suite.sh
 ```
 
 AirQ joins this suite through a fail-closed single-monitor `testlocal=true` filter. Set `AIRQ_TESTLOCAL_SERIAL_ID` in the calling shell to the one intended AirQ serial before running the script. The script passes it to the monitor as `AirQ__TestLocal__SerialId`; AirQ refuses to start a testlocal run without that value, preventing a fleet-wide Turnkey poll.
@@ -157,7 +157,7 @@ The current suite includes:
 - Omnidots `StoreMonitors`, `StorePeakRecordsLastDataTime`, and `StoreTraces`
 - Svantek `StoreMonitors` and `StoreNoiseLevels`
 
-Use `scripts/run-testlocal-suite.sh --dry-run` to print the commands without executing them.
+Use `apps/monitors/scripts/run-testlocal-suite.sh --dry-run` to print the commands without executing them.
 
 ## Svantek Local Demo Secrets
 

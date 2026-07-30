@@ -1111,10 +1111,6 @@ describe('App', () => {
     let mutationCount = 0;
     let ascendingQueryCount = 0;
     let descendingQueryCount = 0;
-    vi.stubGlobal(
-      'confirm',
-      vi.fn(() => true),
-    );
     stubFetch({
       auth: { isAuthenticated: true, user: adminUser },
       routeOverride: (url, init) => {
@@ -1142,6 +1138,7 @@ describe('App', () => {
 
     await screen.findByText('Old A parameter');
     fireEvent.click(screen.getByRole('button', { name: /delete alert level/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
     fireEvent.click(screen.getByRole('button', { name: /parameter/i }));
     await waitFor(() => expect(descendingQueryCount).toBe(1));
     await act(async () =>
@@ -1165,6 +1162,7 @@ describe('App', () => {
     expect(ascendingQueryCount).toBe(1);
 
     fireEvent.click(screen.getByRole('button', { name: /delete alert level/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
     await act(async () => normalMutation.resolve(jsonResponse({ message: 'Deleted' })));
     await waitFor(() => expect(descendingQueryCount).toBe(2));
 
@@ -1546,10 +1544,6 @@ describe('App', () => {
       sort: url.searchParams.get('sort') ?? 'lastGenerated',
       sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
     });
-    vi.stubGlobal(
-      'confirm',
-      vi.fn(() => true),
-    );
     stubFetch({
       auth: { isAuthenticated: true, user: adminUser },
       routeOverride: (url, init) => {
@@ -1576,6 +1570,7 @@ describe('App', () => {
 
     await screen.findByText('Old Rule');
     fireEvent.click(screen.getByRole('button', { name: /delete report rule/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
     await waitFor(() => expect(emptyQueryRequestCount).toBe(2));
     expect(screen.getByText('Loading data...')).toBeInTheDocument();
     expect(screen.queryByText('Old Rule')).not.toBeInTheDocument();
@@ -1623,10 +1618,6 @@ describe('App', () => {
       sort: url.searchParams.get('sort') ?? 'lastGenerated',
       sortDir: url.searchParams.get('sortDir') ?? 'Ascending',
     });
-    vi.stubGlobal(
-      'confirm',
-      vi.fn(() => true),
-    );
     stubFetch({
       auth: { isAuthenticated: true, user: adminUser },
       routeOverride: (url, init) => {
@@ -1653,6 +1644,7 @@ describe('App', () => {
 
     await screen.findByText('Old Rule');
     fireEvent.click(screen.getByRole('button', { name: /delete report rule/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
     fireEvent.change(screen.getByPlaceholderText(/search rules/i), { target: { value: 'current' } });
     expect(await screen.findByText('Loading data...')).toBeInTheDocument();
 
@@ -2133,6 +2125,22 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('heading', { name: /please sign in/i })).toBeInTheDocument();
+  });
+
+  it('fetches health and profile once instead of refetching on every navigation', async () => {
+    globalThis.history.replaceState(null, '', '/');
+    stubFetch({ auth: { isAuthenticated: true, user: adminUser } });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /operations dashboard/i })).toBeInTheDocument();
+    const navigation = within(screen.getByRole('navigation'));
+    fireEvent.click(navigation.getByRole('button', { name: /monitors/i }));
+    expect(await screen.findByRole('heading', { level: 1, name: /^monitors$/i })).toBeInTheDocument();
+    await screen.findByText('MON-ONLINE');
+
+    expect(fetchedUrls().filter((url) => url.pathname === '/api/health')).toHaveLength(1);
+    expect(fetchedUrls().filter((url) => url.pathname === '/api/auth/profile')).toHaveLength(1);
   });
 });
 

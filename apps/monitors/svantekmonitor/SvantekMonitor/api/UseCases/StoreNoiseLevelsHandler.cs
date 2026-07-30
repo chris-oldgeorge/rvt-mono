@@ -71,7 +71,7 @@ public sealed class StoreNoiseLevelsHandler
             }
             catch (Exception exception)
             {
-                failures.Capture($"StoreNoiseLevels project {projectId}", exception);
+                failures.Capture($"StoreNoiseLevels project {projectId}", exception, cancellationToken);
             }
         }
 
@@ -178,7 +178,7 @@ public sealed class StoreNoiseLevelsHandler
         foreach (DataPoint? measuringData in monitorData.data.results.SelectMany(result => result.data))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            DateTime sampleTime = DateTime.Parse(measuringData.timestamp);
+            DateTime sampleTime = DateTime.Parse(measuringData.timestamp, CultureInfo.InvariantCulture);
             DataRow row = table.NewRow();
             row["SerialId"] = monitor.SerialId;
             row["SampleTime"] = sampleTime;
@@ -257,8 +257,11 @@ public sealed class StoreNoiseLevelsHandler
         return table;
     }
 
-    private static double ParseLevel(string value) =>
-        double.TryParse(value, out double parsed)
+    // Vendor levels are invariant-formatted; anything unparseable is stored as
+    // NULL (the columns allow it) instead of a fabricated 0.0 dB reading that
+    // would drag averages down and reset latched rules.
+    private static object ParseLevel(string value) =>
+        double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed)
             ? parsed
-            : 0.0;
+            : DBNull.Value;
 }

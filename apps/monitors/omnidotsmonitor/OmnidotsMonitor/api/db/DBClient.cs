@@ -11,13 +11,11 @@ using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
-using Rvt.Monitor.Common.Data.Queries;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 namespace Omnidots.Api.Db
 {
     // Summary: EF Core-backed Omnidots database client that preserves the IDBClient contract.
@@ -466,75 +464,6 @@ namespace Omnidots.Api.Db
                 .Select(rule => ToRuleDto(rule, serialId))];
         }
 
-        public void WriteNotification(NotificationDto dto)
-        {
-            using OmnidotsMonitorContext context = CreateContext();
-            context.Notifications.Add(new NotificationEntity
-            {
-                Id = dto.Id,
-                NotificationTime = dto.NotificationTime,
-                LimitOn = dto.LimitOn,
-                AveragingPeriod = dto.AveragingPeriod,
-                Level = dto.Level,
-                ClosedTime = dto.ClosedTime,
-                ClosedByUser = dto.ClosedByUser,
-                MonitorId = dto.MonitorId,
-                AlertType = (int)dto.AlertType,
-                AlertField = dto.AlertField
-            });
-            context.SaveChanges();
-        }
-
-        public List<NotificationDto> ReadNotifications(Guid monitorId, DateTime after)
-        {
-            using OmnidotsMonitorContext context = CreateContext();
-
-            return [.. context.Notifications
-                .AsNoTracking()
-                .Where(row => row.MonitorId == monitorId && row.NotificationTime >= after)
-                .AsEnumerable()
-                .Select(row => ToNotificationDto(row))];
-        }
-
-        public void UpdateAlertRule(RvtAlertRuleDto dto)
-        {
-            using OmnidotsMonitorContext context = CreateContext();
-            RvtAlertRuleEntity? rule = context.AlertRules.FirstOrDefault(row => row.Id == dto.RuleId);
-            if (rule == null)
-            {
-                return;
-            }
-
-            rule.IsActive = dto.IsActive;
-            rule.Accessed = dto.Accessed;
-            context.SaveChanges();
-        }
-
-        public double GetAveragePeakLevels(string serialId, string columnName, DateTime start, DateTime end)
-        {
-            using OmnidotsMonitorContext context = CreateContext();
-            MonitorAggregateField<OmnidotsPeakLevelEntity> field = OmnidotsAggregateFields.Resolve(columnName);
-            IQueryable<OmnidotsPeakLevelEntity> query = context.PeakLevels
-                .Where(row => row.SerialId == serialId)
-                .Where(row => row.SampleTime >= start && row.SampleTime < end);
-
-            return query.Average(field.Selector) ?? -1.0;
-        }
-
-        public void WriteNotificationAudit(Guid notificationId, string address, string message)
-        {
-            using OmnidotsMonitorContext context = CreateContext();
-            context.NotificationAudits.Add(new NotificationSentEntity
-            {
-                Id = Guid.NewGuid(),
-                SendTime = DateTime.UtcNow,
-                Address = address,
-                ErrorMessage = message,
-                NotificationId = notificationId
-            });
-            context.SaveChanges();
-        }
-
         public void WriteTraces(string serialId, IReadOnlyList<TraceData> traces)
         {
             foreach (TraceData traceData in traces)
@@ -889,21 +818,6 @@ namespace Omnidots.Api.Db
                 isDeleted: rule.IsDeleted,
                 created: rule.Created,
                 accessed: rule.Accessed);
-        }
-
-        private static NotificationDto ToNotificationDto(NotificationEntity row)
-        {
-            return new NotificationDto(
-                id: row.Id,
-                notificationTime: row.NotificationTime,
-                limitOn: row.LimitOn,
-                averagingPeriod: row.AveragingPeriod,
-                level: row.Level,
-                closedTime: row.ClosedTime,
-                closedByUser: row.ClosedByUser,
-                alertType: (AlertType)row.AlertType,
-                alertField: row.AlertField,
-                monitorId: row.MonitorId);
         }
 
         private static string RequiredString(DataRow row, string columnName)

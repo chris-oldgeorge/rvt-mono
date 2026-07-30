@@ -3,6 +3,7 @@ using AirQ.Api;
 using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Model.Dto;
+using AirQMonitor.model.dto;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Language.Flow;
@@ -216,73 +217,93 @@ namespace AirQMonitorTests
             messageClient.VerifyNoOtherCalls();
         }
 
+        [TestMethod]
+        public async Task TestNotifySiteAverages_SiteWithoutHoursIsSkipped_ValidSiteStillProcessed()
+        {
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+                                             out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
+
+            DateTime date = new(2026, 7, 29);
+            SiteMonitorsWithSiteHoursDto hourless = SiteMonitor("Device1", startTime: null, endTime: null);
+            SiteMonitorsWithSiteHoursDto valid = SiteMonitor(
+                "Device2",
+                startTime: TimeSpan.Parse("09:00:00", CultureInfo.InvariantCulture),
+                endTime: TimeSpan.Parse("17:00:00", CultureInfo.InvariantCulture));
+            dbClient.Setup(c => c.ReadSiteMonitorsWithSiteHours(date)).Returns([hourless, valid]);
+            dbClient.Setup(c => c.GetAverageNoiseLevel("Device2", "LAeq", date + valid.StartTime!.Value, date + valid.EndTime!.Value)).
+                Returns(42.0);
+            dbClient.Setup(c => c.ReadRules("Device2")).Returns([]);
+
+            await testObj.NotifySiteAveragesAsync(date, TestContext.CancellationToken);
+
+            dbClient.Verify(c => c.ReadSiteMonitorsWithSiteHours(date), Times.Exactly(1));
+
+            // The hour-less site has no averaging window and is skipped without faulting the run.
+            dbClient.Verify(c => c.GetAverageNoiseLevel("Device1", It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()),
+                Times.Never);
+            dbClient.Verify(c => c.WriteDailyAverage(hourless.SiteId, hourless.Id, It.IsAny<string>(), It.IsAny<double>(), It.IsAny<DateTime>()),
+                Times.Never);
+
+            // The valid site is still fully processed.
+            dbClient.Verify(c => c.GetAverageNoiseLevel("Device2", "LAeq", date + valid.StartTime!.Value, date + valid.EndTime!.Value),
+                Times.Exactly(1));
+            dbClient.Verify(c => c.WriteDailyAverage(valid.SiteId, valid.Id, "lAeq", 42.0, date), Times.Exactly(1));
+            dbClient.Verify(c => c.ReadRules("Device2"), Times.Exactly(1));
+            dbClient.VerifyNoOtherCalls();
+
+            httpClient.VerifyNoOtherCalls();
+            mqttClient.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
+        }
+
+        [TestMethod]
+        public async Task TestNotifySiteAverages_MonitorFailureIsRecorded_NextMonitorStillProcessed()
+        {
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+                                             out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
+
+            DateTime date = new(2026, 7, 29);
+            TimeSpan start = TimeSpan.Parse("09:00:00", CultureInfo.InvariantCulture);
+            TimeSpan end = TimeSpan.Parse("17:00:00", CultureInfo.InvariantCulture);
+            SiteMonitorsWithSiteHoursDto failing = SiteMonitor("Device1", start, end);
+            SiteMonitorsWithSiteHoursDto next = SiteMonitor("Device2", start, end);
+            IOException failure = new("hypertable unavailable");
+            dbClient.Setup(c => c.ReadSiteMonitorsWithSiteHours(date)).Returns([failing, next]);
+            dbClient.Setup(c => c.GetAverageNoiseLevel("Device1", "LAeq", date + start, date + end)).Throws(failure);
+            dbClient.Setup(c => c.GetAverageNoiseLevel("Device2", "LAeq", date + start, date + end)).Returns(42.0);
+            dbClient.Setup(c => c.ReadRules("Device2")).Returns([]);
+
+            AggregateException aggregate = await Assert.ThrowsExactlyAsync<AggregateException>(
+                () => testObj.NotifySiteAveragesAsync(date, TestContext.CancellationToken));
+
+            Assert.HasCount(1, aggregate.InnerExceptions);
+            Assert.AreSame(failure, aggregate.InnerExceptions[0]);
+            dbClient.Verify(c => c.HandleException("NotifySiteAverages SerialId=Device1", failure), Times.Exactly(1));
+
+            // The failure is isolated per monitor: the next site is still fully processed.
+            dbClient.Verify(c => c.WriteDailyAverage(next.SiteId, next.Id, "lAeq", 42.0, date), Times.Exactly(1));
+            dbClient.Verify(c => c.ReadRules("Device2"), Times.Exactly(1));
+
+            httpClient.VerifyNoOtherCalls();
+            mqttClient.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
+        }
+
+        private static SiteMonitorsWithSiteHoursDto SiteMonitor(
+            string serialId,
+            TimeSpan? startTime,
+            TimeSpan? endTime) =>
+            new(Guid.NewGuid(),
+                "123",
+                serialId,
+                0,
+                false,
+                Guid.NewGuid(),
+                "Site",
+                startTime,
+                endTime);
+
         public TestContext TestContext { get; set; } = null!;
 
-        // don't have time to remock this test
-        //[DataRow(10.0, 11.0, 1)]
-        //[DataRow(11.0, 10.0, 0)]
-        //[DataTestMethod]
-        //public void TestNotifySiteAverages_Success(double limit, double level, int numExpectedNotifications)
-        //{
-
-        //    var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
-        //                                 out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
-
-        //    var monitors = AirQFixture.MonitorDtos(AirQFixture.BeforeSampleData, NoiseMonitorStatus.ACTIVE);
-        //    dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
-
-        //    var rules = AirQFixture.NotifyRules(monitors[0].SerialId, "LA90",
-        //                                                  limit);
-        //    dbClient.Setup(c => c.ReadRules(monitors[0].SerialId)).Returns(rules);
-        //    dbClient.Setup(c => c.ReadRules(monitors[1].SerialId)).Returns(new List<RvtAlertRuleDto>());
-        //    dbClient.Setup(c => c.ReadRules(monitors[2].SerialId)).Returns(new List<RvtAlertRuleDto>());
-
-        //    dbClient.Setup(c => c.GetAverageNoiseLevel(It.IsAny<string>(), It.IsAny<string>(),
-        //        It.IsAny<DateTime>(), It.IsAny<DateTime>())).Returns(level);
-
-        //    var contacts = AirQFixture.AlertContacts();
-
-        //    dbClient.Setup(c => c.ReadAlertContacts(It.IsAny<string>(), out It.Ref<Guid>.IsAny)).
-        //        Returns(contacts);
-
-        //    var siteInfo = new SiteInfoDto(siteId: Guid.NewGuid(),
-        //                                   startTime: TimeSpan.Parse("09:00:00"),
-        //                                   endTime: TimeSpan.Parse("17:00:00"),
-        //                                   satStartTime: TimeSpan.Parse("09:40:12"),
-        //                                   satEndTime: TimeSpan.Parse("16:00:00"),
-        //                                   sunStartTime: TimeSpan.Parse("09:59:48"),
-        //                                   sunEndTime: TimeSpan.Parse("15:00:00"));
-
-        //    dbClient.Setup(c => c.ReadSiteInfo(It.IsAny<Guid>())).Returns(siteInfo);
-        //    await testObj.NotifySiteAveragesAsync(DateTime.Today.AddDays(-1));
-
-        //    dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
-        //    dbClient.Verify(c => c.ReadRules(monitors[0].SerialId), Times.Exactly(1));
-        //    dbClient.Verify(c => c.ReadRules(monitors[1].SerialId), Times.Exactly(1));
-        //    dbClient.Verify(c => c.ReadRules(monitors[2].SerialId), Times.Exactly(1));
-        //    dbClient.Verify(c => c.ReadAlertContacts(monitors[0].SerialId, out It.Ref<Guid>.IsAny),
-        //        Times.Exactly(1));
-        //    dbClient.Verify(c => c.ReadSiteInfo(It.IsAny<Guid>()), Times.Exactly(1));
-        //    dbClient.Verify(c => c.GetAverageNoiseLevel(monitors[0].SerialId, "LA90",
-        //                                                It.IsAny<DateTime>(), It.IsAny<DateTime>()),
-        //                                                Times.Exactly(1));
-        //    dbClient.Verify(c => c.WriteNotification(It.IsAny<NotificationDto>()),
-        //        Times.Exactly(numExpectedNotifications));
-        //    dbClient.Verify(c => c.WriteNotificationAudit(It.IsAny<Guid>(), contacts[0].EmailAddress, NotificationConstants.SENT_OK),
-        //        Times.Exactly(numExpectedNotifications));
-        //    dbClient.Verify(c => c.WriteDailyAverage(siteInfo.SiteId, monitors[0].Id, "LA90", level, It.IsAny<DateTime>()),
-        //        Times.Exactly(1));
-        //    dbClient.VerifyNoOtherCalls();
-
-        //    httpClient.VerifyNoOtherCalls();
-
-        //    mqttClient.Verify(c => c.ConnectAsync(), Times.Exactly(1));
-        //    mqttClient.VerifyNoOtherCalls();
-
-        //    commsClient.Verify(c => c.SendMessage(ContactMethod.Email, AlertType.Caution, contacts[0].EmailAddress, null, It.IsAny<string>()),
-        //        Times.Exactly(numExpectedNotifications));
-        //    commsClient.VerifyNoOtherCalls();
-
-        //}
     }
 }

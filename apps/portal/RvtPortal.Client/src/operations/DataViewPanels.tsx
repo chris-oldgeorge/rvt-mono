@@ -161,8 +161,11 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
     getDashboardSummary({ signal: controller.signal })
       .then((response) => {
         setSummary(response);
-        if (!deploymentId && response.calendarDeployments[0]) {
-          setDeploymentId(response.calendarDeployments[0].value);
+        const firstDeployment = response.calendarDeployments[0]?.value;
+        if (firstDeployment) {
+          // Functional update keeps deploymentId out of the effect deps so
+          // switching deployments does not refetch the summary.
+          setDeploymentId((current) => current || firstDeployment);
         }
       })
       .catch((err: Error) => {
@@ -173,7 +176,7 @@ export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelP
         onRequestError(err);
       });
     return () => controller.abort();
-  }, [deploymentId, onRequestError]);
+  }, [onRequestError]);
 
   useEffect(() => {
     if (!execution.query.deploymentId) {

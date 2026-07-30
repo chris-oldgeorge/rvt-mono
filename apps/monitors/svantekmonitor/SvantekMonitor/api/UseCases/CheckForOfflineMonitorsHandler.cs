@@ -92,7 +92,7 @@ public sealed class CheckForOfflineMonitorsHandler
             }
             catch (Exception exception)
             {
-                failures.Capture($"CheckForOfflineMonitors monitor {monitor.SerialId}", exception);
+                failures.Capture($"CheckForOfflineMonitors monitor {monitor.SerialId}", exception, cancellationToken);
             }
         }
 

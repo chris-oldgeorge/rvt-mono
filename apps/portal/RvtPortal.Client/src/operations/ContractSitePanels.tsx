@@ -63,6 +63,7 @@ import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn } from '../components/DataGrid';
 import { ConfirmDialog, FormField, Notice, SubmitButton } from '../components/FormControls';
 import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
+import { formatDate, formatDateTime } from '../format';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { notificationSettingDraft, withoutNotificationDraft } from './notificationDrafts';
 import type { NotificationDraftOverrides } from './notificationDrafts';
@@ -611,7 +612,7 @@ function SiteListPanel({ locationPath, onNavigate, onRequestError, canManage = f
   const [page, setPage] = useState(parsePositiveInt(initialParams.get('page'), 1));
   const [sortKey, setSortKey] = useState(initialParams.get('sort') ?? 'createDate');
   const [sortDir, setSortDir] = useState<SortDirection>(
-    normalizeSortDirection(initialParams.get('sortDir') ?? 'Descending'),
+    normalizeSortDirection(initialParams.get('sortDir'), 'Descending'),
   );
   const [error, setError] = useState<string | null>(null);
   const [completedExecution, setCompletedExecution] = useState<ListExecution<QuerySitesRequest> | null>(null);
@@ -1410,6 +1411,7 @@ function SiteAssignmentsPanel({
   const [selectedUserId, setSelectedUserId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [confirmRemoveUser, setConfirmRemoveUser] = useState<SiteUserAssignmentItem | null>(null);
   useEffect(() => {
     let isCurrent = true;
     getSiteAssignments(siteId)
@@ -1520,13 +1522,27 @@ function SiteAssignmentsPanel({
               {
                 label: 'Remove user from site',
                 icon: <Trash2 size={16} aria-hidden="true" />,
-                onClick: (user) => runMutation(() => removeUserFromSite({ siteId, userId: user.id })),
+                onClick: (user) => setConfirmRemoveUser(user),
                 disabled: () => isBusy,
               },
             ]}
           />
         </>
       )}
+      <ConfirmDialog
+        open={confirmRemoveUser !== null}
+        title="Remove user from site"
+        message={`Remove ${confirmRemoveUser?.email ?? 'this user'} from this site?`}
+        confirmLabel="Remove"
+        onCancel={() => setConfirmRemoveUser(null)}
+        onConfirm={() => {
+          const user = confirmRemoveUser;
+          setConfirmRemoveUser(null);
+          if (user) {
+            void runMutation(() => removeUserFromSite({ siteId, userId: user.id }));
+          }
+        }}
+      />
     </NestedSection>
   );
 }
@@ -1793,28 +1809,6 @@ function siteMonitorMarkers(site: SiteDetailResponse): MapMonitorMarker[] {
     }));
 }
 
-// Function summary: Handles the format date workflow for this module.
-function formatDate(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return new Intl.DateTimeFormat('en-GB').format(date);
-}
-// Function summary: Handles the format date time workflow for this module.
-function formatDateTime(value?: string | null) {
-  if (!value) {
-    return '';
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return new Intl.DateTimeFormat('en-GB', { dateStyle: 'short', timeStyle: 'short' }).format(date);
-}
 // Function summary: Maps date input into the shape required by callers.
 function toDateInput(value?: string | null) {
   if (!value) {

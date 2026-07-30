@@ -20,12 +20,6 @@ public sealed class DateTimeUtil
         return DateTimeUtil.JAN1_1970.Add(TimeSpan.FromMilliseconds(millis)).ToUniversalTime();
     }
 
-    public static string FormatString(DateTime dateTime)
-    {
-        return dateTime.ToString("dd/MM/yyyy hh:mm:ss ") +
-               dateTime.ToString("tt").ToLower();
-    }
-
     public static DateTime TruncateMillis(DateTime dateTime)
     {
         return dateTime.AddTicks(-(dateTime.Ticks % TimeSpan.TicksPerSecond));

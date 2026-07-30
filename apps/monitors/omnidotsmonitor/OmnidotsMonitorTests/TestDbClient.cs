@@ -871,7 +871,9 @@ namespace OmnidotsAdapterTests
             {
                 await connection.OpenAsync(TestContext.CancellationToken);
                 await using NpgsqlCommand command = new(
-                    "SELECT trace_id, sample_index, x, y, z FROM omnidots_trace ORDER BY trace_id, sample_index;", connection);
+                    "SELECT omnidots_trace_index_id, sample_index, x, y, z FROM omnidots_trace "
+                    + "ORDER BY omnidots_trace_index_id, sample_index;",
+                    connection);
                 await using NpgsqlDataReader reader = await command.ExecuteReaderAsync(TestContext.CancellationToken);
                 Assert.IsTrue(await reader.ReadAsync(TestContext.CancellationToken));
                 Assert.AreEqual(0, reader.GetInt32(1));
@@ -1070,7 +1072,7 @@ namespace OmnidotsAdapterTests
             foreach (TestTraceData testData in traceDataList)
             {
                 string traceSql = @"SELECT x, y, z FROM omnidots_trace
-                                 WHERE trace_id = @TraceId
+                                 WHERE omnidots_trace_index_id = @TraceId
                                  ORDER BY sample_index";
                 using NpgsqlCommand cmd = new(traceSql, connection);
                 cmd.Parameters.AddWithValue("@TraceId", testData.Id);
@@ -1107,7 +1109,7 @@ namespace OmnidotsAdapterTests
             using NpgsqlConnection connection = new(connectionString);
             connection.Open();
             using NpgsqlCommand command = new(
-                "SELECT sample_index FROM omnidots_trace WHERE trace_id = $1 ORDER BY sample_index;",
+                "SELECT sample_index FROM omnidots_trace WHERE omnidots_trace_index_id = $1 ORDER BY sample_index;",
                 connection);
             command.Parameters.AddWithValue(traceId);
             using NpgsqlDataReader reader = command.ExecuteReader();

@@ -118,7 +118,8 @@ public sealed class OmnidotsModelMappingTests
             ("UpdatedAt", "updated_at"));
         AssertColumns(
             context.Model.FindEntityType(typeof(OmnidotsTraceEntity))!,
-            ("TraceId", "trace_id"),
+            // The portal owns this column's name; see docs/database/omnidots-trace-ownership.md.
+            ("TraceId", "omnidots_trace_index_id"),
             ("SampleIndex", "sample_index"),
             ("X", "x"),
             ("Y", "y"),

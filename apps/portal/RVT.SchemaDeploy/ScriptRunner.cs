@@ -86,6 +86,7 @@ public sealed class ScriptRunner
         CancellationToken cancellationToken)
     {
         await RequireTimescaleAsync(connection, transaction, cancellationToken);
+        await RequirePublicSchemaAsync(connection, transaction, cancellationToken);
         await ApplyLockTimeoutAsync(connection, transaction, cancellationToken);
         foreach (string script in scripts)
         {
@@ -93,6 +94,38 @@ public sealed class ScriptRunner
         }
 
         return scripts.Count;
+    }
+
+    /// <summary>
+    /// The deploy is public-only, and says so instead of assuming it. Every script qualifies its DDL as
+    /// <c>public.&lt;name&gt;</c> and the post-load stage pins <c>search_path</c> to <c>public</c>, so pointing
+    /// this tool at a connection scoped to another schema - the way the test infrastructure isolates itself -
+    /// would not deploy into that schema, it would quietly write into <c>public</c>. Refusing is not a
+    /// limitation being added here; it is the existing limitation becoming visible at the moment it matters.
+    /// Making the deploy genuinely schema-independent means rewriting the qualified DDL and is a separate,
+    /// separately rehearsed change.
+    /// </summary>
+    private static async Task RequirePublicSchemaAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        CancellationToken cancellationToken)
+    {
+        await using NpgsqlCommand command = new(
+            "SELECT current_schema()",
+            connection,
+            transaction);
+
+        string? currentSchema = await command.ExecuteScalarAsync(cancellationToken) as string;
+        if (string.Equals(currentSchema, "public", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        throw new DeployException(
+            "This connection does not resolve to the public schema " +
+            $"(current_schema() is {currentSchema ?? "empty"}). The deploy scripts are public-qualified, so " +
+            "running them here would write into public rather than into the schema you pointed at. Remove the " +
+            "search_path from the connection string, or deploy that schema by another route.");
     }
 
     /// <summary>

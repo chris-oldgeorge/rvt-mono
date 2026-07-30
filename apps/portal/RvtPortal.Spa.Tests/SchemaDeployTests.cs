@@ -276,6 +276,29 @@ public class SchemaDeployTests
         Assert.Equal(afterFirstRun, afterSecondRun);
     }
 
+    [RequiresPostgresFact]
+    // Function summary: Verifies the deploy refuses a connection scoped to a schema other than public instead of writing into public.
+    public async Task Run_WhenTheConnectionIsNotScopedToPublic_RefusesBeforeApplyingAnything()
+    {
+        NpgsqlConnectionStringBuilder scoped = new(
+            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!)
+        {
+            SearchPath = "pg_catalog"
+        };
+
+        ScriptRunner runner = new(new DeployOptions
+        {
+            ConnectionString = scoped.ConnectionString,
+            ScriptRoot = Path.Combine(FindRepositoryRoot(), "database", "postgres"),
+            DryRun = false
+        });
+
+        DeployException exception = await Assert.ThrowsAsync<DeployException>(
+            () => runner.RunAsync());
+
+        Assert.Contains("public schema", exception.Message, StringComparison.Ordinal);
+    }
+
     // Function summary: Reads the pg_constraint identity of each primary key the PK adjustment script owns.
     private static async Task<IReadOnlyDictionary<string, long>> ReadAdjustedPrimaryKeyIdentitiesAsync(
         NpgsqlConnection connection,

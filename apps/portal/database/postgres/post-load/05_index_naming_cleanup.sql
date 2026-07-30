@@ -3,7 +3,9 @@
 -- - 2026-07-09 pending Added post-load cleanup for default Timescale sample_time index names.
 -- Function summary: Aligns non-constraint sample_time indexes with the ix_{relation}_{column} naming convention.
 
-SET search_path TO public;
+-- SET LOCAL, not SET: one deploy connection, one transaction, so a bare SET
+-- would outlive this script.
+SET LOCAL search_path TO public;
 
 DO $$
 BEGIN

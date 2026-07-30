@@ -2,7 +2,9 @@
 -- Idempotent: if_not_exists => TRUE makes re-runs safe.
 -- Uses canonical target names. ASP.NET Identity tables are not hypertables.
 
-SET search_path TO public;
+-- SET LOCAL, not SET: one deploy connection, one transaction, so a bare SET
+-- would outlive this script.
+SET LOCAL search_path TO public;
 
 DO $$
 DECLARE

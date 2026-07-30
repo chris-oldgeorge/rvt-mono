@@ -6,7 +6,9 @@
 -- Keep application-owned routine, table, and column names lowercase snake_case.
 -- ASP.NET Identity objects remain excluded from the naming refactor and must be quoted if referenced.
 
-SET search_path TO public;
+-- SET LOCAL, not SET: one deploy connection, one transaction, so a bare SET
+-- would outlive this script.
+SET LOCAL search_path TO public;
 
 -- Function summary: Inserts an application error log row using canonical error_log columns.
 DROP PROCEDURE IF EXISTS public.error_insert(text, text, text, text, text, text);

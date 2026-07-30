@@ -69,6 +69,18 @@ replaces, and never drops a table or any data. It is safe to re-run, `--dry-run`
 order, and it refuses to start if the `timescaledb` extension is missing rather than half-applying the schema.
 The SQL ships next to its executable, so a published build works on a host with no repository checked out.
 
+Two things about how it runs are worth knowing before a production deploy:
+
+- **It deploys `public`, and only `public`.** Every script qualifies its DDL as `public.<name>`, so a connection
+  scoped to another schema would not deploy that schema - it would quietly write into `public`. The tool now
+  checks `current_schema()` first and refuses such a connection with an explanation. Making the deploy genuinely
+  schema-independent means rewriting the qualified DDL and is a separate, separately rehearsed change; until
+  then the assumption is enforced rather than assumed.
+- **The whole deploy is one transaction with a lock timeout.** It takes `ACCESS EXCLUSIVE` on several tables and
+  holds them until commit, so it waits at most `--lock-timeout` milliseconds (default 5000) for any lock and
+  otherwise rolls back cleanly. Raise it for a maintenance window; `0` restores the unbounded wait, in which one
+  idle-in-transaction reader can stall the deploy while the deploy queues every application writer behind it.
+
 This was verified on 2026-07-14 against a `rvt` database built by `RVT.DatabaseMigrator`: the from-scratch build
 produced the same 56 tables and 38 views, with no missing relation and no missing column.
 

@@ -10,7 +10,9 @@
 -- monitors' error-write path for the rest of the deploy. So a table is touched
 -- only when its primary key is not already the intended constraint.
 
-SET search_path TO public;
+-- SET LOCAL, not SET: the deploy runs every script on one connection inside one
+-- transaction, so a bare SET here would outlive this script and the deploy.
+SET LOCAL search_path TO public;
 
 DO $$
 DECLARE

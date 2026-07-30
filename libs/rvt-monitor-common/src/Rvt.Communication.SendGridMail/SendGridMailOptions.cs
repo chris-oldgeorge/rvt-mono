@@ -4,6 +4,14 @@ namespace Rvt.Communication.SendGridMail;
 
 public sealed record SendGridMailOptions
 {
+    /// <summary>
+    /// Defaults to true: email is opt-out, per the 2026-07-16 communications
+    /// design ("monitor hosts remain email-enabled by default"). The SMS and
+    /// MQTT options are opt-in instead. The asymmetry is deliberate; unifying
+    /// it would silence or enable live delivery on hosts that set neither
+    /// variable, so it needs a product decision rather than a consistency
+    /// edit.
+    /// </summary>
     public bool Enabled { get; init; } = true;
 
     public string ApiKey { get; init; } = string.Empty;

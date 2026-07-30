@@ -10,8 +10,8 @@ This repository contains three RVT modules:
 
 This reviewable build advances the client release from monorepo source commit
 `a9b1bd2` (the source recorded by the previous `RVT-monitors`
-`release-candidate`) through `f0da1401`. The range contains 99 commits and
-changes 445 files.
+`release-candidate`) through `2be06d84`. The range contains 106 commits and
+changes 446 files.
 
 ### Monitor correctness, resilience, and security
 
@@ -64,10 +64,12 @@ changes 445 files.
 - Added focused company, user, site, monitor detail, assignment, removal,
   contract, alert-level, notification, authentication, privacy, and shared
   routing components.
-- Prevented calendar-summary refetches on every deployment switch.
+- Prevented calendar-summary refetches on every deployment or selected-site
+  change.
 - Added cancellation and visible failure handling to installer status checks.
-- Guarded date formatting, unified confirmation behavior, and stopped shell
-  data from refetching on navigation-only changes.
+- Guarded date and URL-date parsing, read calendar detail days as served UTC
+  dates, unified confirmation behavior, and stopped shell data from refetching
+  on navigation-only changes.
 - Removed dead frontend code and regenerated the OpenAPI client schema to match
   the current backend contract.
 

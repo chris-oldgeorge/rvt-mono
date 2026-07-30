@@ -53,12 +53,25 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         {
             return await TryCommitAsync(request, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception exception)
         {
             Exception classified = AlertPersistenceExceptionClassifier.Classify(exception);
             if (classified is AlertOccurrenceConflictException)
             {
                 return await RecoverDuplicateAsync(request, cancellationToken);
+            }
+
+            // The classifier returns the caught instance unchanged for
+            // pass-through cases; rethrowing it would reset StackTrace and
+            // lose the origin. RecoverDuplicateAsync below has always had
+            // both guards — this keeps the two siblings identical.
+            if (ReferenceEquals(classified, exception))
+            {
+                throw;
             }
 
             throw classified;

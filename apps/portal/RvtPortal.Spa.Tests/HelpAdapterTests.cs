@@ -9,11 +9,13 @@ using RVT.Entities;
 using RvtPortal.Application.Help;
 using RvtPortal.Spa.Adapters.Help;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public sealed class HelpAdapterTests
 {
-    [Fact]
+    [RequiresPostgresFact]
     // The search paths run PostgreSQL ILike, so HelpReadAdapterPostgresTests covers them; this InMemory test
     // pins the provider-neutral publication filtering and ordering.
     public async Task ReadAdapter_PublishedQueryFiltersAndOrders()
@@ -40,7 +42,7 @@ public sealed class HelpAdapterTests
             article => article.Title is "Draft FAQ" or "Hidden guide");
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // The search and content-type filters run PostgreSQL ILike, so HelpReadAdapterPostgresTests covers them;
     // this InMemory test pins the provider-neutral status filter.
     public async Task ReadAdapter_AdminQueryAppliesStatusFilter()
@@ -66,7 +68,7 @@ public sealed class HelpAdapterTests
                 section.Articles.Any(item => item.Id == seeded.DraftArticleId));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ReadAdapter_DetailHonorsPublicationAndOrdersAssets()
     {
         SeededHelpData seeded = await SeedAsync();
@@ -93,7 +95,7 @@ public sealed class HelpAdapterTests
         Assert.Equal("Draft FAQ", adminDraft?.Title);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task ReadAdapter_MutationValidationReportsSlugAndAssetOwnership()
     {
         SeededHelpData seeded = await SeedAsync();
@@ -121,7 +123,7 @@ public sealed class HelpAdapterTests
         Assert.Empty(newArticle.ExistingAssetIds);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task WriteAdapter_CreateReusesSectionAndStagesCanonicalArticle()
     {
         SeededHelpData seeded = await SeedAsync();
@@ -181,7 +183,7 @@ public sealed class HelpAdapterTests
             article.Assets.Single(asset => asset.Title == "External guide").InternalPath);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task WriteAdapter_CreateAddsCanonicalPublishedSectionWhenMissing()
     {
         using SpaTestApplicationFactory factory = new();
@@ -206,7 +208,7 @@ public sealed class HelpAdapterTests
         Assert.Equal(articleId, Assert.Single(section.Articles).Id);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task WriteAdapter_UpdateMovesArticleAndReconcilesAssetsById()
     {
         SeededHelpData seeded = await SeedAsync();
@@ -263,7 +265,7 @@ public sealed class HelpAdapterTests
             article.Assets.Single(asset => asset.Id == retainedAssetId).InternalPath);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task WriteAdapter_UpdateRejectsForeignAssetWithoutStagingChanges()
     {
         SeededHelpData seeded = await SeedAsync();
@@ -299,7 +301,7 @@ public sealed class HelpAdapterTests
                 article => article.Id == seeded.DustArticleId)).Title);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task WriteAdapter_PublicationAndDeletionReportMissingAndUseSuppliedUtc()
     {
         SeededHelpData seeded = await SeedAsync();

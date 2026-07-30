@@ -18,6 +18,8 @@ using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public class NotificationAlertWorkflowTests
@@ -29,7 +31,7 @@ public class NotificationAlertWorkflowTests
     // The dust monitor that raises the alert notification; seeded once and asserted by detail tests.
     private const string AlertMonitorFleetNumber = "P6-ALERT";
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the notification lists are filtered and scoped workflow for this module.
     public async Task NotificationLists_AreFilteredAndScoped()
     {
@@ -60,7 +62,7 @@ public class NotificationAlertWorkflowTests
         Assert.Equal(HttpStatusCode.NotFound, hiddenOther.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the notification detail close and batch close update visible alerts only workflow for this module.
     public async Task NotificationDetailCloseAndBatchClose_UpdateVisibleAlertsOnly()
     {
@@ -97,7 +99,7 @@ public class NotificationAlertWorkflowTests
         Assert.Single(batchResult.NotFoundIds);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies company users can close their own site alerts but not another site's alert.
     public async Task CompanyUserCloseAlert_RecordsNoteAndRejectsOtherSiteAlerts()
     {
@@ -130,7 +132,7 @@ public class NotificationAlertWorkflowTests
         Assert.Contains(ids.OtherAlertNotificationId, batchResult.ForbiddenIds);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies alert-level reads reject inactive assignments and preserve the exact inclusive boundary.
     public async Task CompanyUserAlertLevels_RequireActiveAssignmentWindow()
     {
@@ -141,8 +143,8 @@ public class NotificationAlertWorkflowTests
         ApplicationUser expiredUser = await SeedCompanyUserAsync(factory, "alerts.expired@rvt.test", ids.CompanyId);
         ApplicationUser boundaryUser = await SeedCompanyUserAsync(factory, "alerts.boundary@rvt.test", ids.CompanyId);
         await factory.SeedDomainEntitiesAsync(
-            Assignment(ids.SiteId, futureUser.Id, nowUtc.UtcDateTime.AddTicks(1)),
-            Assignment(ids.SiteId, expiredUser.Id, nowUtc.UtcDateTime.AddDays(-1), nowUtc.UtcDateTime.AddTicks(-1)),
+            Assignment(ids.SiteId, futureUser.Id, nowUtc.UtcDateTime.AddMicroseconds(1)),
+            Assignment(ids.SiteId, expiredUser.Id, nowUtc.UtcDateTime.AddDays(-1), nowUtc.UtcDateTime.AddMicroseconds(-1)),
             Assignment(ids.SiteId, boundaryUser.Id, nowUtc.UtcDateTime, nowUtc.UtcDateTime));
 
         using WebApplicationFactory<Program> fixedTimeFactory = WithTimeProvider(factory, nowUtc);
@@ -163,7 +165,7 @@ public class NotificationAlertWorkflowTests
         Assert.Equal(HttpStatusCode.OK, boundaryResponse.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies inactive assignments cannot close notifications while the exact boundary remains authorized.
     public async Task CompanyUserNotificationClose_RequiresActiveAssignmentWindow()
     {
@@ -177,8 +179,8 @@ public class NotificationAlertWorkflowTests
         ApplicationUser expiredUser = await SeedCompanyUserAsync(factory, "close.expired@rvt.test", ids.CompanyId);
         ApplicationUser boundaryUser = await SeedCompanyUserAsync(factory, "close.boundary@rvt.test", ids.CompanyId);
         await factory.SeedDomainEntitiesAsync(
-            Assignment(ids.SiteId, futureUser.Id, nowUtc.UtcDateTime.AddTicks(1)),
-            Assignment(ids.SiteId, expiredUser.Id, nowUtc.UtcDateTime.AddDays(-1), nowUtc.UtcDateTime.AddTicks(-1)),
+            Assignment(ids.SiteId, futureUser.Id, nowUtc.UtcDateTime.AddMicroseconds(1)),
+            Assignment(ids.SiteId, expiredUser.Id, nowUtc.UtcDateTime.AddDays(-1), nowUtc.UtcDateTime.AddMicroseconds(-1)),
             Assignment(ids.SiteId, boundaryUser.Id, nowUtc.UtcDateTime, nowUtc.UtcDateTime),
             AlertNotification(expiredNotificationId, ids.MonitorId, nowUtc.UtcDateTime.AddMinutes(-20)),
             AlertNotification(boundaryNotificationId, ids.MonitorId, nowUtc.UtcDateTime.AddMinutes(-10)));
@@ -206,7 +208,7 @@ public class NotificationAlertWorkflowTests
         Assert.NotNull(context.Notifications.Single(item => item.Id == boundaryNotificationId).ClosedTime);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies monitor notifications in a contract gap are not attributed to a later current deployment.
     public async Task MovedMonitorNotifications_DoNotFallBackToCurrentDeployment()
     {
@@ -237,7 +239,7 @@ public class NotificationAlertWorkflowTests
         Assert.Equal(HttpStatusCode.NotFound, companyClose.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the alert level crud validates creates updates and deletes dust noise levels workflow for this module.
     public async Task AlertLevelCrud_ValidatesCreatesUpdatesAndDeletesDustNoiseLevels()
     {
@@ -298,7 +300,7 @@ public class NotificationAlertWorkflowTests
         Assert.DoesNotContain(list!.Results, level => level.Id == created.Item.Id);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the vibration alert level endpoint upserts alert and caution pair workflow for this module.
     public async Task VibrationAlertLevelEndpoint_UpsertsAlertAndCautionPair()
     {

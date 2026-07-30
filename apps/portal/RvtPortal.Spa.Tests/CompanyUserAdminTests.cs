@@ -15,6 +15,8 @@ using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public class CompanyUserAdminTests
@@ -23,7 +25,7 @@ public class CompanyUserAdminTests
     private const string MasterEmail = "admin.master@rvt.test";
     private const string Password = "P8sSw0rd9$";
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the company crud validates unique names and deletes company users workflow for this module.
     public async Task CompanyCrud_ValidatesUniqueNamesAndDeletesCompanyUsers()
     {
@@ -55,7 +57,7 @@ public class CompanyUserAdminTests
         Assert.Equal(HttpStatusCode.NotFound, deletedCompanyUser.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Applies r administration enforces role rules and supports status and link actions to the current configuration.
     public async Task UserAdministration_EnforcesRoleRulesAndSupportsStatusAndLinkActions()
     {
@@ -110,7 +112,7 @@ public class CompanyUserAdminTests
         Assert.Equal(HttpStatusCode.OK, delete.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies admin user validation rejects duplicate emails and company users without a company.
     public async Task UserAdministration_RejectsDuplicateEmailAndMissingCompany()
     {
@@ -146,7 +148,7 @@ public class CompanyUserAdminTests
         Assert.Empty(search!.Results);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the site assignments add contact and remove company users workflow for this module.
     public async Task SiteAssignments_AddContactAndRemoveCompanyUsers()
     {
@@ -161,8 +163,15 @@ public class CompanyUserAdminTests
         await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Site Assignment Co", Contracts = [] },
-            new Site { Id = siteId, SiteName = "Athens Plant", Contracts = [] },
-            new Contract { Id = Guid.NewGuid(), ContractNumber = "P3-001", CompanyId = companyId, SiteiD = siteId });
+            new Site { Id = siteId, SiteName = "Athens Plant", CreateDate = DateTime.UtcNow, Contracts = [] },
+            new Contract
+            {
+                Id = Guid.NewGuid(),
+                ContractNumber = "P3-001",
+                CompanyId = companyId,
+                SiteiD = siteId,
+                OnHireDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc)
+            });
         HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
 

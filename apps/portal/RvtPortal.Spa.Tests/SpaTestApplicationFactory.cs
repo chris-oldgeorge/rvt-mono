@@ -1,43 +1,44 @@
-// File summary: Provides the Portal test host with isolated in-memory contexts and explicit local host filtering.
+// File summary: Provides the Portal test host with an isolated throwaway PostgreSQL schema and explicit local host filtering.
 // Major updates:
+// - 2026-07-30 pending Replatformed from EF InMemory onto the real Postgres integration database (throwaway schemas).
 // - 2026-07-26 pending Removed the obsolete provider-selection setting from test database options.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 // - 2026-06-24 pending Added report-content shared-key test configuration.
-// - 2026-06-25 pending Removed EF Core options configuration callbacks when replacing contexts with in-memory stores.
 // - 2026-07-25 pending Replaced WebApplicationFactory's wildcard host default with the portal's explicit local test hosts.
 
-using System.Data.Common;
 using System.Globalization;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
-using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Adapters.Archive;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.Tests.Support;
 
 namespace RvtPortal.Spa.Tests;
 
+/// <summary>
+/// Boots the real Spa host against a throwaway PostgreSQL schema on the shared integration database, so the
+/// production wiring runs unchanged: the three EF contexts share one scoped Npgsql connection, the Unit of
+/// Work opens real transactions, the site-write raw SQL and ExecuteUpdate paths execute, and startup schema
+/// validation reads a live information schema. Requires <c>RVT__POSTGRES_INTEGRATION_CONNECTION</c>; gate
+/// every test that constructs this factory with <see cref="RequiresPostgresFactAttribute"/> (or the Theory
+/// variant) so suites stay runnable on machines without the container.
+/// </summary>
 public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
 {
     private readonly string environment;
     private readonly int authRatePermitLimit;
     private readonly bool archiveExportFails;
-    // Function summary: Handles the new guid workflow for this module.
-    private readonly string databaseName = $"RvtPortalSpaTests-{Guid.NewGuid()}";
-    // Function summary: Handles the service collection workflow for this module.
-    private readonly ServiceProvider databaseProvider = new ServiceCollection()
-        .AddEntityFrameworkInMemoryDatabase()
-        .BuildServiceProvider();
+    private readonly string _schemaName = $"spa_host_{Guid.NewGuid():N}";
+    private readonly Lock _schemaGate = new();
+    private string? _scopedConnectionString;
 
     // Function summary: Initializes this type with the dependencies required by its workflow.
     public SpaTestApplicationFactory(string environment = "Testing", int authRatePermitLimit = 1000, bool archiveExportFails = false)
@@ -50,16 +51,27 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
     // Function summary: Configures web host during application startup.
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Derived factories (WithWebHostBuilder) re-run this method on the same instance, so the schema is
+        // created exactly once and shared by every host the factory produces.
+        string connectionString = EnsureSchema();
+
         builder.UseEnvironment(environment);
         builder.UseSetting("EmailConfiguration:SENDGRID_API_KEY", "test-sendgrid-api-key");
         builder.UseSetting("EmailConfiguration:Sending_Email_Address", "portal-tests@example.test");
         builder.UseSetting("AllowedHosts", "localhost;127.0.0.1");
+        // The database keys must be UseSetting, not ConfigureAppConfiguration: AddRvtDatabaseProvider snapshots
+        // the configuration while Program's ConfigureServices runs, and only host settings are merged that
+        // early - ConfigureAppConfiguration values arrive after registration and would leave the host on the
+        // Testing placeholder connection string.
+        builder.UseSetting("ConnectionStrings:DefaultConnection", connectionString);
+        // Nothing deploys stored routines into the throwaway schema, so point routine execution at it
+        // too: a routine call fails loudly instead of silently reading the shared public schema.
+        builder.UseSetting("Database:PostgresRoutineSchema", _schemaName);
         builder.ConfigureAppConfiguration((_, configuration) =>
         {
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Auth:SkipPasswordResetEmail"] = "true",
-                ["ConnectionStrings:DefaultConnection"] = "Testing",
                 ["ReportContent:InternalApiKey"] = "test-report-content-key",
                 // Keep the auth rate limiter effectively off for the shared suite so
                 // tests that legitimately log in many times do not trip a 429. The
@@ -73,28 +85,6 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
         });
         builder.ConfigureServices(services =>
         {
-            services.RemoveAll<DbContextOptions<ApplicationDbContext>>();
-            services.RemoveAll<DbContextOptions<RVTDbContext>>();
-            services.RemoveAll<DbContextOptions<RVTSearchContext>>();
-            services.RemoveAll<IDbContextOptionsConfiguration<ApplicationDbContext>>();
-            services.RemoveAll<IDbContextOptionsConfiguration<RVTDbContext>>();
-            services.RemoveAll<IDbContextOptionsConfiguration<RVTSearchContext>>();
-            services.RemoveAll<IOptions<RvtDatabaseOptions>>();
-            services.RemoveAll<IRvtDatabaseConnectionFactory>();
-            services.RemoveAll<DbConnection>();
-
-            services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseInMemoryDatabase(databaseName).UseInternalServiceProvider(databaseProvider));
-            services.AddDbContext<RVTDbContext>(options =>
-                options.UseInMemoryDatabase($"{databaseName}-domain").UseInternalServiceProvider(databaseProvider));
-            services.AddDbContext<RVTSearchContext>(options =>
-                options.UseInMemoryDatabase($"{databaseName}-search").UseInternalServiceProvider(databaseProvider));
-            services.AddSingleton(Options.Create(new RvtDatabaseOptions
-            {
-                ConnectionString = "Testing"
-            }));
-            services.AddSingleton<IRvtDatabaseConnectionFactory, RvtDatabaseConnectionFactory>();
-
             // The real site-archive export streams data and uploads to Azure blob storage, which is not present
             // in tests. Fake it so the archive endpoint exercises its own logic without an external dependency.
             // With archiveExportFails set, the fake throws so the export-failure path can be verified.
@@ -108,6 +98,47 @@ public sealed class SpaTestApplicationFactory : WebApplicationFactory<Program>
                 services.AddScoped<ISiteArchiveService, FakeSiteArchiveService>();
             }
         });
+    }
+
+    // Function summary: Creates the factory's throwaway schema exactly once, tolerating derived-host re-entry.
+    private string EnsureSchema()
+    {
+        lock (_schemaGate)
+        {
+            return _scopedConnectionString ??= SpaTestDatabase.CreateSchema(_schemaName);
+        }
+    }
+
+    // Function summary: Drops the throwaway schema after the hosts this factory produced are gone.
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+        if (disposing)
+        {
+            DropSchema();
+        }
+    }
+
+    // Function summary: Drops the throwaway schema on the async disposal path as well.
+    public override async ValueTask DisposeAsync()
+    {
+        await base.DisposeAsync();
+        DropSchema();
+    }
+
+    // Function summary: Drops the schema at most once across the sync and async disposal paths.
+    private void DropSchema()
+    {
+        lock (_schemaGate)
+        {
+            if (_scopedConnectionString is null)
+            {
+                return;
+            }
+
+            SpaTestDatabase.DropSchema(_schemaName, _scopedConnectionString);
+            _scopedConnectionString = null;
+        }
     }
 
     // A stand-in for the blob-backed export: it always succeeds and returns a deterministic archive URL.

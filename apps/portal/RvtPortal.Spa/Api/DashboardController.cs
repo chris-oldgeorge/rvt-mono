@@ -1,5 +1,6 @@
 // File summary: Exposes React portal dashboard API endpoints as thin adapters over dashboard application services.
 // Major updates:
+// - 2026-07-30 pending Parsed calendar-day requests as UTC; the Unspecified kind failed timestamptz query binds on PostgreSQL.
 // - 2026-07-09 pending Moved dashboard summary, map marker, and calendar logic behind IDashboardApplicationService.
 // - 2026-07-08 pending Routed breach-alert list querying through an application service.
 // - 2026-06-26 pending Scoped dashboard notifications and calendar data to effective deployment/contract windows.
@@ -25,10 +26,10 @@ namespace RvtPortal.Spa.Api;
 [Route("api/dashboard")]
 public class DashboardController : ControllerBase
 {
-    private readonly IDashboardApplicationService dashboard;
-    private readonly IDashboardBreachApplicationService dashboardBreaches;
-    private readonly ICurrentUserContextFactory currentUsers;
-    private readonly TimeProvider timeProvider;
+    private readonly IDashboardApplicationService _dashboard;
+    private readonly IDashboardBreachApplicationService _dashboardBreaches;
+    private readonly ICurrentUserContextFactory _currentUsers;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes this HTTP adapter with dashboard query use cases and current-user context creation.
     public DashboardController(
@@ -37,10 +38,10 @@ public class DashboardController : ControllerBase
         ICurrentUserContextFactory currentUsers,
         TimeProvider timeProvider)
     {
-        this.dashboard = dashboard;
-        this.dashboardBreaches = dashboardBreaches;
-        this.currentUsers = currentUsers;
-        this.timeProvider = timeProvider;
+        _dashboard = dashboard;
+        _dashboardBreaches = dashboardBreaches;
+        _currentUsers = currentUsers;
+        _timeProvider = timeProvider;
     }
 
     [HttpGet("summary")]
@@ -49,7 +50,7 @@ public class DashboardController : ControllerBase
     public async Task<ActionResult<DashboardSummaryResponse>> Summary()
     {
         DashboardActor actor = await CreateActorAsync();
-        DashboardSummaryModel result = await dashboard.GetSummaryAsync(actor, HttpContext.RequestAborted);
+        DashboardSummaryModel result = await _dashboard.GetSummaryAsync(actor, HttpContext.RequestAborted);
         return DashboardApiMapper.ToSummaryResponse(result);
     }
 
@@ -73,7 +74,7 @@ public class DashboardController : ControllerBase
             return InvalidSort(page.Sort, DashboardBreachApplicationService.SortFields);
         }
 
-        DashboardBreachResult result = await dashboardBreaches.QueryAsync(
+        DashboardBreachResult result = await _dashboardBreaches.QueryAsync(
             new DashboardBreachQuery(request.Date, page),
             HttpContext.RequestAborted);
         return DashboardApiMapper.ToBreachesAlertsResponse(result);
@@ -86,7 +87,7 @@ public class DashboardController : ControllerBase
     public async Task<ActionResult<MapMarkersResponse>> MapMarkers([FromQuery] MapMarkersRequest request)
     {
         DashboardActor actor = await CreateActorAsync();
-        DashboardMapMarkersModel? result = await dashboard.GetMapMarkersAsync(actor, request.SiteId, HttpContext.RequestAborted);
+        DashboardMapMarkersModel? result = await _dashboard.GetMapMarkersAsync(actor, request.SiteId, HttpContext.RequestAborted);
         if (result is null && request.SiteId.HasValue)
         {
             return SiteNotFound(request.SiteId.Value);
@@ -115,7 +116,7 @@ public class DashboardController : ControllerBase
         }
 
         DashboardActor actor = await CreateActorAsync();
-        DashboardCalendarMonthModel? result = await dashboard.GetCalendarMonthAsync(
+        DashboardCalendarMonthModel? result = await _dashboard.GetCalendarMonthAsync(
             actor,
             request.DeploymentId.Value,
             selectedMonth,
@@ -153,7 +154,7 @@ public class DashboardController : ControllerBase
 
         DashboardActor actor = await CreateActorAsync();
         Guid monitorId = request.MonitorId.GetValueOrDefault();
-        DashboardCalendarDayModel? result = await dashboard.GetCalendarDayAsync(
+        DashboardCalendarDayModel? result = await _dashboard.GetCalendarDayAsync(
             actor,
             monitorId,
             displayDay,
@@ -169,7 +170,7 @@ public class DashboardController : ControllerBase
     // Function summary: Builds the dashboard actor from authenticated HTTP user state.
     private async Task<DashboardActor> CreateActorAsync()
     {
-        PortalUserContext currentUser = await currentUsers.CreateAsync(User, HttpContext.RequestAborted);
+        PortalUserContext currentUser = await _currentUsers.CreateAsync(User, HttpContext.RequestAborted);
         return DashboardActor.FromPortalUser(
             currentUser,
             User.IsInRole(RoleNames.RVTMasterAdmin),
@@ -181,7 +182,7 @@ public class DashboardController : ControllerBase
     {
         // Missing month parts fall back to the injected clock's UTC business day; DateTime.Today read
         // the server-local zone and could not be faked in tests.
-        DateTime now = timeProvider.GetUtcNow().UtcDateTime.Date;
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime.Date;
         if (year is < 1 or > 9999)
         {
             ModelState.AddModelError(nameof(CalendarMonthRequest.Year), "A valid year is required.");
@@ -219,11 +220,13 @@ public class DashboardController : ControllerBase
     {
         if (year.HasValue && month.HasValue && day.HasValue)
         {
+            // Calendar days are UTC days (the portal's timezone ruling), and the resulting value becomes a
+            // timestamptz query bound - Npgsql rejects anything but Kind=Utc there, so parse it as UTC.
             return DateTime.TryParseExact(
                 $"{year.Value:D4}-{month.Value:D2}-{day.Value:D2}",
                 "yyyy-MM-dd",
                 CultureInfo.InvariantCulture,
-                DateTimeStyles.None,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
                 out date);
         }
 

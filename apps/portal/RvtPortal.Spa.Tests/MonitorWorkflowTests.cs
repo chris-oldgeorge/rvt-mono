@@ -25,6 +25,8 @@ using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public class MonitorWorkflowTests
@@ -47,7 +49,7 @@ public class MonitorWorkflowTests
     private const string OnlineDeploymentLocation = "North boundary";
     private const string OnlineDeploymentWhat3Words = "filled.count.soap";
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the monitor inventory states are filtered by state and role workflow for this module.
     public async Task MonitorInventoryStates_AreFilteredByStateAndRole()
     {
@@ -88,7 +90,7 @@ public class MonitorWorkflowTests
         Assert.DoesNotContain(installerList.Results, monitor => monitor.Id == ids.OtherMonitorId);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the fleet and monitor edit validate duplicates and create default alert levels workflow for this module.
     public async Task FleetAndMonitorEdit_ValidateDuplicatesAndCreateDefaultAlertLevels()
     {
@@ -115,8 +117,8 @@ public class MonitorWorkflowTests
         MonitorMutationRequest editRequest = new()
         {
             FleetNumber = editedFleetNumber,
-            CalibrationDate = new DateTime(2026, 5, 1),
-            CalibrationDue = new DateTime(2027, 5, 1),
+            CalibrationDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc),
+            CalibrationDue = new DateTime(2027, 5, 1, 0, 0, 0, DateTimeKind.Utc),
             DeploymentId = ids.OnlineDeploymentId,
             Location = OnlineDeploymentLocation,
             What3words = OnlineDeploymentWhat3Words,
@@ -136,7 +138,7 @@ public class MonitorWorkflowTests
         Assert.Equal(editRequest.What3words, updated?.Item?.What3words);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies monitor detail exposes legacy summary data used by the React detail page.
     public async Task MonitorDetail_ExposesLegacySummaryData()
     {
@@ -160,7 +162,7 @@ public class MonitorWorkflowTests
         Assert.Equal(ids.OnlineMonitorId, detail?.Item?.RecentNotifications[0].MonitorId);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies current monitor list and detail ignore notifications outside the active ownership window.
     public async Task MonitorListAndDetail_IgnoreMovedMonitorGapNotifications()
     {
@@ -182,7 +184,7 @@ public class MonitorWorkflowTests
         Assert.Null(detail.Item.LatestReading);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies monitor picture upload rejects monitors without a current deployment.
     public async Task MonitorPictureUpload_RequiresCurrentDeployment()
     {
@@ -201,7 +203,7 @@ public class MonitorWorkflowTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies blank monitor coordinate edits keep existing deployment coordinates.
     public async Task MonitorEdit_BlankCoordinatesKeepExistingValues()
     {
@@ -228,7 +230,7 @@ public class MonitorWorkflowTests
         AssertApproximately(OnlineDeploymentLng, updated?.Item?.Lng);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies monitor coordinate edits reject out-of-range deployment coordinates.
     public async Task MonitorEdit_RejectsOutOfRangeCoordinates()
     {
@@ -250,7 +252,7 @@ public class MonitorWorkflowTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies monitor detail exposes latest average data from the monitor data source.
     public async Task MonitorDetail_ExposesLatestAverageFromDataSource()
     {
@@ -276,7 +278,7 @@ public class MonitorWorkflowTests
         Assert.Equal("2026-07-01T08:30:00Z", latestAverage.GetProperty("sampleTime").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies latest reading prefers live measurement data over notification fallback data.
     public async Task MonitorDetail_ExposesLatestReadingFromDataSourceWhenAvailable()
     {
@@ -298,7 +300,7 @@ public class MonitorWorkflowTests
         Assert.Equal(ids.ContractStart, dataSource.LastDeploymentRequest?.FromDate);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies monitor detail exposes latest vibration battery status when available.
     public async Task MonitorDetail_ExposesLatestBatteryStatus()
     {
@@ -310,7 +312,7 @@ public class MonitorWorkflowTests
             Id = Guid.NewGuid(),
             SerialId = "SER-OFFLINE",
             Name = "MON-OFFLINE",
-            Lastseen = DateTime.UtcNow.AddMinutes(-12),
+            Lastseen = DateTime.SpecifyKind(DateTime.UtcNow.AddMinutes(-12), DateTimeKind.Unspecified),
             BatteryCharge = batteryCharge,
             ConnectedUsing = "4G",
             Online = true
@@ -327,7 +329,7 @@ public class MonitorWorkflowTests
         Assert.Equal("%", detail?.Item?.LatestBattery?.Unit);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies installer monitor detail uses the same legacy metric summaries as the main monitor detail endpoint.
     public async Task InstallerMonitorDetail_ExposesLegacyMetricSummaries()
     {
@@ -343,7 +345,7 @@ public class MonitorWorkflowTests
             Id = Guid.NewGuid(),
             SerialId = "SER-ONLINE",
             Name = "MON-ONLINE",
-            Lastseen = DateTime.UtcNow.AddMinutes(-10),
+            Lastseen = DateTime.SpecifyKind(DateTime.UtcNow.AddMinutes(-10), DateTimeKind.Unspecified),
             BatteryCharge = batteryCharge,
             ConnectedUsing = "4G",
             Online = true
@@ -363,7 +365,7 @@ public class MonitorWorkflowTests
         Assert.Equal(ids.OnlineDeploymentId, detail?.Item?.DeploymentSummary?.DeploymentId);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies legacy monitor picture paths are not exposed through unauthenticated static file fallback routes.
     public async Task LegacyMonitorPicturePath_IsNotPubliclyServed()
     {
@@ -375,7 +377,7 @@ public class MonitorWorkflowTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the contract assignment adds and removes current deployment workflow for this module.
     public async Task ContractAssignment_AddsAndRemovesCurrentDeployment()
     {
@@ -407,7 +409,7 @@ public class MonitorWorkflowTests
         Assert.False(context.Deployments.Any(deployment => deployment.MonitorId == ids.AvailableMonitorId && deployment.EndDate == null));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the installer can update deployment and read status workflow for this module.
     public async Task InstallerCanUpdateDeploymentAndReadStatus()
     {
@@ -435,7 +437,7 @@ public class MonitorWorkflowTests
         Assert.Equal("Online", status.Status);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies installers cannot address monitors or deployments outside their assigned company.
     public async Task InstallerEndpoints_AreScopedToInstallerCompany()
     {
@@ -460,7 +462,7 @@ public class MonitorWorkflowTests
         Assert.Equal(HttpStatusCode.NotFound, update.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies protected monitor pictures enforce the same installer-company boundary as installer detail reads.
     public async Task InstallerMonitorPicture_IsScopedToInstallerCompany()
     {
@@ -486,7 +488,7 @@ public class MonitorWorkflowTests
         Assert.Equal(HttpStatusCode.NotFound, otherPicture.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies the installer what3words endpoint returns a service problem when the API key is not configured.
     public async Task InstallerWhat3WordsConvert_ReturnsServiceUnavailableWhenApiKeyMissing()
     {
@@ -502,7 +504,7 @@ public class MonitorWorkflowTests
         Assert.Contains("What3words API key is not configured", problem, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the default monitors adds default levels where missing workflow for this module.
     public async Task DefaultMonitors_AddsDefaultLevelsWhereMissing()
     {

@@ -1,5 +1,6 @@
 // File summary: Compares the EF model's relations and columns against the ones the database actually has.
 // Major updates:
+// - 2026-07-30 pending Removed the non-relational skip and scoped the schema read to the connection's search path.
 // - 2026-07-14 pending Added so mapping drift fails at startup instead of on the first query that touches it.
 
 using System.Data.Common;
@@ -34,11 +35,6 @@ public static class RvtSchemaValidator
         DbContext context,
         CancellationToken cancellationToken = default)
     {
-        if (!context.Database.IsRelational())
-        {
-            return [];
-        }
-
         IReadOnlyDictionary<string, IReadOnlySet<string>> actual = await ReadSchemaAsync(context, cancellationToken);
         return Compare(context.Model, actual);
     }
@@ -101,10 +97,14 @@ public static class RvtSchemaValidator
         {
             using DbCommand command = connection.CreateCommand();
 
-            // information_schema is ANSI and exposes views alongside tables on both providers, so one query
-            // covers everything the model can map to.
+            // information_schema exposes views alongside tables, so one query covers everything the model can
+            // map to. Restricting to the schemas on the connection's search path matters twice over: a relation
+            // that exists only in some other schema could not be reached by the model's unqualified names at
+            // runtime, and it keeps parallel test hosts (one throwaway schema each) from validating against
+            // each other's objects.
             command.CommandText =
-                "SELECT table_name, column_name FROM information_schema.columns";
+                "SELECT table_name, column_name FROM information_schema.columns " +
+                "WHERE table_schema = ANY (current_schemas(false))";
 
             Dictionary<string, IReadOnlySet<string>> result = new(StringComparer.OrdinalIgnoreCase);
             await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken);

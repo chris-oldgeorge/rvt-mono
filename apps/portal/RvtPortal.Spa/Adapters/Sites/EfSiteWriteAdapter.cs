@@ -1,5 +1,6 @@
-// File summary: Implements PostgreSQL site mutation persistence with intentional SQLite/InMemory test paths.
+// File summary: Implements PostgreSQL site mutation persistence with atomic claim and upsert writes.
 // Major updates:
+// - 2026-07-30 pending Removed the InMemory fallbacks once the Spa test host moved onto PostgreSQL.
 // - 2026-07-25 pending Made PostgreSQL ON CONFLICT the canonical concurrency path.
 
 using Microsoft.EntityFrameworkCore;
@@ -54,27 +55,6 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         Guid siteId,
         CancellationToken cancellationToken)
     {
-        // EF InMemory does not implement ExecuteUpdateAsync. Keep the production
-        // relational claim atomic while preserving equivalent host-contract
-        // behavior for the suite's non-relational provider.
-        if (!domainContext.Database.IsRelational())
-        {
-            Contract? contract = await domainContext.Contracts.SingleOrDefaultAsync(
-                item =>
-                    item.Id == contractId &&
-                    item.CompanyId == companyId &&
-                    item.SiteiD == null,
-                cancellationToken);
-            if (contract is null)
-            {
-                return false;
-            }
-
-            contract.SiteiD = siteId;
-            await domainContext.SaveChangesAsync(cancellationToken);
-            return true;
-        }
-
         int affected = await domainContext.Contracts
             .Where(contract =>
                 contract.Id == contractId &&
@@ -137,34 +117,6 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         DateTime archivedUtc,
         CancellationToken cancellationToken)
     {
-        if (!domainContext.Database.IsRelational())
-        {
-            SiteArchived? existing = await domainContext.SiteArchived
-                .SingleOrDefaultAsync(
-                    item => item.SiteId == siteId,
-                    cancellationToken);
-            if (existing is not null)
-            {
-                return new SiteArchiveClaimResult(
-                    Claimed: false,
-                    existing.PictureLink);
-            }
-
-            Site inMemorySite = await domainContext.Sites
-                .SingleAsync(item => item.Id == siteId, cancellationToken);
-            inMemorySite.Archived = true;
-            domainContext.SiteArchived.Add(new SiteArchived
-            {
-                SiteId = siteId,
-                CreatedBy = createdBy,
-                PictureLink = archiveUrl,
-                CreateDate = DateTime.SpecifyKind(archivedUtc, DateTimeKind.Utc)
-            });
-            return new SiteArchiveClaimResult(
-                Claimed: true,
-                archiveUrl);
-        }
-
         Guid archiveId = Guid.NewGuid();
         DateTime createDateUtc = DateTime.SpecifyKind(
             archivedUtc,
@@ -211,48 +163,26 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         TimeSpan? endTime,
         CancellationToken cancellationToken)
     {
-        if (domainContext.Database.IsRelational())
+        Guid settingId = Guid.NewGuid();
+        if (!IsPostgres() && !IsSqlite())
         {
-            Guid settingId = Guid.NewGuid();
-            if (!IsPostgres() && !IsSqlite())
-            {
-                throw UnsupportedRelationalProvider();
-            }
-
-            await domainContext.Database.ExecuteSqlInterpolatedAsync(
-                $"""
-                INSERT INTO "notification_setting"
-                    ("id", "site_user_id", "email", "sms", "start_time", "end_time")
-                VALUES
-                    ({settingId}, {siteUserId}, {request.Email}, {request.Sms}, {startTime}, {endTime})
-                ON CONFLICT ("site_user_id") DO UPDATE
-                SET
-                    "email" = EXCLUDED."email",
-                    "sms" = EXCLUDED."sms",
-                    "start_time" = EXCLUDED."start_time",
-                    "end_time" = EXCLUDED."end_time"
-                """,
-                cancellationToken);
-            return;
+            throw UnsupportedRelationalProvider();
         }
 
-        NotificationSettings? settings = await domainContext.NotificationSettings
-            .SingleOrDefaultAsync(
-                item => item.SiteUserId == siteUserId,
-                cancellationToken);
-        if (settings is null)
-        {
-            settings = new NotificationSettings
-            {
-                SiteUserId = siteUserId
-            };
-            domainContext.NotificationSettings.Add(settings);
-        }
-
-        settings.Email = request.Email;
-        settings.SMS = request.Sms;
-        settings.StartTime = startTime;
-        settings.EndTime = endTime;
+        await domainContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO "notification_setting"
+                ("id", "site_user_id", "email", "sms", "start_time", "end_time")
+            VALUES
+                ({settingId}, {siteUserId}, {request.Email}, {request.Sms}, {startTime}, {endTime})
+            ON CONFLICT ("site_user_id") DO UPDATE
+            SET
+                "email" = EXCLUDED."email",
+                "sms" = EXCLUDED."sms",
+                "start_time" = EXCLUDED."start_time",
+                "end_time" = EXCLUDED."end_time"
+            """,
+            cancellationToken);
     }
 
     private bool IsPostgres() =>

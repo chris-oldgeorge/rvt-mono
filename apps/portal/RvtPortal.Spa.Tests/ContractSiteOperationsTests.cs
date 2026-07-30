@@ -122,7 +122,7 @@ public class ContractSiteOperationsTests
         await transaction.RollbackAsync();
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the contract crud validates duplicate dates and site company rules workflow for this module.
     public async Task ContractCrud_ValidatesDuplicateDatesAndSiteCompanyRules()
     {
@@ -149,7 +149,7 @@ public class ContractSiteOperationsTests
                 ContractNumber = existingContractNumber,
                 CompanyId = alphaId,
                 SiteiD = siteId,
-                OnHireDate = new DateTime(2026, 1, 1)
+                OnHireDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
             });
         HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
@@ -213,7 +213,7 @@ public class ContractSiteOperationsTests
         DbContextOptions<RVTDbContext> options = TestDbContexts.ModelOnlyNpgsql<RVTDbContext>();
         return new RVTDbContext(options);
     }
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the site crud validates contract and times then archives workflow for this module.
     public async Task SiteCrud_ValidatesContractAndTimesThenArchives()
     {
@@ -234,7 +234,7 @@ public class ContractSiteOperationsTests
                 Id = contractId,
                 ContractNumber = "P4-SITE-001",
                 CompanyId = companyId,
-                OnHireDate = new DateTime(2026, 5, 1)
+                OnHireDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc)
             });
         HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
@@ -307,7 +307,7 @@ public class ContractSiteOperationsTests
         Assert.NotNull(archived?.Item?.Archive);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SiteUpdate_MalformedMissingSite_ReturnsMaskedNotFound()
     {
         using SpaTestApplicationFactory factory = new();
@@ -333,7 +333,7 @@ public class ContractSiteOperationsTests
             problem.RootElement.GetProperty("detail").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SiteUpdate_MalformedExistingSite_ReturnsExactValidationProblem()
     {
         using SpaTestApplicationFactory factory = new();
@@ -371,7 +371,7 @@ public class ContractSiteOperationsTests
             errors[nameof(SiteMutationRequest.StartTime)]);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task NotificationSetting_InvalidTimeMissingSite_ReturnsMaskedNotFound()
     {
         using SpaTestApplicationFactory factory = new();
@@ -392,7 +392,7 @@ public class ContractSiteOperationsTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task NotificationSetting_InvalidTimeMissingTarget_ReturnsMaskedNotFound()
     {
         using SpaTestApplicationFactory factory = new();
@@ -422,7 +422,7 @@ public class ContractSiteOperationsTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task NotificationSetting_InvalidTimeExpiredAssignment_ReturnsMaskedNotFound()
     {
         using SpaTestApplicationFactory factory = new();
@@ -472,7 +472,7 @@ public class ContractSiteOperationsTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task NotificationSetting_InvalidTimeForeignTarget_ReturnsForbidden()
     {
         using SpaTestApplicationFactory factory = new();
@@ -530,7 +530,7 @@ public class ContractSiteOperationsTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    [Theory]
+    [RequiresPostgresTheory]
     [InlineData(nameof(SiteMutationRequest.EndTime), nameof(SiteMutationRequest.StartTime))]
     [InlineData(nameof(SiteMutationRequest.SatEndTime), nameof(SiteMutationRequest.SatStartTime))]
     [InlineData(nameof(SiteMutationRequest.SunEndTime), nameof(SiteMutationRequest.SunStartTime))]
@@ -579,7 +579,7 @@ public class ContractSiteOperationsTests
             errors[startField]);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task SiteValidation_ReversedLegacyWeekdayPairSerializesOneStartTimeError()
     {
         using SpaTestApplicationFactory factory = new();
@@ -607,7 +607,7 @@ public class ContractSiteOperationsTests
             error.Value);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task NotificationSetting_MalformedEndTimeSerializesExactFieldKeys()
     {
         using SpaTestApplicationFactory factory = new();
@@ -653,7 +653,7 @@ public class ContractSiteOperationsTests
             errors[nameof(SiteNotificationSettingMutationRequest.StartTime)]);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies a failed archive export leaves the site active rather than reporting a false success.
     public async Task SiteArchive_WhenExportFails_LeavesSiteActiveAndReturns503()
     {
@@ -668,7 +668,7 @@ public class ContractSiteOperationsTests
                 Id = contractId,
                 ContractNumber = "P4-ARCH-001",
                 CompanyId = companyId,
-                OnHireDate = new DateTime(2026, 5, 1)
+                OnHireDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc)
             });
         HttpClient client = CreateClient(factory);
         await LoginAsync(client, AdminEmail, Password);
@@ -693,7 +693,7 @@ public class ContractSiteOperationsTests
         Assert.Null(detail?.Item?.Archive);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies site admins can upload/delete customer logos and reporting can fetch them through the internal API.
     public async Task SiteCustomerLogo_UploadsStreamsAndDeletesThroughProtectedRoutes()
     {
@@ -734,7 +734,7 @@ public class ContractSiteOperationsTests
         Assert.Equal(HttpStatusCode.NotFound, missingAfterDelete.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the site customer logo rejects non image payload workflow for this module.
     public async Task SiteCustomerLogo_RejectsNonImagePayload()
     {
@@ -762,7 +762,7 @@ public class ContractSiteOperationsTests
         Assert.False(problem.RootElement.TryGetProperty("errors", out _));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Preserves masked site-not-found ordering before missing-logo validation.
     public async Task SiteCustomerLogo_MissingSiteWithoutFile_ReturnsMaskedNotFound()
     {
@@ -784,7 +784,7 @@ public class ContractSiteOperationsTests
             problem.RootElement.GetProperty("detail").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Preserves the legacy site-not-found payload when deleting a logo for a missing site.
     public async Task SiteCustomerLogo_DeleteMissingSite_ReturnsLegacyNotFound()
     {
@@ -804,7 +804,7 @@ public class ContractSiteOperationsTests
             problem.RootElement.GetProperty("detail").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the company user site access is scoped and can update own notification settings workflow for this module.
     public async Task CompanyUserSiteAccess_IsScopedAndCanUpdateOwnNotificationSettings()
     {
@@ -873,7 +873,7 @@ public class ContractSiteOperationsTests
         Assert.Equal("09:00", updatedSettings?.Item?.StartTime);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies only currently active site assignments grant company-user list and detail access.
     public async Task CompanyUserSiteAccess_RequiresActiveAssignmentWindow()
     {
@@ -896,9 +896,9 @@ public class ContractSiteOperationsTests
                 SiteId = expiredSiteId,
                 UserId = userId,
                 StartDate = nowUtc.UtcDateTime.AddDays(-10),
-                EndDate = nowUtc.UtcDateTime.AddTicks(-1)
+                EndDate = nowUtc.UtcDateTime.AddMicroseconds(-1)
             },
-            TestData.SiteUser(siteId: futureSiteId, userId: userId, startDate: nowUtc.UtcDateTime.AddTicks(1)),
+            TestData.SiteUser(siteId: futureSiteId, userId: userId, startDate: nowUtc.UtcDateTime.AddMicroseconds(1)),
             new SiteUsers
             {
                 Id = Guid.NewGuid(),

@@ -1,5 +1,6 @@
 // File summary: Implements the application Unit of Work abstraction using the portal's coordinated EF Core contexts.
 // Major updates:
+// - 2026-07-30 pending Removed the non-relational (InMemory) bypass once the Spa test host moved onto PostgreSQL.
 // - 2026-07-25 pending Preserved primary transaction failures across rollback and reverse-order disposal faults.
 // - 2026-06-25 pending Added EF Core transaction coordination for MediatR command handlers.
 // - 2026-06-26 pending Included RVTSearchContext persistence for transactional command handlers.
@@ -45,18 +46,11 @@ public sealed class EfCoreUnitOfWork :
         return domainChanges + searchChanges + applicationChanges;
     }
 
-    // Function summary: Runs the supplied operation in one EF transaction when all configured providers support it.
+    // Function summary: Runs the supplied operation in one EF transaction spanning all three contexts.
     public async Task<TResponse> ExecuteInTransactionAsync<TResponse>(
         Func<CancellationToken, Task<TResponse>> operation,
         CancellationToken cancellationToken)
     {
-        // Only the non-relational test provider (InMemory) can reach this branch: it has no transaction
-        // support at all, so there is nothing to enlist and the operation runs unwrapped.
-        if (!SupportsTransactions())
-        {
-            return await operation(cancellationToken);
-        }
-
         EnsureSharedConnection();
 
         // A caller already owns a transaction. Enlist any context that is not in it yet, rather than
@@ -314,14 +308,6 @@ public sealed class EfCoreUnitOfWork :
         return await context.Database.UseTransactionAsync(transaction, cancellationToken);
     }
 
-    // Function summary: Detects EF providers that can safely open explicit database transactions.
-    private bool SupportsTransactions()
-    {
-        return SupportsTransactions(domainContext) &&
-            SupportsTransactions(searchContext) &&
-            SupportsTransactions(applicationContext);
-    }
-
     // Function summary: Detects whether any coordinated context is already inside a caller-owned transaction.
     private bool HasActiveTransaction()
     {
@@ -343,15 +329,5 @@ public sealed class EfCoreUnitOfWork :
         throw new InvalidOperationException(
             "RVTDbContext, RVTSearchContext, and ApplicationDbContext must share one scoped DbConnection so that " +
             "domain, search, and Identity writes can enlist in a single transaction. Check ConfigureDatabases in Program.cs.");
-    }
-
-    // Function summary: Detects transaction support for one EF context.
-    private static bool SupportsTransactions(DbContext context)
-    {
-        return context.Database.IsRelational() &&
-            !string.Equals(
-                context.Database.ProviderName,
-                "Microsoft.EntityFrameworkCore.InMemory",
-                StringComparison.Ordinal);
     }
 }

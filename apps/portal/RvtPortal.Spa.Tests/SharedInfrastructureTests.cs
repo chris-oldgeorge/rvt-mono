@@ -19,6 +19,8 @@ using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Companies;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public class SharedInfrastructureTests
@@ -27,7 +29,7 @@ public class SharedInfrastructureTests
     private const string InstallerEmail = "shared.installer@rvt.test";
     private const string Password = "P8sSw0rd9$";
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the companies query uses shared paging sorting and search contract workflow for this module.
     public async Task Companies_Query_UsesSharedPagingSortingAndSearchContract()
     {
@@ -70,7 +72,7 @@ public class SharedInfrastructureTests
         Assert.True(emptyPage.HasPreviousPage);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the companies query returns problem details for invalid sort field workflow for this module.
     public async Task Companies_Query_ReturnsProblemDetails_ForInvalidSortField()
     {
@@ -93,7 +95,7 @@ public class SharedInfrastructureTests
         Assert.True(document.RootElement.TryGetProperty("correlationId", out _));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the lookups require admin and return shared lookup shape workflow for this module.
     public async Task Lookups_RequireAdminAndReturnSharedLookupShape()
     {
@@ -129,7 +131,7 @@ public class SharedInfrastructureTests
         Assert.Equal(new[] { matchingCompany }, lookup.Results);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies lookup searches read current database values instead of serving stale full-table cache entries.
     public async Task Lookups_QueryDatabaseAfterEarlierLookupRequest()
     {
@@ -156,7 +158,7 @@ public class SharedInfrastructureTests
         Assert.Equal(new[] { lateCompany }, secondLookup.Results);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the diagnostic download returns file headers for download helper smoke workflow for this module.
     public async Task DiagnosticDownload_ReturnsFileHeaders_ForDownloadHelperSmoke()
     {
@@ -171,7 +173,7 @@ public class SharedInfrastructureTests
         Assert.Equal("RVT Portal SPA diagnostics\n", await response.Content.ReadAsStringAsync());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the API exceptions return friendly problem details with correlation ID workflow for this module.
     public async Task ApiExceptions_ReturnFriendlyProblemDetails_WithCorrelationId()
     {

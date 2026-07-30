@@ -10,6 +10,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public sealed class HelpCmsOperationsTests
@@ -18,7 +20,7 @@ public sealed class HelpCmsOperationsTests
     private const string CompanyUserEmail = "help.company@rvt.test";
     private const string Password = "P8sSw0rd9$";
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies admins can create help content and normal users can browse published content.
     public async Task HelpCms_AllowsAdminPublishingAndUserBrowsing()
     {
@@ -67,7 +69,7 @@ public sealed class HelpCmsOperationsTests
         Assert.Equal(articleRequest.Assets.Count, article.Item.Assets.Count);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies admins can manage draft FAQ content before publishing it to users.
     public async Task HelpCms_AllowsAdminDraftEditingAndPublication()
     {
@@ -136,7 +138,7 @@ public sealed class HelpCmsOperationsTests
         Assert.Equal(HttpStatusCode.NotFound, publicDraft.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task HelpCms_UsesCanonicalCreateRouteAndPreservesAssetIdentity()
     {
         using SpaTestApplicationFactory factory = new();
@@ -221,7 +223,7 @@ public sealed class HelpCmsOperationsTests
         Assert.Equal(HttpStatusCode.BadRequest, foreign.StatusCode);
     }
 
-    [Theory]
+    [RequiresPostgresTheory]
     [InlineData(RoleNames.RVTAdmin)]
     [InlineData(RoleNames.RVTMasterAdmin)]
     public async Task HelpCms_AllowsBothAdministratorRolesToUseEveryAdminEndpoint(
@@ -258,7 +260,7 @@ public sealed class HelpCmsOperationsTests
         Assert.Equal(HttpStatusCode.OK, delete.StatusCode);
     }
 
-    [Theory]
+    [RequiresPostgresTheory]
     [InlineData(RoleNames.CompanyUser)]
     [InlineData(RoleNames.RVTInstaller)]
     public async Task HelpCms_DeniesNonAdministratorsFromEveryAdminEndpoint(
@@ -300,7 +302,7 @@ public sealed class HelpCmsOperationsTests
             response => Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task HelpCms_AdminNotFoundResultsRemain404()
     {
         using SpaTestApplicationFactory factory = new();

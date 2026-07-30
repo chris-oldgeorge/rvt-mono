@@ -3,6 +3,7 @@
 // - 2026-07-09 pending Moved AuthController Identity, profile, reset-link, and email orchestration into an application service.
 // - 2026-07-22 pending Removed request-host link generation, made reset failures uniform, and added confirmed profile email changes.
 // - 2026-07-22 pending Made confirmed email-and-username changes atomic in an Identity database transaction.
+// - 2026-07-30 pending Removed the non-relational compensation path once the Spa test host moved onto PostgreSQL.
 
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
@@ -325,16 +326,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MalformedConfirmationCode);
         }
 
-        string newEmail = email.Trim();
-        if (applicationContext.Database.IsRelational())
-        {
-            return await ConfirmEmailChangeInTransactionAsync(userId, newEmail, decodedCode);
-        }
-
-        ApplicationUser? user = await userManager.FindByIdAsync(userId);
-        return user == null
-            ? AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed)
-            : await ConfirmEmailChangeWithoutTransactionAsync(user, newEmail, decodedCode);
+        return await ConfirmEmailChangeInTransactionAsync(userId, email.Trim(), decodedCode);
     }
 
     // Function summary: Applies confirmed email and username together in the Identity database transaction.
@@ -380,33 +372,6 @@ public sealed class AuthApplicationService : IAuthApplicationService
         });
     }
 
-    // Function summary: Preserves rollback semantics only for the non-relational test provider, which has no transaction support.
-    private async Task<AuthWorkflowResult<ConfirmEmailResponse>> ConfirmEmailChangeWithoutTransactionAsync(
-        ApplicationUser user,
-        string newEmail,
-        string decodedCode)
-    {
-        string? originalEmail = user.Email;
-        string? originalUserName = user.UserName;
-        bool originalEmailConfirmed = user.EmailConfirmed;
-        string? originalSecurityStamp = user.SecurityStamp;
-        try
-        {
-            AuthWorkflowResult<ConfirmEmailResponse> transition = await ApplyConfirmedEmailTransitionAsync(user, newEmail, decodedCode);
-            if (transition.Status != AuthWorkflowStatus.Success)
-            {
-                await RestoreConfirmedEmailStateAsync(user, originalEmail, originalUserName, originalEmailConfirmed, originalSecurityStamp);
-            }
-
-            return transition;
-        }
-        catch
-        {
-            await RestoreConfirmedEmailStateAsync(user, originalEmail, originalUserName, originalEmailConfirmed, originalSecurityStamp);
-            throw;
-        }
-    }
-
     // Function summary: Runs the two Identity writes that form one confirmed email transition.
     private async Task<AuthWorkflowResult<ConfirmEmailResponse>> ApplyConfirmedEmailTransitionAsync(
         ApplicationUser user,
@@ -430,25 +395,6 @@ public sealed class AuthApplicationService : IAuthApplicationService
             UserId = user.Id,
             Email = user.Email ?? ""
         });
-    }
-
-    // Function summary: Compensates only when the configured EF provider cannot offer database transactions.
-    private async Task RestoreConfirmedEmailStateAsync(
-        ApplicationUser user,
-        string? originalEmail,
-        string? originalUserName,
-        bool originalEmailConfirmed,
-        string? originalSecurityStamp)
-    {
-        user.Email = originalEmail;
-        user.UserName = originalUserName;
-        user.EmailConfirmed = originalEmailConfirmed;
-        user.SecurityStamp = originalSecurityStamp;
-        IdentityResult rollbackResult = await userManager.UpdateAsync(user);
-        if (!rollbackResult.Succeeded)
-        {
-            throw new InvalidOperationException("Unable to restore the user's confirmed email state with the non-relational provider.");
-        }
     }
 
     // Function summary: Sets the initial password after email confirmation and signs in the user.

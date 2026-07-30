@@ -43,6 +43,8 @@ using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Users;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public class SecurityHardeningTests
@@ -50,7 +52,7 @@ public class SecurityHardeningTests
     private const string AdminEmail = "security.admin@rvt.test";
     private const string Password = "P8sSw0rd9$";
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the API controller endpoints have explicit authorization decision workflow for this module.
     public void ApiControllerEndpoints_HaveExplicitAuthorizationDecision()
     {
@@ -81,7 +83,7 @@ public class SecurityHardeningTests
         Assert.Empty(undocumentedAnonymous);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the cookie auth session uses strict same site cookie workflow for this module.
     public async Task CookieAuthSession_UsesStrictSameSiteCookie()
     {
@@ -97,7 +99,7 @@ public class SecurityHardeningTests
             cookie.Contains("httponly", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the unsafe API mutation with cross site origin is blocked before controller workflow for this module.
     public async Task UnsafeApiMutation_WithCrossSiteOrigin_IsBlockedBeforeController()
     {
@@ -126,7 +128,7 @@ public class SecurityHardeningTests
         Assert.Equal("Cross-site API request blocked.", document.RootElement.GetProperty("title").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the API responses include server timing header workflow for this module.
     public async Task ApiResponses_IncludeServerTimingHeader()
     {
@@ -139,7 +141,7 @@ public class SecurityHardeningTests
         Assert.Contains(values, value => value.StartsWith("app;dur=", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the representative read endpoints include server timing for performance tracking workflow for this module.
     public async Task RepresentativeReadEndpoints_IncludeServerTimingForPerformanceTracking()
     {
@@ -164,7 +166,7 @@ public class SecurityHardeningTests
         }
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the mutation requests create safe audit log without payload values workflow for this module.
     public async Task MutationRequests_CreateSafeAuditLogWithoutPayloadValues()
     {
@@ -211,7 +213,7 @@ public class SecurityHardeningTests
         Assert.Empty(violations);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the unsafe API mutation with same site fetch metadata is blocked workflow for this module.
     public async Task UnsafeApiMutation_WithSameSiteFetchMetadata_IsBlockedBeforeController()
     {
@@ -239,7 +241,7 @@ public class SecurityHardeningTests
         Assert.Equal("Cross-site API request blocked.", document.RootElement.GetProperty("title").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the lookups endpoint requires admin role workflow for this module.
     public async Task LookupsEndpoint_RequiresAdminRole()
     {
@@ -259,7 +261,7 @@ public class SecurityHardeningTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the lookups endpoint allows admin role workflow for this module.
     public async Task LookupsEndpoint_AllowsAdminRole()
     {
@@ -273,7 +275,7 @@ public class SecurityHardeningTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the API responses include hardening security headers workflow for this module.
     public async Task ApiResponses_IncludeHardeningSecurityHeaders()
     {
@@ -291,7 +293,7 @@ public class SecurityHardeningTests
         Assert.Contains(csp, value => value.Contains("frame-ancestors 'none'", StringComparison.OrdinalIgnoreCase));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the auth login endpoint is rate limited after configured attempts workflow for this module.
     public async Task AuthLoginEndpoint_IsRateLimited_AfterConfiguredAttempts()
     {
@@ -314,7 +316,7 @@ public class SecurityHardeningTests
         Assert.Contains(HttpStatusCode.TooManyRequests, statuses);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies a disallowed Host is rejected before any password-reset email can be delivered.
     public async Task ForgotPassword_WithDisallowedHost_IsRejectedBeforeDelivery()
     {
@@ -335,7 +337,7 @@ public class SecurityHardeningTests
         Assert.Null(messenger.PasswordResetCallbackUrl);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies missing public-origin configuration keeps the anonymous response generic and suppresses delivery.
     public async Task ForgotPassword_WithoutPublicBaseUrl_ReturnsGenericSuccessWithoutDelivery()
     {
@@ -354,7 +356,7 @@ public class SecurityHardeningTests
         Assert.Null(messenger.PasswordResetCallbackUrl);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies configured public origin controls password-reset links for an allowed request host.
     public async Task ForgotPassword_WithPublicBaseUrl_SendsConfiguredHostLink()
     {
@@ -375,7 +377,7 @@ public class SecurityHardeningTests
         Assert.DoesNotContain("attacker.example", messenger.PasswordResetCallbackUrl, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies the sibling admin notification workflow cannot fall back to an attacker-controlled request origin.
     public async Task AdminAccountNotification_WithoutPublicBaseUrl_DoesNotSendHostDerivedLink()
     {
@@ -393,7 +395,7 @@ public class SecurityHardeningTests
         Assert.Null(messenger.EmailChangeCallbackUrl);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies profile email changes remain pending until the Identity change-email token is confirmed.
     public async Task ProfileEmailChange_RemainsPendingUntilConfirmation()
     {
@@ -434,7 +436,7 @@ public class SecurityHardeningTests
         Assert.True(confirmedUser.EmailConfirmed);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies an admin email edit stays pending while non-email edits apply and reset delivery uses the confirmed address.
     public async Task AdminEmailChange_RemainsPendingAndResetUsesConfirmedAddress()
     {
@@ -479,7 +481,7 @@ public class SecurityHardeningTests
         Assert.True(confirmedUser.EmailConfirmed);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies username failure restores every Identity email field and leaves the same token safe to retry.
     public async Task EmailChangeConfirmation_WhenUserNameUpdateFails_RollsBackAndTokenCanRetry()
     {
@@ -526,7 +528,7 @@ public class SecurityHardeningTests
         Assert.True(confirmedUser.EmailConfirmed);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies an exception after email persistence rolls back the relational transaction and preserves token retryability.
     public async Task EmailChangeConfirmation_WhenUserNameUpdateThrows_RollsBackTransactionAndTokenCanRetry()
     {
@@ -580,7 +582,7 @@ public class SecurityHardeningTests
         Assert.True(confirmedUser.EmailConfirmed);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies changing an invited user's destination restarts normal confirmation and initial-password onboarding.
     public async Task AdminEmailChange_ForUnconfirmedInvite_ReissuesOnboardingToReplacementAddress()
     {
@@ -664,7 +666,7 @@ public class SecurityHardeningTests
         Assert.Equal(requestedEmail, onboardedUser.UserName);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies email-provider failures are indistinguishable from unknown accounts to anonymous callers.
     public async Task ForgotPassword_EmailProviderFailure_MatchesUnknownAccountResponse()
     {
@@ -695,7 +697,7 @@ public class SecurityHardeningTests
             message.Contains("CorrelationId", StringComparison.Ordinal));
     }
 
-    [Theory]
+    [RequiresPostgresTheory]
     [InlineData("ForwardedHeaders:KnownProxies:0", "127.0.0.1")]
     [InlineData("ForwardedHeaders:KnownNetworks:0", "127.0.0.0/8")]
     // Function summary: Verifies explicitly trusted proxy addresses and networks can supply the original HTTPS scheme.
@@ -713,7 +715,7 @@ public class SecurityHardeningTests
         Assert.Equal(IPAddress.Parse("203.0.113.25"), context.Connection.RemoteIpAddress);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies forwarded headers are ignored when the immediate proxy is not explicitly trusted.
     public async Task ForwardedProto_FromUntrustedProxy_IsIgnored()
     {
@@ -729,7 +731,7 @@ public class SecurityHardeningTests
         Assert.Equal(IPAddress.Loopback, context.Connection.RemoteIpAddress);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies forwarded-host trust remains disabled and framework loopback defaults are cleared.
     public void ForwardedHeaders_TrustOnlyConfiguredSources_AndNeverForwardedHost()
     {
@@ -749,7 +751,7 @@ public class SecurityHardeningTests
         Assert.Empty(options.KnownIPNetworks);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the supplied correlation id with unsafe characters is not reflected workflow for this module.
     public async Task SuppliedCorrelationId_WithUnsafeCharacters_IsNotReflected()
     {

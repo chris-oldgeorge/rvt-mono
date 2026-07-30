@@ -24,6 +24,8 @@ using RvtPortal.Spa.Adapters.Reporting;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public class ReportWorkflowTests
@@ -33,7 +35,7 @@ public class ReportWorkflowTests
     private const string ReportSiteName = "Report Site";
     private const string ArchivedReportSiteName = "Archived Report Site";
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the report rules create update delete validate and persist workflow for this module.
     public async Task ReportRules_CreateUpdateDelete_ValidateAndPersist()
     {
@@ -89,7 +91,7 @@ public class ReportWorkflowTests
         Assert.Equal(HttpStatusCode.NotFound, afterDelete.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies daily report rules are exposed and accepted without weekly or monthly schedule fields.
     public async Task ReportRules_DailyFrequency_IsAvailableAndDoesNotRequireScheduleFields()
     {
@@ -115,7 +117,7 @@ public class ReportWorkflowTests
         Assert.Null(created.Item.DayOfMonth);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies edit details keep the current site option even after that site is archived.
     public async Task ReportRules_EditDetailIncludesArchivedCurrentSiteOption()
     {
@@ -150,7 +152,7 @@ public class ReportWorkflowTests
         Assert.True(currentSite.GetProperty("disabled").GetBoolean());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies report-rule mutations reject archived site targets with a clear validation message.
     public async Task ReportRules_CreateUpdateRejectArchivedSiteTargets()
     {
@@ -190,7 +192,7 @@ public class ReportWorkflowTests
     }
 
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the report rule users add and remove site assignments workflow for this module.
     public async Task ReportRuleUsers_AddAndRemoveSiteAssignments()
     {
@@ -273,7 +275,7 @@ public class ReportWorkflowTests
         }
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies manual report generation requests are accepted after the reporting service client handles them.
     public async Task ReportGenerationRequests_ReturnReportingServiceAcceptedResponse()
     {
@@ -326,7 +328,7 @@ public class ReportWorkflowTests
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies report recipient queries page assigned and available users separately.
     public async Task ReportRuleUsers_QueryAssignedAndAvailableRecipients()
     {
@@ -384,7 +386,7 @@ public class ReportWorkflowTests
         Assert.Equal(availableUser.Id, available.Results[0].Id);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the reports list contract rejects unsupported sort workflow for this module.
     public async Task Reports_ListContractRejectsUnsupportedSort()
     {

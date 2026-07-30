@@ -75,6 +75,16 @@ public class RVTDbContext : DbContext
         modelBuilder.Entity<Entities.NotificationSettings>(entity =>
         {
             entity.HasIndex(settings => settings.SiteUserId).IsUnique();
+
+            // A notification setting belongs to exactly one site assignment and has no meaning without it, but
+            // nothing declared that: all three assignment-removal paths deleted only the site_user row, and with
+            // no relationship and no FK the settings row simply stayed behind, keyed to an id that no longer
+            // existed. Modelled without a navigation property because nothing reads settings through the
+            // assignment - the point is the cascade.
+            entity.HasOne<Entities.SiteUsers>()
+                .WithMany()
+                .HasForeignKey(settings => settings.SiteUserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Entities.HelpSection>(entity =>

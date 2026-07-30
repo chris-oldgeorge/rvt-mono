@@ -1,5 +1,6 @@
 // File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
+// - 2026-07-31 pending Covered the notification-setting cascade on site-assignment removal.
 // - 2026-07-09 pending Added organic admin-user validation coverage for account workflow refactoring.
 // - 2026-06-26 pending Added RC-grade site assignment default notification-setting scenario coverage.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -193,6 +194,10 @@ public class CompanyUserAdminTests
         EntityResponse<SiteAssignmentResponse>? unsetResult = await unset.Content.ReadFromJsonAsync<EntityResponse<SiteAssignmentResponse>>();
         HttpResponseMessage remove = await client.DeleteAsync($"/api/users/site-assignments/{siteId}/{user.Id}");
         EntityResponse<SiteAssignmentResponse>? removed = await remove.Content.ReadFromJsonAsync<EntityResponse<SiteAssignmentResponse>>();
+        // Looked up by the setting's own id, not through the assignment: the assignment is gone, so a lookup
+        // that walked site_user would report "no setting" whether or not the row survived. Removal used to
+        // leave it behind forever, keyed to an id that no longer existed.
+        NotificationSettings? cascadedSetting = ReadNotificationSetting(factory, notificationSetting!.Id);
 
         Assert.Equal(siteId, initial?.Item?.SiteId);
         Assert.Contains(initial!.Item!.AvailableUsers, candidate => candidate.Id == user.Id);
@@ -210,6 +215,7 @@ public class CompanyUserAdminTests
         Assert.Equal(HttpStatusCode.OK, remove.StatusCode);
         Assert.DoesNotContain(removed!.Item!.AssignedUsers, assigned => assigned.Id == user.Id);
         Assert.Contains(removed.Item.AvailableUsers, candidate => candidate.Id == user.Id);
+        Assert.Null(cascadedSetting);
     }
 
     // Function summary: Creates client data for the current workflow.
@@ -234,6 +240,14 @@ public class CompanyUserAdminTests
     }
 
     // Function summary: Reads the default notification settings created when a user is assigned to a site.
+    // Function summary: Reads one notification setting by its own key, independent of the assignment it belonged to.
+    private static NotificationSettings? ReadNotificationSetting(SpaTestApplicationFactory factory, Guid settingId)
+    {
+        using IServiceScope scope = factory.Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        return context.NotificationSettings.SingleOrDefault(item => item.Id == settingId);
+    }
+
     private static NotificationSettings? ReadNotificationSettingsFor(
         SpaTestApplicationFactory factory,
         Guid userId,

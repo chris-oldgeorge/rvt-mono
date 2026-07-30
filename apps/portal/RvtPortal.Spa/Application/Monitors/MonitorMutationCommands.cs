@@ -60,8 +60,8 @@ public sealed class UpdateMonitorCommandHandler : IRequestHandler<UpdateMonitorC
 
         bool hadNoFleetNumber = string.IsNullOrWhiteSpace(monitor.FleetNr);
         monitor.FleetNr = EmptyToNull(request.Request.FleetNumber);
-        monitor.CalibrationDate = request.Request.CalibrationDate;
-        monitor.CalibrationDue = request.Request.CalibrationDue;
+        monitor.CalibrationDate = MonitorMutationWorkflow.AsUtcDate(request.Request.CalibrationDate);
+        monitor.CalibrationDue = MonitorMutationWorkflow.AsUtcDate(request.Request.CalibrationDue);
         if (hadNoFleetNumber && !string.IsNullOrWhiteSpace(monitor.FleetNr))
         {
             await MonitorMutationWorkflow.AddDefaultAlertLevelsAsync(domainContext, monitor, cancellationToken);
@@ -135,6 +135,10 @@ internal static class MonitorMutationWorkflow
         int AveragingPeriod,
         TimeSpan? StartTime = null,
         TimeSpan? EndTime = null);
+
+    // Function summary: Preserves date-only semantics while satisfying the domain context's UTC timestamp contract.
+    public static DateTime? AsUtcDate(DateTime? value) =>
+        value.HasValue ? DateTime.SpecifyKind(value.Value.Date, DateTimeKind.Utc) : null;
 
     // Function summary: Validates monitor mutation fields.
     public static async Task ValidateMonitorMutationAsync(

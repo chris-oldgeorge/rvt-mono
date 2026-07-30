@@ -38,7 +38,7 @@ public static class BoundedJsonRequestReader
         int bytesRead = 0;
         try
         {
-            while (bytesRead <= MaxBodyBytes)
+            while (true)
             {
                 int read = await request.Body.ReadAsync(
                     buffer.AsMemory(bytesRead, MaxBodyBytes + 1 - bytesRead),
@@ -54,8 +54,6 @@ public static class BoundedJsonRequestReader
                     throw new OmnidotsRequestBodyTooLargeException();
                 }
             }
-
-            throw new OmnidotsRequestBodyTooLargeException();
         }
         finally
         {

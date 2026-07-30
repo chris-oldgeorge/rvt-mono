@@ -184,7 +184,7 @@ public sealed class ApiExceptionMiddleware
                 "An unexpected API error occurred.",
                 "The request could not be completed. Use the correlation id when reviewing server logs.");
 
-            await context.Response.WriteAsJsonAsync(problem);
+            await context.Response.WriteAsJsonAsync(problem, context.RequestAborted);
         }
     }
 }
@@ -378,7 +378,9 @@ public sealed class ApiCsrfProtectionMiddleware
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/problem+json";
         ProblemDetails problem = ApiProblems.Create(context, statusCode, title, detail);
-        await context.Response.WriteAsync(JsonSerializer.Serialize(problem, JsonSerializerOptions.Web));
+        await context.Response.WriteAsync(
+            JsonSerializer.Serialize(problem, JsonSerializerOptions.Web),
+            context.RequestAborted);
     }
 }
 

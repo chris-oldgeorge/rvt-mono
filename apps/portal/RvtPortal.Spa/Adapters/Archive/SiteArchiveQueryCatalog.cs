@@ -1,5 +1,6 @@
 // File summary: Provides canonical PostgreSQL SQL definitions for site archive CSV and report exports.
 // Major updates:
+// - 2026-07-30 pending Normalized the date-only off-hire end.
 // - 2026-07-25 pending Made public-schema PostgreSQL SQL canonical.
 // - 2026-07-09 pending Moved site archive SQL into a dedicated provider-aware query catalog.
 
@@ -265,10 +266,31 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
         return "CASE WHEN c.on_hire_date IS NOT NULL AND c.on_hire_date > d.start_date THEN c.on_hire_date ELSE d.start_date END";
     }
 
-    // Function summary: Returns the effective monitor ownership end expression.
-    private static string EffectiveEndExpression()
+    /// <summary>
+    /// The raw-SQL twin of <c>MonitorOwnershipWindowResolver.ForDeployment(...).End</c>: the exclusive end of the
+    /// effective monitor ownership window. <c>LEAST</c> ignores NULL operands and returns NULL only when every
+    /// operand is NULL, which is exactly the C# <c>Min</c> over the non-null ends; <c>COALESCE(..., now())</c>
+    /// supplies the open-ended cap the archive uses when neither end is set.
+    /// </summary>
+    internal static string EffectiveEndExpression()
     {
-        return "CASE WHEN d.end_date IS NULL AND c.off_hire_date IS NULL THEN now() WHEN d.end_date IS NULL THEN c.off_hire_date WHEN c.off_hire_date IS NULL THEN d.end_date WHEN d.end_date < c.off_hire_date THEN d.end_date ELSE c.off_hire_date END";
+        return $"COALESCE(LEAST(d.end_date, {NormalizedContractEndExpression()}), now())";
+    }
+
+    /// <summary>
+    /// The raw-SQL twin of <c>MonitorOwnershipWindowResolver</c>'s <c>NormalizeContractEnd</c>: a date-only
+    /// off-hire covers the whole day, so the exclusive end is the next midnight. Written in the exact shape the
+    /// EF translation of <c>OwnsAt</c> compiles to, so the two forms can be pinned against each other -
+    /// <c>MonitorOwnershipWindowSqlTests</c> asserts this fragment appears verbatim in the compiled query.
+    /// Normalising here rather than around <see cref="EffectiveEndExpression"/> matters: the C# rule normalises
+    /// before taking the minimum, so a deployment end that falls inside the final day must win over the raw
+    /// off-hire value.
+    /// </summary>
+    private static string NormalizedContractEndExpression()
+    {
+        return "CASE WHEN CAST(c.off_hire_date AT TIME ZONE 'UTC' AS time) = TIME '00:00:00' "
+            + "THEN date_trunc('day', c.off_hire_date, 'UTC') + INTERVAL '1 days' "
+            + "ELSE c.off_hire_date END";
     }
 
     // Function summary: Returns a quoted public-schema PostgreSQL table reference.

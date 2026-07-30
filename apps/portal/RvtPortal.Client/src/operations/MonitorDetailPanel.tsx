@@ -1,5 +1,6 @@
 // File summary: Renders the monitor detail panel with metric cards, map context, and notification drill-through.
 // Major updates:
+// - 2026-07-30 pending Confirmed contract removal before it runs.
 // - 2026-07-30 pending Extracted from MonitorPanels.tsx during the monitor panel split.
 
 import { BarChart3, Bell, Edit3, Eye, Image, MapPinned, SlidersHorizontal, Trash2, Wrench } from 'lucide-react';
@@ -14,7 +15,7 @@ import {
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn } from '../components/DataGrid';
-import { Notice } from '../components/FormControls';
+import { ConfirmDialog, Notice } from '../components/FormControls';
 import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
 import { formatDate, formatDateTime } from '../format';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
@@ -43,6 +44,7 @@ export function MonitorDetailPanel({
   const [statusError, setStatusError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   const backPath = returnToOr(locationPath, '/monitors');
   const detailPath = currentRoutePath(locationPath);
   useEffect(() => {
@@ -86,6 +88,7 @@ export function MonitorDetailPanel({
       onRequestError(err);
     } finally {
       setIsRemoving(false);
+      setConfirmRemove(false);
     }
   }
 
@@ -132,7 +135,12 @@ export function MonitorDetailPanel({
             </button>
           )}
           {canManage && monitor?.isAssigned && (
-            <button className="danger-button" type="button" onClick={handleRemoveAssignment} disabled={isRemoving}>
+            <button
+              className="danger-button"
+              type="button"
+              onClick={() => setConfirmRemove(true)}
+              disabled={isRemoving}
+            >
               <Trash2 size={17} aria-hidden="true" />
               <span>{isRemoving ? 'Removing' : 'Remove'}</span>
             </button>
@@ -283,6 +291,15 @@ export function MonitorDetailPanel({
           </section>
         </>
       )}
+      <ConfirmDialog
+        open={confirmRemove}
+        title="Remove monitor from contract"
+        message={`Remove ${monitor?.fleetNumber || monitor?.serialId || 'this monitor'} from ${monitor?.contractNumber || 'its contract'}? The monitor returns to the unassigned pool.`}
+        confirmLabel="Remove from contract"
+        isBusy={isRemoving}
+        onCancel={() => setConfirmRemove(false)}
+        onConfirm={handleRemoveAssignment}
+      />
     </section>
   );
 }

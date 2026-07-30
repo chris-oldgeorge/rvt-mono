@@ -1,5 +1,6 @@
 // File summary: Renders the site monitor-assignment panel for adding and removing monitors on a contract.
 // Major updates:
+// - 2026-07-30 pending Confirmed contract removal before it runs.
 // - 2026-07-30 pending Extracted from MonitorPanels.tsx during the monitor panel split.
 
 import { CheckCircle2, Plus, Trash2 } from 'lucide-react';
@@ -7,7 +8,7 @@ import { useEffect, useState } from 'react';
 import { addMonitorToContract, getMonitorAssignment, removeMonitorFromContract } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn } from '../components/DataGrid';
-import { FormField, Notice } from '../components/FormControls';
+import { ConfirmDialog, FormField, Notice } from '../components/FormControls';
 import { returnToOr, withReturnTo } from '../navigation';
 import type { MonitorsPanelProps } from './monitorShared';
 import type { MonitorAssignmentContextResponse, MonitorListItem } from '../dtos';
@@ -24,6 +25,7 @@ export function MonitorAssignmentPanel({
   const [selectedContractId, setSelectedContractId] = useState(contractId ?? '');
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<MonitorListItem | null>(null);
   const backPath = returnToOr(locationPath, '/monitors');
   useEffect(() => {
     getMonitorAssignment(siteId, contractId)
@@ -64,7 +66,12 @@ export function MonitorAssignmentPanel({
     }
   }
 
-  async function handleRemove(monitor: MonitorListItem) {
+  async function handleRemove() {
+    const monitor = pendingRemoval;
+    if (!monitor) {
+      return;
+    }
+
     setIsBusy(true);
     try {
       await removeMonitorFromContract(monitor.id);
@@ -75,6 +82,7 @@ export function MonitorAssignmentPanel({
       onRequestError(err);
     } finally {
       setIsBusy(false);
+      setPendingRemoval(null);
     }
   }
 
@@ -145,13 +153,22 @@ export function MonitorAssignmentPanel({
               {
                 label: 'Remove monitor',
                 icon: <Trash2 size={16} aria-hidden="true" />,
-                onClick: handleRemove,
+                onClick: setPendingRemoval,
                 disabled: () => isBusy,
               },
             ]}
           />
         </div>
       </section>
+      <ConfirmDialog
+        open={Boolean(pendingRemoval)}
+        title="Remove monitor from contract"
+        message={`Remove ${pendingRemoval?.fleetNumber || pendingRemoval?.serialId || 'this monitor'} from ${context?.siteName || 'this site'}? The monitor returns to the unassigned pool.`}
+        confirmLabel="Remove from contract"
+        isBusy={isBusy}
+        onCancel={() => setPendingRemoval(null)}
+        onConfirm={handleRemove}
+      />
     </section>
   );
 }

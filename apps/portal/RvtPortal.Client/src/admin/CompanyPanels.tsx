@@ -1,5 +1,6 @@
 // File summary: Renders the company administration list, detail, and form panels.
 // Major updates:
+// - 2026-07-30 pending Dropped the decoy "Delete company" row action that only showed a notice.
 // - 2026-07-30 pending Split from AdminPanels.tsx so company and user admin panels live in separate modules.
 
 import { Building2, CheckCircle2, Edit3, Eye, Plus, Save, Search, Trash2, UsersRound } from 'lucide-react';
@@ -15,11 +16,11 @@ import {
   updateCompany,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
-import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
+import type { DataGridColumn } from '../components/DataGrid';
 import { ConfirmDialog, FormField, Notice, SubmitButton } from '../components/FormControls';
 import { ReadOnlyRow } from '../components/ReadOnlyRow';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
-import { normalizeSortDirection, parsePositiveInt } from '../gridQuery';
+import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
 import type { AdminPanelProps, LookupExecution, RequestExecution } from './adminShared';
 import type { CompanyDetailResponse, CompanyListItem, QueryCompaniesRequest, SortDirection } from '../dtos';
 
@@ -69,7 +70,6 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
     results: string[];
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const columns = useMemo<DataGridColumn<CompanyListItem>[]>(
     () => [
@@ -110,6 +110,7 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
   const isLoading = completedExecution !== execution;
   const suggestions = suggestionResult?.execution === suggestionExecution ? suggestionResult.results : [];
   const returnPath = currentRoutePath(locationPath);
+  const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -166,13 +167,6 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
     setPage(1);
   }
 
-  // Function summary: Handles the handle sort change workflow for this module.
-  function handleSortChange(key: string, direction: GridSortDirection) {
-    setSortKey(key);
-    setSortDir(direction);
-    setPage(1);
-  }
-
   return (
     <section className="panel">
       <div className="panel-heading">
@@ -206,7 +200,6 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
           ))}
         </div>
       )}
-      {notice && <Notice tone="info" message={notice} />}
       <DataGrid
         columns={columns}
         rows={companies}
@@ -243,11 +236,6 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
                   returnPath,
                 ),
               ),
-          },
-          {
-            label: 'Delete company',
-            icon: <Trash2 size={16} aria-hidden="true" />,
-            onClick: (company) => setNotice(`Open ${company.companyName} to delete with confirmation.`),
           },
         ]}
       />

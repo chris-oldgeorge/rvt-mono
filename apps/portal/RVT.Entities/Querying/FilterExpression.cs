@@ -143,7 +143,7 @@ public static class FilterExpression
         {
             Type boxType = typeof(FilterValueBox<>).MakeGenericType(targetType);
             object box = Activator.CreateInstance(boxType, value)!;
-            return Expression.Field(Expression.Constant(box, boxType), nameof(FilterValueBox<object>.Value));
+            return Expression.Field(Expression.Constant(box, boxType), nameof(FilterValueBox<>.Value));
         }
     }
 

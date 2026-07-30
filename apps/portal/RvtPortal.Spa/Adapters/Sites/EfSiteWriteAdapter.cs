@@ -175,5 +175,4 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
             """,
             cancellationToken);
     }
-
 }

@@ -135,8 +135,9 @@ namespace Svantek.Api.Db
 
         public void HandleException(string message, Exception exception)
         {
-            RvtLogger.Logger.LogError("DBClient HandleException message={Value1} exception={Value2}",
-                                       message, exception.Message);
+            // The logger sink gets the full exception (type + stack); the DB
+            // sink keeps its short message-column semantics below.
+            RvtLogger.Logger.LogError(exception, "DBClient HandleException message={Value1}", message);
 
             using SvantekMonitorContext context = CreateContext();
             context.SvantekErrorMessages.Add(new SvantekErrorMessageEntity
@@ -234,6 +235,20 @@ namespace Svantek.Api.Db
             }
 
             monitor.Offline = offline;
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task ClearErrorMessagesAsync(
+            DateTime before,
+            CancellationToken cancellationToken = default)
+        {
+            await using SvantekMonitorContext context = CreateContext();
+            List<SvantekErrorMessageEntity> messages = await context.SvantekErrorMessages
+                .Where(row => row.ErrorTime < before)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+
+            context.SvantekErrorMessages.RemoveRange(messages);
             await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         }
 

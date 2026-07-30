@@ -196,7 +196,9 @@ namespace Omnidots.Api.Db
         {
             if (RvtLogger.Logger.IsEnabled(LogLevel.Error))
             {
-                RvtLogger.Logger.LogError("DBClient HandleException message={Value1} exception={Value2}", message, exception.Message);
+                // The logger sink gets the full exception (type + stack); the
+                // DB sink keeps its message-column semantics below.
+                RvtLogger.Logger.LogError(exception, "DBClient HandleException message={Value1}", message);
             }
 
             using OmnidotsMonitorContext context = CreateContext();

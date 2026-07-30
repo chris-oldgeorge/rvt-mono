@@ -123,8 +123,9 @@ namespace AirQ.Api.Db
 
         public void HandleException(string message, Exception exception)
         {
-            RvtLogger.Logger.LogError("DBClient HandleException message={Value1} exception={Value2}",
-                                       message, exception.Message);
+            // The logger sink gets the full exception (type + stack); the DB
+            // sink keeps its short message-column semantics below.
+            RvtLogger.Logger.LogError(exception, "DBClient HandleException message={Value1}", message);
 
             using AirQMonitorContext context = CreateContext();
             context.AirQErrorMessages.Add(new AirQErrorMessageEntity

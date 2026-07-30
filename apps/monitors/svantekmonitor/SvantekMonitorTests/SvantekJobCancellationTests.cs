@@ -25,6 +25,7 @@ public sealed class SvantekJobCancellationTests
         "CheckForOfflineMonitors",
         "NotifyBatteryLevels",
         "CheckForSoundRecordings",
+        "ClearOlderErrorMessages",
         "DispatchAlerts",
         "CleanupAlerts"
     ];
@@ -188,6 +189,7 @@ public sealed class SvantekJobCancellationTests
         service.Setup(jobs => jobs.CheckForOfflineMonitorsAsync(token)).Returns(Task.CompletedTask);
         service.Setup(jobs => jobs.NotifyBatteryLevelsAsync(token)).Returns(Task.CompletedTask);
         service.Setup(jobs => jobs.CheckForSoundRecordingsAsync(token)).Returns(Task.CompletedTask);
+        service.Setup(jobs => jobs.ClearOlderErrorMessagesAsync(token)).Returns(Task.CompletedTask);
         service.Setup(jobs => jobs.DispatchAlertsAsync(token)).Returns(Task.CompletedTask);
         service.Setup(jobs => jobs.CleanupAlertsAsync(token)).Returns(Task.CompletedTask);
         return service;

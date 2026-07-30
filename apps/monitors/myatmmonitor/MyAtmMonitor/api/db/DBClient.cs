@@ -2,6 +2,7 @@ using System.Data;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
 using MyAtm.Api.Db.EntityFramework;
 using MyAtm.Api.Db.Mapping;
 using MyAtm.Api.Rules;
@@ -236,6 +237,10 @@ namespace MyAtm.Api.Db
 
         public void HandleException(string message, Exception exception)
         {
+            // The logger sink gets the full exception (type + stack); the DB
+            // sink keeps its message-column semantics below.
+            RvtLogger.Logger.LogError(exception, "DBClient HandleException message={Value1}", message);
+
             using MyAtmMonitorContext context = CreateContext();
             string error = exception.ToString();
             if (error.Length > 1023)

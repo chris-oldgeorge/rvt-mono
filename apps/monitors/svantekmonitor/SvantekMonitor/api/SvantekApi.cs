@@ -27,6 +27,7 @@ public class SvantekApi
     private readonly CheckForOfflineMonitorsHandler _checkForOfflineMonitors;
     private readonly NotifyBatteryLevelsHandler _notifyBatteryLevels;
     private readonly CheckForSoundRecordingsHandler _checkForSoundRecordings;
+    private readonly ClearOlderErrorMessagesHandler _clearOlderErrorMessages;
 
     public SvantekApi(
         IHttpClient httpClient,
@@ -122,6 +123,7 @@ public class SvantekApi
             dbClient,
             gateway,
             storageFactory);
+        _clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
     }
 
     public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
@@ -143,6 +145,9 @@ public class SvantekApi
 
     public Task CheckForSoundRecordingsAsync(CancellationToken cancellationToken = default) =>
         _checkForSoundRecordings.RunAsync(cancellationToken);
+
+    public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default) =>
+        _clearOlderErrorMessages.RunAsync(cancellationToken);
 
     private sealed class MissingObjectStorageClientFactory : IObjectStorageClientFactory
     {

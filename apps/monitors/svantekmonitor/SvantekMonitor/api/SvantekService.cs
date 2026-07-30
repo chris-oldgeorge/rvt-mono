@@ -44,4 +44,7 @@ public sealed class SvantekService : ISvantekMonitorJobs
 
     public Task CheckForSoundRecordingsAsync(CancellationToken cancellationToken = default) =>
         _svantekApi.CheckForSoundRecordingsAsync(cancellationToken);
+
+    public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default) =>
+        _svantekApi.ClearOlderErrorMessagesAsync(cancellationToken);
 }

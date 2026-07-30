@@ -51,6 +51,44 @@ const portalBinaryExtensions = new Set([
   '.eot', '.gif', '.ico', '.jpeg', '.jpg', '.pdf', '.png',
   '.ttf', '.webp', '.woff', '.woff2'
 ]);
+// Files that decide which diagnostics the tools emit at all. A change to one of
+// them can silence an arbitrary number of baselined diagnostics without touching
+// a single graded source file, so a changed-scope run that includes one cannot
+// be graded against the baseline: it must be re-measured over the whole
+// inventory, and any resulting shortfall is a stale baseline, not a decrease.
+const analysisPolicyInputNames = new Set([
+  '.editorconfig',
+  '.globalconfig',
+  'directory.build.props',
+  'directory.build.targets',
+  'directory.packages.props',
+  'global.json',
+  '.eslintignore',
+  '.eslintrc',
+  '.eslintrc.cjs',
+  '.eslintrc.js',
+  '.eslintrc.json',
+  '.eslintrc.yaml',
+  '.eslintrc.yml',
+  'eslint.config.cjs',
+  'eslint.config.cts',
+  'eslint.config.js',
+  'eslint.config.mjs',
+  'eslint.config.mts',
+  'eslint.config.ts',
+  '.prettierignore',
+  '.prettierrc',
+  '.prettierrc.cjs',
+  '.prettierrc.js',
+  '.prettierrc.json',
+  '.prettierrc.json5',
+  '.prettierrc.mjs',
+  '.prettierrc.yaml',
+  '.prettierrc.yml',
+  'prettier.config.cjs',
+  'prettier.config.js',
+  'prettier.config.mjs'
+]);
 const dependencyInputPathspecs = [
   ':(glob,icase)**/*.csproj',
   ':(glob,icase)**/*.fsproj',
@@ -301,6 +339,7 @@ function resolveScope(repoRoot, options) {
     const paths = gitLines(repoRoot, ['ls-files']);
     return {
       inventory: true,
+      policyInputs: [],
       paths,
       newPaths: new Set(),
       changedRanges: new Map(),
@@ -327,12 +366,16 @@ function resolveScope(repoRoot, options) {
     const added = gitLines(repoRoot, [
       'diff', '--name-only', '--diff-filter=A', 'HEAD'
     ]);
-    const finalized = finalizeChangedScope(repoRoot, {
-      paths: [...new Set([...tracked, ...untracked])],
-      patch,
-      newPaths: new Set([...added, ...untracked]),
-      untracked: new Set(untracked)
-    });
+    const finalized = escalateForPolicyInputs(
+      repoRoot,
+      finalizeChangedScope(repoRoot, {
+        paths: [...new Set([...tracked, ...untracked])],
+        patch,
+        newPaths: new Set([...added, ...untracked]),
+        untracked: new Set(untracked)
+      }),
+      repoRoot
+    );
     const trustedPolicy = materializeRevision(
       repoRoot,
       resolveRevision(repoRoot, 'HEAD')
@@ -364,13 +407,18 @@ function resolveScope(repoRoot, options) {
   let materializedBase;
   try {
     materializedBase = materializeRevision(repoRoot, range.base);
-    return {
-      ...finalizeChangedScope(materializedHead.root, {
+    const finalized = escalateForPolicyInputs(
+      repoRoot,
+      finalizeChangedScope(materializedHead.root, {
         paths: tracked,
         patch,
         newPaths: new Set(added),
         untracked: new Set()
       }),
+      materializedHead.root
+    );
+    return {
+      ...finalized,
       executionRoot: materializedHead.root,
       policyRoot: materializedHead.root,
       trustedPolicyRoot: materializedBase.root,
@@ -379,7 +427,7 @@ function resolveScope(repoRoot, options) {
           repoRoot,
           materializedHead.root,
           range.head,
-          tracked
+          finalized.paths
         );
       },
       cleanup() {
@@ -624,6 +672,11 @@ function parseUnifiedDiffRanges(patch, repoRoot) {
   const deletionOnlyPaths = new Set();
   let currentPath;
   let sawDiff = false;
+  // Header markers and hunk-body content are not distinguishable by prefix alone: a
+  // removed SQL comment (`-- note`) reaches the patch as `--- note`, and an added line
+  // beginning `++ ` as `+++ `. Both are body content, never file headers, because a
+  // file's `---`/`+++` pair always precedes its first `@@`.
+  let inHunkBody = false;
 
   for (const line of patch.split('\n')) {
     if (line.startsWith('Binary files ') || line === 'GIT binary patch') {
@@ -634,6 +687,7 @@ function parseUnifiedDiffRanges(patch, repoRoot) {
     }
     if (line.startsWith('diff --git ')) {
       sawDiff = true;
+      inHunkBody = false;
       if (line.includes('"')) {
         throw new InvocationError(`Malformed or quoted patch header: ${line}`);
       }
@@ -645,7 +699,7 @@ function parseUnifiedDiffRanges(patch, repoRoot) {
       currentPath = validatePatchPath(repoRoot, line.slice(splitAt + 3));
       continue;
     }
-    if (line.startsWith('--- ') || line.startsWith('+++ ')) {
+    if (!inHunkBody && (line.startsWith('--- ') || line.startsWith('+++ '))) {
       const marker = line.slice(4);
       if (marker === '/dev/null') {
         if (line.startsWith('+++ ')) currentPath = undefined;
@@ -664,6 +718,7 @@ function parseUnifiedDiffRanges(patch, repoRoot) {
       if (!match || currentPath === undefined) {
         throw new InvocationError(`Malformed unified diff hunk: ${line}`);
       }
+      inHunkBody = true;
       const startLine = Number(match[1]);
       const count = match[2] === undefined ? 1 : Number(match[2]);
       if (!Number.isSafeInteger(startLine) || !Number.isSafeInteger(count)) {
@@ -703,6 +758,43 @@ function isSourcePath(candidate) {
     !portalBinaryExtensions.has(extension) &&
     portalSourceExtensions.has(extension)
   );
+}
+
+function isAnalysisPolicyInput(candidate) {
+  if (isIgnoredPath(candidate)) return false;
+  const name = path.posix.basename(candidate).toLowerCase();
+  if (analysisPolicyInputNames.has(name)) return true;
+  if (name.endsWith('.globalconfig') || name.endsWith('.ruleset')) return true;
+  return (
+    candidate.startsWith(portalPrefix) &&
+    name.startsWith('tsconfig') &&
+    name.endsWith('.json')
+  );
+}
+
+function escalateForPolicyInputs(repoRoot, finalized, inventoryRoot) {
+  const changedPolicyInputs = finalized.paths
+    .filter(isAnalysisPolicyInput)
+    .sort(compareCodePoints);
+  if (changedPolicyInputs.length === 0) {
+    return { ...finalized, policyInputs: [] };
+  }
+
+  process.stdout.write(
+    `Analysis policy inputs changed (${changedPolicyInputs.join(', ')}); ` +
+    're-measuring the full inventory instead of the changed surface\n'
+  );
+  const inventory = gitLines(inventoryRoot, ['ls-files']);
+  const untracked = inventoryRoot === repoRoot
+    ? gitLines(inventoryRoot, ['ls-files', '--others', '--exclude-standard'])
+    : [];
+  return {
+    ...finalized,
+    inventory: true,
+    policyInputs: changedPolicyInputs,
+    paths: [...new Set([...inventory, ...untracked, ...finalized.paths])]
+      .sort(compareCodePoints)
+  };
 }
 
 function isPortalPrettierPath(candidate) {
@@ -1493,9 +1585,24 @@ function main() {
     execution.immediateViolations
   );
 
+  const staleAfterPolicyInputChange =
+    scope.policyInputs.length > 0 && result.decreases.length > 0;
+  if (staleAfterPolicyInputChange) {
+    process.stderr.write(
+      'Policy violation: analysis policy inputs changed ' +
+      `(${scope.policyInputs.join(', ')}) and the baseline no longer matches ` +
+      `the inventory in ${result.decreases.length} entr` +
+      `${result.decreases.length === 1 ? 'y' : 'ies'} (listed above). ` +
+      'Policy inputs changed, re-baseline required: run ' +
+      'scripts/verify-engineering-standards.sh --all --update-baseline and ' +
+      'commit the regenerated baseline with the policy change.\n'
+    );
+  }
+
   const violated =
     execution.immediateViolations.length > 0 ||
     result.changedSurfaceViolations.length > 0 ||
+    staleAfterPolicyInputChange ||
     (!options.initialize && result.increases.length > 0);
   if (violated) return 1;
 

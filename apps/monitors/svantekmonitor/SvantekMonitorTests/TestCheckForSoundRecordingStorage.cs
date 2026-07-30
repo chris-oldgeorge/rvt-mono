@@ -75,6 +75,71 @@ public sealed class TestCheckForSoundRecordingStorage
             cancellation.Token), Times.Once);
     }
 
+    // One unparseable file name used to throw from inside the LINQ predicate
+    // that scans the whole cached list, so it denied recordings to every alert
+    // sharing the same project/point/day, on every run.
+    [TestMethod]
+    public async Task RunAsync_UnparseableFileName_IsSkippedAndDoesNotDenyOtherAlerts()
+    {
+        Guid firstNotification = Guid.Parse("4cb38822-3497-4650-bac0-82da974c1d28");
+        Guid secondNotification = Guid.Parse("6b4b1b1e-2c2b-4f43-9a4f-6b9d2b1c1f77");
+        DateTime notificationTime = new(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc);
+        byte[] soundContent = [82, 73, 70, 70, 1, 2, 3, 4];
+        const string filesResponse = """
+            {
+              "status": "ok",
+              "files": [
+                ["BADNAME.WAV", 3, "20260713", 2048, "SV307", "station-123", "2026-07-13 10:00:00", 0, 1],
+                ["20260713_09_59_30.WAV", 3, "20260713", 2048, "SV307", "station-123", "2026-07-13 10:00:00", 0, 2]
+              ],
+              "files_size": 2
+            }
+            """;
+        Mock<IHttpClient> httpClient = new();
+        Mock<IDBClient> dbClient = new();
+        RecordingObjectStorageClient storage = new();
+
+        // Both alerts share project 7 / point 3 / day 20260713, so both read
+        // the same cached file list that contains the malformed name.
+        dbClient.Setup(client => client.ReadLatestNotificationAsync(TestContext.CancellationToken)).ReturnsAsync(
+            [
+                new(firstNotification, Guid.NewGuid(), "F1", "12345", 7, 3, notificationTime, 900),
+                new(secondNotification, Guid.NewGuid(), "F2", "12346", 7, 3, notificationTime, 900)
+            ]);
+        dbClient.Setup(client => client.WriteSoundFileAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        httpClient.Setup(client => client.PostAsync(
+                It.IsAny<string>(),
+                It.IsAny<HttpContent>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(filesResponse);
+        httpClient.Setup(client => client.PostForBytesAsync(
+                "projects-get-data.php",
+                It.IsAny<MultipartFormDataContent>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(soundContent);
+        CheckForSoundRecordingsHandler handler = new(
+            dbClient.Object,
+            dbClient.Object,
+            new SvantekHttpGateway(httpClient.Object, "test-api-key"),
+            TestObjectStorageFactory.ForSoundRecordings(storage));
+
+        await handler.RunAsync(TestContext.CancellationToken);
+
+        Assert.HasCount(2, storage.Writes);
+        CollectionAssert.AreEquivalent(
+            new[] { $"{firstNotification}.wav", $"{secondNotification}.wav" },
+            storage.Writes.Select(write => write.Key.Value).ToArray());
+        // One diagnostic for the whole cached list, not one failure per alert.
+        dbClient.Verify(client => client.HandleException(
+            "CheckForSoundRecordings files 7:3:20260713",
+            It.Is<InvalidDataException>(exception => exception.Message.Contains("BADNAME.WAV", StringComparison.Ordinal))),
+            Times.Once);
+    }
+
     [TestMethod]
     public async Task RunAsync_EmptyVendorRow_RecordsCompactNotificationIdentifier_AndThrowsAggregate()
     {

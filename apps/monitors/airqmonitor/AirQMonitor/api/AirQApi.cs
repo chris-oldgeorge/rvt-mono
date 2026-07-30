@@ -62,7 +62,7 @@ namespace AirQ.Api
             AirQRuleProcessor ruleProcessor = new(dbClient, dbClient, alertIngress);
 
             _storeMonitors = new StoreMonitorsHandler(gateway, dbClient, dbClient, testLocalFilter);
-            _checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(dbClient, monitorReader, dbClient, ruleProcessor);
+            _checkForOfflineMonitors = new CheckForOfflineMonitorsHandler(dbClient, monitorReader, dbClient, dbClient, ruleProcessor);
             _storeNoiseLevels = new StoreNoiseLevelsHandler(
                 gateway,
                 monitorReader,
@@ -75,7 +75,7 @@ namespace AirQ.Api
                 timeProvider,
                 importOptions);
             _storeNoiseLevelsForDate = new StoreNoiseLevelsForDateHandler(gateway, monitorReader, dbClient, dbClient);
-            _storeAllNoiseLevelsForYesterday = new StoreAllNoiseLevelsForYesterdayHandler(_storeNoiseLevelsForDate);
+            _storeAllNoiseLevelsForYesterday = new StoreAllNoiseLevelsForYesterdayHandler(_storeNoiseLevelsForDate, timeProvider);
             _notifySiteAverages = new NotifySiteAveragesHandler(dbClient, dbClient, dbClient, dbClient, ruleProcessor);
             _clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
         }

@@ -55,7 +55,7 @@ The host exposes:
 - `GET /liveness` — process identity only.
 - `GET /readiness` — returns `200` only when the configured database can be reached, otherwise `503`.
 
-Jobs can be run as one-shot processes with `--job <name>` or dispatched by the shared Quartz scheduler. Supported names are `StoreMonitors`, `CheckForOfflineMonitors`, the four dust import periods, `Process8HourAverageDustLevels`, `StoreAccessoryInfo`, `ClearOlderErrorMessages`, and `DispatchOutbox`.
+Jobs can be run as one-shot processes with `--job <name>` or dispatched by the shared Quartz scheduler. Supported names are `StoreMonitors`, `CheckForOfflineMonitors`, the four dust import periods, `Process8HourAverageDustLevels`, `StoreAccessoryInfo`, `ClearOlderErrorMessages`, `DispatchOutbox`, and `CleanupOutbox`.
 
 The checked-in Quartz schedule is UTC. One-minute dust readings are imported every 30 minutes, with pagination filling every sample after the persisted cursor. Import commits and notification delivery are separate: `StoreDustLevels` does not invoke the dispatcher, and `DispatchOutbox` runs every minute. This keeps vendor polling at the approved cadence while allowing durable notifications to progress without a second vendor import or multiple inline delivery attempts.
 
@@ -90,7 +90,7 @@ Run the cutover from the repository root against PostgreSQL. Keep credentials ou
 
 ### Forward Quartz sequencing
 
-.NET environment configuration addresses the `MonitorScheduler:Jobs` array by zero-based index. These indexes are pinned to the checked-in `appsettings.json`: `0` `StoreMonitors`, `1` `CheckForOfflineMonitors`, `2` `StoreDustLevels`, `3` `Store15MinAverageDustLevels`, `4` `Store1HourAverageDustLevels`, `5` `Store24HourAverageDustLevels`, `6` `Process8HourAverageDustLevels`, `7` `ClearOlderErrorMessages`, `8` `StoreAccessoryInfo`, and `9` `DispatchOutbox`. Configuration is read at process startup, so restart or redeploy after every wave.
+.NET environment configuration addresses the `MonitorScheduler:Jobs` array by zero-based index. These indexes are pinned to the checked-in `appsettings.json`: `0` `StoreMonitors`, `1` `CheckForOfflineMonitors`, `2` `StoreDustLevels`, `3` `Store15MinAverageDustLevels`, `4` `Store1HourAverageDustLevels`, `5` `Store24HourAverageDustLevels`, `6` `Process8HourAverageDustLevels`, `7` `ClearOlderErrorMessages`, `8` `StoreAccessoryInfo`, `9` `DispatchOutbox`, and `10` `CleanupOutbox`. Configuration is read at process startup, so restart or redeploy after every wave.
 
 1. Deploy the shared-outbox application with Quartz globally off, every producer disabled, and only the dispatcher selected:
 

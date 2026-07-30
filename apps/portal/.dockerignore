@@ -7,3 +7,31 @@
 **/dist
 **/TestResults
 artifacts
+
+# Local environment and settings (see docs/release/client-release-exclusions.txt):
+# what is too sensitive to hand to a client is too sensitive to bake into a build layer.
+.env
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+**/appsettings.Development.json
+**/appsettings.development.json
+**/appsettings.Local.json
+**/appsettings.local.json
+**/local.settings.json
+**/Local.settings.json
+
+# Secret-bearing key and certificate material
+*.key
+**/*.key
+*.pem
+**/*.pem
+*.p12
+**/*.p12
+*.pfx
+**/*.pfx
+*.jks
+**/*.jks
+*.keystore
+**/*.keystore

@@ -1,3 +1,4 @@
+using System.Globalization;
 using AirQ.Api.Db;
 using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
@@ -16,17 +17,20 @@ namespace AirQ.Api.UseCases
         private readonly IAirQRuleQueries _ruleQueries;
         private readonly AirQMonitorReader _monitorReader;
         private readonly IAirQMonitorCommands _monitorCommands;
+        private readonly IAirQOperationalCommands _operationalCommands;
         private readonly AirQRuleProcessor _ruleProcessor;
 
         public CheckForOfflineMonitorsHandler(
             IAirQRuleQueries ruleQueries,
             AirQMonitorReader monitorReader,
             IAirQMonitorCommands monitorCommands,
+            IAirQOperationalCommands operationalCommands,
             AirQRuleProcessor ruleProcessor)
         {
             _ruleQueries = ruleQueries;
             _monitorReader = monitorReader;
             _monitorCommands = monitorCommands;
+            _operationalCommands = operationalCommands;
             _ruleProcessor = ruleProcessor;
         }
 
@@ -36,59 +40,107 @@ namespace AirQ.Api.UseCases
             List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(null);
 
             DateTime utcNow = DateTime.UtcNow;
+            // Each monitor is an independent unit: one AcceptAsync or write
+            // failure on monitor 3 of 200 must not leave 4-200 unevaluated and
+            // unrecorded. Failures are captured per monitor and rethrown as an
+            // aggregate so the job still fails visibly (Svantek's shape).
+            List<Exception> failures = [];
+            // The fleet is read once per run rather than once per offline rule:
+            // the query does not depend on the rule, and any state a rule writes
+            // is written back to the same in-memory monitor.
+            List<NoiseMonitorDto> monitors = _monitorReader.ReadMonitors(null);
             foreach (RvtAlertRuleDto rule in rules)
             {
                 if (RuleConstants.OFFLINE_RULE.Equals(rule.Field))
                 {
                     DateTime cutOff = utcNow.Subtract(new TimeSpan(hours: 0, minutes: 0, seconds: rule.AveragingPeriod));
                     DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
-                    List<NoiseMonitorDto> monitors = _monitorReader.ReadMonitors(null);
 
                     foreach (NoiseMonitorDto monitor in monitors!)
                     {
-                        if (!monitor.Offline)
+                        cancellationToken.ThrowIfCancellationRequested();
+                        try
                         {
-                            DateTime lastDataTime = monitor.LastDataTime != null ? DateTimeUtil.TruncateMillis((DateTime)monitor.LastDataTime!).ToUniversalTime() : DateTimeUtil.JAN1_1970;
-                            double diffInSeconds = monitor.LastDataTime != null ? offlineDateTime.Subtract(lastDataTime).TotalSeconds : 0;
-
-                            if (lastDataTime < cutOff)
-                            {
-                                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
-                                {
-                                    RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
-                                }
-                                await _ruleProcessor.SignalAlertAsync(serialId: monitor.SerialId!,
-                                                        alertTime: DateTime.UtcNow,
-                                                        limitOn: 0,
-                                                        averagingPeriod: rule.AveragingPeriod,
-                                                        level: diffInSeconds,
-                                                        alertType: AlertType.Offline,
-                                                        field: rule.Field,
-                                                        cancellationToken: cancellationToken);
-                                monitor.Offline = true;
-                            }
-                            else
-                            {
-                                if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
-                                {
-                                    RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data has been recieved marking as online", monitor.SerialId);
-                                }
-                                monitor.Offline = false;
-                            }
-                            _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
+                            await CheckMonitorAsync(monitor, rule, cutOff, offlineDateTime, cancellationToken);
                         }
-                        else
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                         {
-                            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                            throw;
+                        }
+                        catch (Exception e)
+                        {
+                            failures.Add(e);
+                            try
                             {
-                                RvtLogger.Logger.LogDebug("Monitor serialId = {Value1} is already offline lastDataTime={Value2}",
-                                    monitor.SerialId, monitor.LastDataTime);
+                                // Recording is best-effort: a database outage while
+                                // writing the error row must not replace or swallow
+                                // the original failure (MyAtm's collector semantics).
+                                _operationalCommands.HandleException(
+                                    string.Format(CultureInfo.InvariantCulture, "CheckForOfflineMonitors SerialId={0}", monitor.SerialId),
+                                    e);
+                            }
+                            catch (Exception recordingException)
+                            {
+                                failures.Add(recordingException);
                             }
                         }
                     }
                 }
             }
 
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("One or more AirQ offline checks failed.", failures);
+            }
+        }
+
+        private async Task CheckMonitorAsync(
+            NoiseMonitorDto monitor,
+            RvtAlertRuleDto rule,
+            DateTime cutOff,
+            DateTime offlineDateTime,
+            CancellationToken cancellationToken)
+        {
+            if (monitor.Offline)
+            {
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+                {
+                    RvtLogger.Logger.LogDebug("Monitor serialId = {Value1} is already offline lastDataTime={Value2}",
+                        monitor.SerialId, monitor.LastDataTime);
+                }
+                return;
+            }
+
+            DateTime lastDataTime = monitor.LastDataTime != null ? DateTimeUtil.TruncateMillis((DateTime)monitor.LastDataTime!).ToUniversalTime() : DateTimeUtil.JAN1_1970;
+            double diffInSeconds = monitor.LastDataTime != null ? offlineDateTime.Subtract(lastDataTime).TotalSeconds : 0;
+
+            if (lastDataTime < cutOff)
+            {
+                if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
+                {
+                    RvtLogger.Logger.LogInformation("Device serialId = {Value1} Data has not been recieved marking as offline", monitor.SerialId);
+                }
+                await _ruleProcessor.SignalAlertAsync(serialId: monitor.SerialId!,
+                                        alertTime: DateTime.UtcNow,
+                                        limitOn: 0,
+                                        averagingPeriod: rule.AveragingPeriod,
+                                        level: diffInSeconds,
+                                        alertType: AlertType.Offline,
+                                        field: rule.Field,
+                                        cancellationToken: cancellationToken);
+                monitor.Offline = true;
+                _monitorCommands.SetMonitorOffline(monitor.Id, true);
+                return;
+            }
+
+            // Only the offline transition is written. This branch is reached
+            // only for a monitor already flagged online, so the previous
+            // unconditional write re-set false for every online monitor on
+            // every run - three times an hour across the whole fleet.
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
+            {
+                RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data has been recieved marking as online", monitor.SerialId);
+            }
         }
     }
 }

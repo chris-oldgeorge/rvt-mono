@@ -167,7 +167,7 @@ namespace OmnidotsAdapterTests
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                     Returns(OmnidotsFixture.AuthenticateTask(token));
 
-            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2));
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2, RecentUtc(TimeSpan.FromMinutes(30))));
 
             string peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
             httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>())).
@@ -217,7 +217,7 @@ namespace OmnidotsAdapterTests
                 It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
                     Returns(OmnidotsFixture.AuthenticateTask(token));
 
-            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2));
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2, RecentUtc(TimeSpan.FromMinutes(30))));
 
             string peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
             httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>())).
@@ -261,7 +261,7 @@ namespace OmnidotsAdapterTests
             string token = "peak-token";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask(token));
-            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2));
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2, RecentUtc(TimeSpan.FromMinutes(30))));
             httpClient.Setup(c => c.GetAsync(It.Is<string>(url =>
                     url.StartsWith("/api/v1/get_peak_records", StringComparison.Ordinal) &&
                     url.Contains("measuring_point_id=1", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
@@ -293,7 +293,7 @@ namespace OmnidotsAdapterTests
             string token = "veff-token";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask(token));
-            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2));
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2, RecentUtc(TimeSpan.FromMinutes(30))));
             httpClient.Setup(c => c.GetAsync(It.Is<string>(url =>
                     url.StartsWith("/api/v1/get_veff_records", StringComparison.Ordinal) &&
                     url.Contains("measuring_point_id=1", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
@@ -325,7 +325,7 @@ namespace OmnidotsAdapterTests
             string token = "vdv-token";
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask(token));
-            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2));
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2, RecentUtc(TimeSpan.FromMinutes(30))));
             httpClient.Setup(c => c.GetAsync(It.Is<string>(url =>
                     url.StartsWith("/api/v1/get_vdv_records", StringComparison.Ordinal) &&
                     url.Contains("measuring_point_id=1", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
@@ -389,7 +389,7 @@ namespace OmnidotsAdapterTests
                                                  out Mock<IAlertIngressPort> messageClient);
             httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask("recording-token"));
-            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2));
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(OmnidotsFixture.MonitorsList(2, RecentUtc(TimeSpan.FromMinutes(30))));
             httpClient.Setup(c => c.GetAsync(It.Is<string>(url =>
                     url.StartsWith(endpoint, StringComparison.Ordinal) &&
                     url.Contains("measuring_point_id=1", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
@@ -477,5 +477,12 @@ namespace OmnidotsAdapterTests
         }
 
         public TestContext TestContext { get; set; } = null!;
+
+        private static DateTime RecentUtc(TimeSpan ago)
+        {
+            DateTime value = DateTime.UtcNow - ago;
+            return new DateTime(value.Ticks - (value.Ticks % TimeSpan.TicksPerSecond), DateTimeKind.Utc);
+        }
+
     }
 }

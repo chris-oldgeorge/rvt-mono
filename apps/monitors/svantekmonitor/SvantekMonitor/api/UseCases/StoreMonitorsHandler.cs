@@ -65,7 +65,7 @@ namespace Svantek.Api.UseCases
                             SerialId = projectStation.serial,
                             ProjectId = Convert.ToInt32(project.id),
                             PointId = Convert.ToInt32(projectStation.point_id),
-                            ListedAtTime = DateTime.Now,
+                            ListedAtTime = DateTime.UtcNow,
                             Model = station.type,
                             CustomerDisplayName = projectStation.short_name,
                             FirmwareVersion = station.meterfirmware.ToString(),

@@ -4,6 +4,14 @@ namespace Rvt.Communication.TransmitSms;
 
 public sealed record TransmitSmsOptions
 {
+    /// <summary>
+    /// Defaults to false: SMS is opt-in, like MQTT. The email options
+    /// deliberately default to true — the 2026-07-16 communications design
+    /// records that monitor hosts stay email-enabled by default. The two
+    /// defaults differ on purpose; do not unify them without a product
+    /// decision, because either direction changes live delivery on hosts that
+    /// set neither variable.
+    /// </summary>
     public bool Enabled { get; init; }
 
     public string ApiKey { get; init; } = string.Empty;

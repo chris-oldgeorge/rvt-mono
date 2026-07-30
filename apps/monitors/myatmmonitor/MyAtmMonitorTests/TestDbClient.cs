@@ -245,6 +245,31 @@ namespace MyAtmMonitorTests
         }
 
 
+        // The per-serial branches relied on a downstream evaluator guard while
+        // the site-rule branch filtered at the query; the two could drift. The
+        // fleet-wide ReadRules(Period) deliberately still returns deleted rules
+        // so ProcessDustLevels can deactivate a latched one.
+        [TestMethod]
+        public void TestReadPerSerialRulesExcludeDeletedRules()
+        {
+            string connectionString = _database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
+            connection.Open();
+
+            const string serialId = "54321";
+            List<DustMonitorDto> monitorsIn = CreateMonitorsList(1, 862);
+            _testObj!.WriteMonitorList(monitorsIn);
+            SetFleetNr(monitorsIn[0].SerialId, monitorsIn[0].FleetNr!);
+            Guid monitorId = _testObj.ReadMonitorList(null)[0].Id;
+            InsertAlertRule(connection, 1, serialId, monitorId);
+            InsertAlertRule(connection, 2, serialId, monitorId, isDeleted: true);
+
+            List<RvtAlertRuleDto> rules = _testObj.ReadRules(serialId);
+
+            Assert.HasCount(1, rules);
+            Assert.IsFalse(rules[0].IsDeleted);
+        }
+
         [TestMethod]
         public void TestReadAlertRules()
         {
@@ -562,6 +587,51 @@ namespace MyAtmMonitorTests
             Assert.AreEqual(commitTime.AddSeconds(1).Ticks, nextAttemptAt.Ticks);
             Assert.AreEqual(DateTimeKind.Utc, nextAttemptAt.Kind);
             Assert.IsEmpty(ReadOutboxLeaseIds(connection));
+        }
+
+        // MyAtm's outbox had no delete anywhere in production code, so completed
+        // rows accumulated forever while ClaimNextDueAsync ordered over the
+        // growing table every minute. Retention matches the shared alert stack.
+        [TestMethod]
+        public async Task DeleteCompletedBeforeAsync_RemovesOnlyOldCompletedRowsForThisProducer()
+        {
+            using NpgsqlConnection connection = _database!.OpenConnection();
+            connection.Open();
+            DateTime cutoff = new(2026, 4, 30, 0, 0, 0, DateTimeKind.Utc);
+            Guid oldCompleted = Guid.NewGuid();
+            Guid recentCompleted = Guid.NewGuid();
+            Guid oldDeadLettered = Guid.NewGuid();
+            Guid oldPending = Guid.NewGuid();
+            Guid otherProducer = Guid.NewGuid();
+            InsertOutboxMessage(connection, oldCompleted, "Pending", cutoff, 0, null, null);
+            InsertOutboxMessage(connection, recentCompleted, "Pending", cutoff, 0, null, null);
+            InsertOutboxMessage(connection, oldDeadLettered, "Pending", cutoff, 0, null, null);
+            InsertOutboxMessage(connection, oldPending, "Pending", cutoff, 0, null, null);
+            InsertOutboxMessage(
+                connection,
+                otherProducer,
+                "Pending",
+                cutoff,
+                0,
+                null,
+                null,
+                "OtherProducer");
+            MarkOutboxTerminal(connection, oldCompleted, "Completed", cutoff.AddDays(-1));
+            MarkOutboxTerminal(connection, recentCompleted, "Completed", cutoff.AddDays(1));
+            MarkOutboxTerminal(connection, oldDeadLettered, "DeadLetter", cutoff.AddDays(-1));
+            MarkOutboxTerminal(connection, otherProducer, "Completed", cutoff.AddDays(-1));
+
+            int deleted = await ((IMonitorDeliveryOutboxCommands)_testObj!).DeleteCompletedBeforeAsync(
+                MonitorDeliveryProducers.MyAtm,
+                cutoff,
+                TestContext.CancellationToken);
+
+            Assert.AreEqual(1, deleted);
+            Assert.AreEqual(0, ReadScalarInt(connection, $"SELECT COUNT(*) FROM monitor_delivery_outbox WHERE id = '{oldCompleted}';"));
+            Assert.AreEqual(1, ReadScalarInt(connection, $"SELECT COUNT(*) FROM monitor_delivery_outbox WHERE id = '{recentCompleted}';"));
+            Assert.AreEqual(1, ReadScalarInt(connection, $"SELECT COUNT(*) FROM monitor_delivery_outbox WHERE id = '{oldDeadLettered}';"));
+            Assert.AreEqual(1, ReadScalarInt(connection, $"SELECT COUNT(*) FROM monitor_delivery_outbox WHERE id = '{oldPending}';"));
+            Assert.AreEqual(1, ReadScalarInt(connection, $"SELECT COUNT(*) FROM monitor_delivery_outbox WHERE id = '{otherProducer}';"));
         }
 
         [TestMethod]
@@ -1371,6 +1441,25 @@ namespace MyAtmMonitorTests
             command.ExecuteNonQuery();
         }
 
+        private static void MarkOutboxTerminal(
+            NpgsqlConnection connection,
+            Guid id,
+            string status,
+            DateTime terminalAt)
+        {
+            using NpgsqlCommand command = new(
+                @"UPDATE monitor_delivery_outbox
+                     SET status = @Status,
+                         completed_at = CASE WHEN @Status = 'Completed' THEN @TerminalAt ELSE NULL END,
+                         dead_lettered_at = CASE WHEN @Status = 'Completed' THEN NULL ELSE @TerminalAt END
+                   WHERE id = @Id;",
+                connection);
+            command.Parameters.AddWithValue("@Id", id);
+            command.Parameters.AddWithValue("@Status", status);
+            command.Parameters.AddWithValue("@TerminalAt", terminalAt);
+            Assert.AreEqual(1, command.ExecuteNonQuery());
+        }
+
         private static void InsertNotificationRow(
             NpgsqlConnection connection,
             Guid notificationId,
@@ -1452,7 +1541,7 @@ namespace MyAtmMonitorTests
         }
 
         private static void InsertAlertRule(NpgsqlConnection connection, int index, string serialId, Guid monitorId,
-                                            AlertType? alertType = null)
+                                            AlertType? alertType = null, bool isDeleted = false)
         {
             string sql = @"INSERT INTO rvt_alert_rule
                             (id, serial_id, alert_field, limit_on, limit_off, alert_type, is_active, averaging_period,
@@ -1478,7 +1567,7 @@ namespace MyAtmMonitorTests
                 "@StartTime", NpgsqlDbType.Time, isEven ? new TimeSpan(9, 0, 0) : (object)DBNull.Value);
             cmd.Parameters.AddWithValue(
                 "@EndTime", NpgsqlDbType.Time, isEven ? new TimeSpan(17, 0, 0) : (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@IsDeleted", false);
+            cmd.Parameters.AddWithValue("@IsDeleted", isDeleted);
             cmd.Parameters.AddWithValue("@MonitorId", monitorId);
             cmd.Parameters.AddWithValue("@Created", DateTime.UtcNow);
             cmd.ExecuteNonQuery();

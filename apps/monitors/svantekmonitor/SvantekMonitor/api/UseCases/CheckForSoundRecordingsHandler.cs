@@ -32,7 +32,7 @@ public sealed class CheckForSoundRecordingsHandler
 
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
-        Dictionary<string, List<ProjectFile>> filesCache = [];
+        Dictionary<string, List<SoundFile>> filesCache = [];
         List<NoiseNotificationLatest> alerts = await _notificationQueries
             .ReadLatestNotificationAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -43,8 +43,12 @@ public sealed class CheckForSoundRecordingsHandler
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                string dayCode = alert.NotificationTime.AddMinutes(-1).ToString("yyyyMMdd");
-                List<ProjectFile> audioFiles = await FindFilesAsync(
+                // The vendor's day code is invariant: a culture with a non-
+                // Gregorian calendar formats a different year here, and the
+                // rest of this file is already invariant.
+                string dayCode = alert.NotificationTime.AddMinutes(-1)
+                    .ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+                List<SoundFile> audioFiles = await FindFilesAsync(
                     filesCache,
                     dayCode,
                     alert.NotificationTime,
@@ -57,9 +61,9 @@ public sealed class CheckForSoundRecordingsHandler
                     continue;
                 }
 
-                ProjectFile audioFile = audioFiles.Count == 1
+                ProjectFile audioFile = (audioFiles.Count == 1
                     ? audioFiles[0]
-                    : audioFiles.MinBy(file => Math.Abs((TriggerDate(file) - alert.NotificationTime).TotalSeconds))!;
+                    : audioFiles.MinBy(file => Math.Abs((file.TriggerDate - alert.NotificationTime).TotalSeconds))!).File;
                 byte[] content = await _gateway.GetSoundFileAsync(
                     alert.ProjectId,
                     alert.PointId,
@@ -93,8 +97,8 @@ public sealed class CheckForSoundRecordingsHandler
         failures.ThrowIfAny("CheckForSoundRecordings");
     }
 
-    private async Task<List<ProjectFile>> FindFilesAsync(
-        Dictionary<string, List<ProjectFile>> filesCache,
+    private async Task<List<SoundFile>> FindFilesAsync(
+        Dictionary<string, List<SoundFile>> filesCache,
         string dayCode,
         DateTime alertTime,
         int averagePeriod,
@@ -102,7 +106,7 @@ public sealed class CheckForSoundRecordingsHandler
         int pointId,
         CancellationToken cancellationToken)
     {
-        List<ProjectFile> files = await FetchFilesAsync(
+        List<SoundFile> files = await FetchFilesAsync(
             filesCache,
             dayCode,
             projectId,
@@ -110,22 +114,19 @@ public sealed class CheckForSoundRecordingsHandler
             cancellationToken).ConfigureAwait(false);
         return [.. files
             .Where(file =>
-            {
-                DateTime triggerDate = TriggerDate(file);
-                return triggerDate >= alertTime.AddSeconds(-averagePeriod) &&
-                       triggerDate <= alertTime;
-            })];
+                file.TriggerDate >= alertTime.AddSeconds(-averagePeriod) &&
+                file.TriggerDate <= alertTime)];
     }
 
-    private async Task<List<ProjectFile>> FetchFilesAsync(
-        Dictionary<string, List<ProjectFile>> filesCache,
+    private async Task<List<SoundFile>> FetchFilesAsync(
+        Dictionary<string, List<SoundFile>> filesCache,
         string dayCode,
         int projectId,
         int pointId,
         CancellationToken cancellationToken)
     {
         string listId = $"{projectId}:{pointId}:{dayCode}";
-        if (filesCache.TryGetValue(listId, out List<ProjectFile>? cached))
+        if (filesCache.TryGetValue(listId, out List<SoundFile>? cached))
         {
             return cached;
         }
@@ -140,36 +141,55 @@ public sealed class CheckForSoundRecordingsHandler
             ValidateFileRow(file);
         }
 
-        List<ProjectFile> soundFiles = [.. files.Where(file => file.filename.Contains(".WAV", StringComparison.Ordinal))];
+        // A name that yields no trigger date is malformed vendor data, but it is
+        // one file's problem: throwing from inside the matcher denied recordings
+        // to every alert sharing this project/point/day, on every run. Such
+        // files are excluded here, with one diagnostic recorded per fetch, so
+        // unrelated alerts still match against the rest of the list.
+        List<SoundFile> soundFiles = [];
+        List<string> unparseable = [];
+        foreach (ProjectFile file in files.Where(file => file.filename.Contains(".WAV", StringComparison.Ordinal)))
+        {
+            if (TryGetTriggerDate(file, out DateTime triggerDate))
+            {
+                soundFiles.Add(new SoundFile(file, triggerDate));
+            }
+            else
+            {
+                unparseable.Add(file.filename);
+            }
+        }
+
+        if (unparseable.Count > 0)
+        {
+            _operationalCommands.HandleException(
+                $"CheckForSoundRecordings files {listId}",
+                new InvalidDataException(
+                    $"Skipped {unparseable.Count} Svantek sound file(s) whose name yields no trigger timestamp: {string.Join(", ", unparseable)}."));
+        }
+
         filesCache.Add(listId, soundFiles);
         return soundFiles;
     }
 
     // Derives the trigger timestamp from the sound file's name
-    // (yyyyMMdd_HHmmss...). A name that cannot yield one is malformed vendor
-    // data, so this fails explicitly - the per-alert failure collector records
-    // it, matching ValidateFileRow - instead of the old silent local
-    // DateTime.Now fallback that quietly excluded the file from matching.
-    private static DateTime TriggerDate(ProjectFile file)
+    // (yyyyMMdd_HHmmss...).
+    private static bool TryGetTriggerDate(ProjectFile file, out DateTime triggerDate)
     {
+        triggerDate = default;
         string filename = file.filename;
         if (filename.Length < 17)
         {
-            throw new InvalidDataException(
-                $"Svantek sound file name '{filename}' is too short to contain a trigger timestamp.");
+            return false;
         }
 
         string filenameTime =
             filename[..4] + "-" + filename[4..6] + "-" + filename[6..8] + " " +
             filename[9..11] + ":" + filename[12..14] + ":" + filename[15..17];
-        if (!DateTime.TryParse(filenameTime, CultureInfo.InvariantCulture, out DateTime triggerDate))
-        {
-            throw new InvalidDataException(
-                $"Svantek sound file name '{filename}' does not contain a parseable trigger timestamp.");
-        }
-
-        return triggerDate;
+        return DateTime.TryParse(filenameTime, CultureInfo.InvariantCulture, out triggerDate);
     }
+
+    private sealed record SoundFile(ProjectFile File, DateTime TriggerDate);
 
     private static void ValidateFileRow(ProjectFile file)
     {

@@ -17,6 +17,7 @@ public sealed partial class OmnidotsMigrationContractTests
         _rollbackScript,
         "2026-07-15-add-common-durable-alerts.sql",
         "2026-07-15-rollback-common-durable-alerts.sql",
+        "2026-07-30-rollback-widen-alert-outbox-last-error.sql",
         "2026-07-30-widen-alert-outbox-last-error.sql"
     ];
 
@@ -32,6 +33,45 @@ public sealed partial class OmnidotsMigrationContractTests
         Assert.IsFalse(
             Directory.Exists(Path.Combine(MonitorProjectDirectory(), "sql" + "server")),
             "The retired database-engine migration directory must not remain.");
+    }
+
+    /// <summary>
+    /// Transactionality is a property of every migration, not of the one that happened to get a test.
+    /// A half-applied migration is the failure mode these scripts exist to avoid, so the assertion is
+    /// made against the supported list itself: a new script inherits it by being listed.
+    /// </summary>
+    [TestMethod]
+    public void EveryPostgreSqlMigration_IsWrappedInASingleTransaction()
+    {
+        foreach (string migration in _supportedMigrations)
+        {
+            string script = NormalizeSql(RemoveComments(ReadScript("postgres", migration)));
+
+            Assert.IsTrue(
+                script.StartsWith("BEGIN;", StringComparison.Ordinal),
+                $"{migration} must open with BEGIN; so a failure leaves nothing half-applied.");
+            Assert.IsTrue(
+                script.EndsWith("COMMIT;", StringComparison.Ordinal),
+                $"{migration} must close with COMMIT;.");
+        }
+    }
+
+    /// <summary>
+    /// A forward migration without a rollback cannot be undone under pressure, which is when it matters.
+    /// Rollback twins are named by inserting "rollback-" after the date, as the 2026-07-14 pair does.
+    /// </summary>
+    [TestMethod]
+    public void EveryForwardPostgreSqlMigration_ShipsARollbackTwin()
+    {
+        foreach (string migration in _supportedMigrations.Where(file => !IsRollback(file)))
+        {
+            string twin = RollbackTwinOf(migration);
+
+            Assert.Contains(
+                twin,
+                _supportedMigrations,
+                $"{migration} has no rollback twin; expected {twin}.");
+        }
     }
 
     [TestMethod]
@@ -170,6 +210,83 @@ public sealed partial class OmnidotsMigrationContractTests
             + "AND table_name = 'omnidots_trace' AND column_name = 'omnidots_trace_index_id' "
             + "AND is_nullable = 'YES';",
             timeout.Token));
+    }
+
+    [TestMethod]
+    [TestCategory("PostgreSqlIntegration")]
+    // Function summary: Verifies the last_error widening and its rollback twin both re-run without effect.
+    public async Task PostgreSqlLastErrorWidening_ExecutesForwardAndRollbackIdempotently()
+    {
+        const string legacySchema = """
+            CREATE TABLE alert_delivery_outbox
+            (
+                id uuid NOT NULL,
+                last_error varchar(256) NULL,
+                CONSTRAINT pk_alert_delivery_outbox PRIMARY KEY (id)
+            );
+
+            INSERT INTO alert_delivery_outbox (id, last_error)
+            VALUES ('22222222-2222-2222-2222-222222222222', repeat('e', 256));
+            """;
+
+        using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
+        await using PostgreSqlIntegrationDatabase database = await PostgreSqlIntegrationDatabase.CreateAsync(
+            legacySchema,
+            "SELECT 1;",
+            timeout.Token);
+
+        string forward = ReadScript("postgres", "2026-07-30-widen-alert-outbox-last-error.sql");
+        await ExecutePostgreSqlAsync(database, forward, timeout.Token);
+        await ExecutePostgreSqlAsync(database, forward, timeout.Token);
+        Assert.AreEqual(1024, await LastErrorWidthAsync(database, timeout.Token));
+
+        await ExecutePostgreSqlAsync(
+            database,
+            "UPDATE alert_delivery_outbox SET last_error = repeat('e', 1024);",
+            timeout.Token);
+
+        string rollback = ReadScript("postgres", "2026-07-30-rollback-widen-alert-outbox-last-error.sql");
+        await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
+        await ExecutePostgreSqlAsync(database, rollback, timeout.Token);
+        Assert.AreEqual(256, await LastErrorWidthAsync(database, timeout.Token));
+        Assert.AreEqual(1L, await QueryScalarAsync<long>(
+            database,
+            "SELECT COUNT(*) FROM alert_delivery_outbox WHERE length(last_error) = 256;",
+            timeout.Token));
+    }
+
+    private static async Task<int> LastErrorWidthAsync(
+        PostgreSqlIntegrationDatabase database,
+        CancellationToken cancellationToken)
+    {
+        return await QueryScalarAsync<int>(
+            database,
+            "SELECT character_maximum_length FROM information_schema.columns "
+            + "WHERE table_schema = current_schema() AND table_name = 'alert_delivery_outbox' "
+            + "AND column_name = 'last_error';",
+            cancellationToken);
+    }
+
+    private static bool IsRollback(string migration)
+    {
+        return migration.Contains("-rollback-", StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The twin of <c>&lt;date&gt;-[add-]&lt;name&gt;.sql</c> is <c>&lt;date&gt;-rollback-&lt;name&gt;.sql</c>:
+    /// an explicit "add-" is replaced rather than doubled, matching the 2026-07-14 and 2026-07-15 pairs.
+    /// </summary>
+    private static string RollbackTwinOf(string migration)
+    {
+        const int datePrefixLength = 10;
+        string date = migration[..datePrefixLength];
+        string remainder = migration[(datePrefixLength + 1)..];
+        if (remainder.StartsWith("add-", StringComparison.Ordinal))
+        {
+            remainder = remainder["add-".Length..];
+        }
+
+        return $"{date}-rollback-{remainder}";
     }
 
     private static string ReadScript(string provider, string fileName)

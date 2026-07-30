@@ -1,5 +1,6 @@
 ﻿// File summary: Provides reusable React UI components shared across portal screens.
 // Major updates:
+// - 2026-07-30 pending Covered inert text-node tooltips against payload-bearing marker labels.
 // - 2026-06-29 pending Covered single-host OSM tiles to avoid partial subdomain tile gaps.
 // - 2026-06-29 pending Covered Leaflet CSS import and size invalidation for complete tile rendering.
 // - 2026-06-26 pending Covered stable Leaflet map lifecycle when marker arrays are rebuilt with unchanged content.
@@ -36,7 +37,7 @@ const leafletMocks = vi.hoisted(() => {
     latLngBounds: vi.fn((latLngs: Array<[number, number]>) => ({ latLngs })),
     marker: vi.fn(() => {
       const marker = {
-        bindTooltip: vi.fn(() => marker),
+        bindTooltip: vi.fn((_content: unknown) => marker),
         addTo: vi.fn(),
       };
       return marker;
@@ -102,6 +103,29 @@ describe('MonitorMap', () => {
 
     expect(leafletCssIndex).toBeGreaterThanOrEqual(0);
     expect(appCssIndex).toBeGreaterThan(leafletCssIndex);
+  });
+
+  it('binds marker tooltips as inert text nodes so payload-bearing fleet numbers cannot inject markup', async () => {
+    const payload = '<img src=x onerror=alert(1)>';
+    render(<MonitorMap markers={[{ ...markerFixture(), fleetNumber: payload }]} />);
+
+    await waitFor(() => expect(leafletMocks.marker).toHaveBeenCalledTimes(1));
+
+    const boundTooltip = leafletMocks.marker.mock.results[0].value.bindTooltip.mock.calls[0][0];
+    expect(typeof boundTooltip).not.toBe('string');
+
+    // Replays Leaflet 1.9.4 DivOverlay._updateContent: strings are assigned with innerHTML,
+    // nodes are appended verbatim. A node must therefore inject no elements at all.
+    const container = document.createElement('div');
+    if (typeof boundTooltip === 'string') {
+      container.innerHTML = boundTooltip;
+    } else {
+      container.appendChild(boundTooltip as Node);
+    }
+
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelectorAll('*')).toHaveLength(1);
+    expect(container.textContent).toContain(payload);
   });
 
   it('uses the canonical single-host OpenStreetMap tile endpoint', async () => {

@@ -6,7 +6,9 @@
 -- Major updates:
 -- - 2026-06-09 pending Fixed unterminated view statements and Identity UUID casts found during Timescale timing rehearsal.
 
-SET search_path TO public;
+-- SET LOCAL, not SET: one deploy connection, one transaction, so a bare SET
+-- would outlive this script.
+SET LOCAL search_path TO public;
 
 -- View: public.admin_dashboard_data
 DROP VIEW IF EXISTS public.admin_dashboard_data CASCADE;

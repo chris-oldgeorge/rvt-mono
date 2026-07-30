@@ -18,22 +18,28 @@ flowchart LR
     ApiClient --> Host["RvtPortal.Spa<br/>ASP.NET Core host"]
     Host --> Auth["ASP.NET Identity<br/>cookie auth + roles"]
     Host --> Controllers["/api controllers"]
-    Controllers --> Business["RVT.BusinessLogic"]
+    Controllers --> Business["RvtPortal.Application<br/>+ the host application layer"]
     Business --> Data["RVT.DataAccess"]
     Data --> Db["PostgreSQL / TimescaleDB"]
     Host --> Static["Published SPA static files"]
 ```
 ## 4. Repository Map
+
+Everything below lives under `apps/portal/`.
+
 | Path | Purpose |
 |---|---|
-| `RvtPortal.Spa.sln` | Main solution for the SPA port. |
-| `RvtPortal.Spa` | ASP.NET Core API host, Identity setup, middleware, Swagger, SPA publish integration. |
+| `RvtPortal.Spa.sln` | Portal-only solution; the repository solution is `Rvt.Mono.slnx` at the root. |
+| `RvtPortal.Spa` | ASP.NET Core API host, Identity setup, middleware, Swagger, SPA publish integration, and the host's own application layer for slices not yet extracted. |
+| `RvtPortal.Application` | BCL-only application boundary: Sites and Help use cases, policies, transport-neutral contracts, and ports. |
+| `RvtPortal.Application.Tests` | Tests for that boundary. |
 | `RvtPortal.Client` | React/Vite client application. |
 | `RvtPortal.Spa.Tests` | Backend/API/host tests. |
-| `RVT.BusinessLogic` | Domain services and application workflow logic. |
 | `RVT.DataAccess` | EF contexts, repositories, persistence integration. |
 | `RVT.Entities` | Shared entity, DTO, and model definitions. |
-| `docs/release` | Cutover, parity, and readiness evidence. |
+| `RVT.SchemaDeploy` | Applies the SQL that EF migrations cannot build. |
+| `RVT.ReleaseAudit` | Release-time audits, including the Help asset-URL receipt. |
+| `docs/release` | Cutover, parity, and readiness evidence (at the repository root). |
 ## 5. Local Setup
 Install:
 - .NET SDK 10
@@ -73,11 +79,11 @@ Server-side authorization is the source of truth. React navigation hides or show
 Read `RvtPortal.Spa/AUTHORIZATION.md` before changing login, account, role, or protected endpoint behavior.
 ## 7. How To Trace A Workflow
 For most features, use this path:
-1. Start in `RvtPortal.Client/src/App.tsx` to find the route and role visibility.
+1. Start in `RvtPortal.Client/src/routes.ts` and `src/navigation.ts` for the route and its role visibility, and `src/PortalShell.tsx` for the panel it renders. (`App.tsx` now handles only auth state and the error boundary.)
 2. Open the relevant panel in `RvtPortal.Client/src/admin` or `RvtPortal.Client/src/operations`.
 3. Follow API calls through `RvtPortal.Client/src/api/client.ts`.
 4. Open the matching controller in `RvtPortal.Spa/Api`.
-5. Continue into `RVT.BusinessLogic`, then `RVT.DataAccess`, if the endpoint uses existing domain services.
+5. Continue into `RvtPortal.Application` or the host's application layer, then `RVT.DataAccess`, if the endpoint uses existing domain services.
 6. Check tests in `RvtPortal.Spa.Tests` and `RvtPortal.Client/src/**/*.test.tsx`.
 When changing a migrated MVC workflow, update the release evidence if the parity or readiness status changes.
 ## 8. Test And Build Gates
@@ -122,8 +128,8 @@ git -c safe.directory='C:/Users/oldgeorge/source/repos/chris-oldgeorge/rvtportal
 ```
 ## 12. Where To Ask Better Questions
 Use the code layout to narrow questions:
-- "How does this page render?" Start in `RvtPortal.Client/src/App.tsx`.
+- "How does this page render?" Start in `RvtPortal.Client/src/PortalShell.tsx`.
 - "Where does this API come from?" Search `RvtPortal.Spa/Api`.
-- "Why does this role see this route?" Read `AUTHORIZATION.md`, then `RoleAuthorization.cs` and `App.tsx`.
+- "Why does this role see this route?" Read `AUTHORIZATION.md`, then `RoleAuthorization.cs`, `src/routes.ts`, and `src/navigation.ts`.
 - "Is this migrated?" Check `docs/release/portal/PARITY_MATRIX.md`.
 - "Is this ready for release?" Check `docs/release/portal/FUNCTIONALITY_READINESS_MATRIX.md` and `CUTOVER_RUNBOOK.md`.

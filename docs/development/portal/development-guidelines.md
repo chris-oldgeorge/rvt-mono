@@ -103,16 +103,23 @@ tests, `HelpAssetUrlAuditTests`, the opt-in PostgreSQL audit-row-reader test,
 
 ## Ports and adapters
 
-- **External integrations sit behind a transport-neutral port** in
-  `RVT.BusinessLogic/Ports/*`, with the concrete client as an adapter under
-  `RvtPortal.Spa/Adapters/*`. Current examples: `IVibrationVendorGateway`
-  (Omnidots) and `IEmailDelivery` (SendGrid).
-- **`RVT.BusinessLogic` stays transport-neutral** — it must not depend on
-  `IHttpClientFactory` or any vendor SDK. If business code needs to call out,
-  add a port and put the HTTP in an adapter.
+- **External integrations sit behind a transport-neutral port** declared in the
+  application core — the `RvtPortal.Application` assembly, whose `Ports/` trees
+  are BCL-only — with the concrete client as an adapter in the host project's
+  `Adapters/` tree. Current examples: `IVibrationVendorGateway` (Omnidots) and
+  `IEmailDelivery` (email delivery).
+- **The application core stays transport-neutral.** It must not depend on
+  `IHttpClientFactory`, an ASP.NET Core type, or any vendor SDK. If application
+  code needs to call out, add a port and put the transport in an adapter. The
+  rule is about the boundary, not about a folder name: whatever the use-case
+  folders are called, the assembly holding them is the one that must stay clean.
+- `RVT.BusinessLogic` no longer exists — it dissolved into
+  `RvtPortal.Application`. Text or code that still routes new ports there is
+  stale.
 
-Enforced by: `CqrsArchitectureTests.BusinessLogicTypes_DoNotDependOnHttpClientFactory`
-and the ports/adapters catalog in `docs/architecture/`.
+Enforced by: `CqrsArchitectureTests.ApplicationCoreTypes_DoNotDependOnHttpClientFactory`,
+`CqrsArchitectureTests.ApplicationCoreAssembly_DoesNotReferenceSendGrid`, and the
+[ports and adapters catalog](../../architecture/portal/ports-and-adapters-catalog.md).
 
 ## Shared-package boundary
 
@@ -133,17 +140,30 @@ Enforced by: `RvtCommonDependencyBoundaryTests` and
 
 ## Testing
 
-- **Know what the default suite cannot see.** Most tests run on the EF InMemory
-  and SQLite providers, which build their schema *from the model*. They are
-  therefore structurally blind to:
+- **The host suite runs on a real database.** `SpaTestApplicationFactory` boots
+  the real Spa host against a throwaway PostgreSQL schema on the shared
+  integration database, so the production wiring runs unchanged: three EF
+  contexts on one scoped Npgsql connection, real transactions, raw SQL and
+  `ExecuteUpdate` paths, and startup schema validation against a live
+  information schema. The schema is dropped with the factory, so those tests
+  need no manual cleanup.
+- **Know what the remaining in-memory tests cannot see.** Narrow unit tests
+  still use the EF InMemory and SQLite providers, which build their schema
+  *from the model*. They are structurally blind to:
   - anything the model does not map (an unmapped `NOT NULL` column simply is not
     in the test database, so the insert succeeds), and
   - `DateTime.Kind` (both providers ignore it).
-  A green suite is not evidence that a schema or Kind bug is absent.
-- **Use a real database for those classes of bug.** Opt-in tests are gated on
-  `RVT__POSTGRES_INTEGRATION_CONNECTION` via `RequiresPostgresFactAttribute`; they skip in
-  CI (which has no PostgreSQL) and run locally against a real schema. Wrap them in
-  a transaction and roll back so they leave no rows behind.
+  A green in-memory test is not evidence that a schema or Kind bug is absent;
+  move the assertion onto the PostgreSQL-backed host or an opt-in adapter test.
+- **Gate every test that needs the real database.** Use
+  `RequiresPostgresFactAttribute` / `RequiresPostgresTheoryAttribute`, which
+  read `RVT__POSTGRES_INTEGRATION_CONNECTION` at discovery time. CI provisions a
+  TimescaleDB service container and sets that variable on every run, so these
+  tests *execute* in CI — the skip exists for a developer machine without the
+  container, and that is the only place a skip is expected. Export the same
+  variable locally to run what CI runs. An opt-in
+  test that writes outside a factory-owned schema must wrap its work in a
+  transaction and roll back so it leaves no rows behind.
 - **Guard the invariant statically where you can**, so CI fails rather than
   production. This repo prefers tests that read the shipped SQL/source over
   documentation nobody re-reads (`UnmappedColumnDefaultTests`,
@@ -197,17 +217,22 @@ in `SecurityHardeningTests`.
 ## Documentation and client releases
 
 - **Internal design and planning documents never ship to the client.** The
-  sanitized export (`docs/release/export-client-release.ps1`) copies only
-  git-tracked files and applies `docs/release/client-release-exclusions.txt`.
-  When you add an internal docs folder, add it to that exclusion list in the same
-  change.
-- **Release evidence does ship** — `PARITY_MATRIX`, `CUTOVER_RUNBOOK`,
-  `FUNCTIONALITY_READINESS_MATRIX`, `README`, and the deploy docs an operator
-  needs. Keep the two categories distinct.
+  sanitized export (`scripts/export-client-release.sh`) copies only git-tracked
+  files and applies `docs/release/client-release-exclusions.txt`;
+  `scripts/verify-client-release.sh` re-checks the result against the same
+  policy. When you add an internal docs folder, add it to that exclusion list in
+  the same change.
+- **`docs/release/**` is excluded wholesale**, so the release evidence
+  (`PARITY_MATRIX`, `CUTOVER_RUNBOOK`, `FUNCTIONALITY_READINESS_MATRIX`) is
+  *internal* evidence and does not ship. What ships to an operator is the module
+  READMEs and deploy documentation outside that tree. Keep the two categories
+  distinct, and check the policy rather than assuming.
 - The exclusion format has **no negation**: you cannot exclude a folder and
   re-include one file. If one file in a folder must ship, list the excluded files
-  individually (as `docs/sonar/` does to keep `globalization-suppressions.md`,
-  which code `[SuppressMessage]` justifications point at).
+  individually rather than excluding the folder — for example
+  `docs/development/portal/sonar/` must keep shipping
+  `globalization-suppressions.md`, which code `[SuppressMessage]` justifications
+  point at.
 - **Record deliberate non-changes.** When something looks like a bug but is a
   product decision, mark it as a design decision at the code, with what changing
   it would take — see the calendar time-zone note in

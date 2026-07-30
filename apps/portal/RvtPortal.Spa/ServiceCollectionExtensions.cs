@@ -115,6 +115,13 @@ public static class ServiceCollectionExtensions
             FromName = "RVT Cloud"
         };
         services.AddSingleton(Options.Create(sendGridMailOptions));
+        // One provider, chosen at compile time, deliberately. The monitors read RVT__EMAIL_PROVIDER and
+        // register SendGrid or Microsoft Graph accordingly; the portal has one sender identity and one
+        // deployment, so it wires SendGrid directly and scripts/verify-rvt-common-source-boundary.sh pins
+        // that. Switching the organization to Graph would therefore be configuration for the monitors and a
+        // code change here - a known, accepted cost, not an oversight. Introduce provider selection as its
+        // own change if that switch is ever planned; see
+        // docs/architecture/portal/ports-and-adapters-catalog.md.
         services.AddSendGridMail(sendGridMailOptions);
         services.AddScoped<IEmailDelivery, RvtCommonEmailDelivery>();
         services.AddScoped<IAccountMessenger, AccountMessenger>();

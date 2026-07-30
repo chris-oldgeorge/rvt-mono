@@ -739,6 +739,13 @@ public sealed class MonitorDeliveryDispatcherTests
             OnOutcome?.Invoke(call);
             return Task.FromResult(OutcomeResult);
         }
+
+        // The dispatcher never purges; retention is the CleanupOutbox job's job.
+        public Task<int> DeleteCompletedBeforeAsync(
+            string producer,
+            DateTime cutoff,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException();
     }
 
     private sealed class RecordingFailureSink : IMonitorDeliveryFailureSink

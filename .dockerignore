@@ -1,9 +1,50 @@
+# Build context for every image built from the repository root, which is all
+# five monitor images (apps/monitors/docker-compose.yml sets `context: ../..`).
+# The Dockerfiles `COPY . .`, so anything not excluded here lands in a build
+# layer and in the BuildKit cache even though only /app/publish is copied into
+# the final image.
+
+# Version control, tooling state, and generated output
 .git
 .worktrees
 .codegraph
+.sonar
+.sonarqube
 **/.nuget-packages
 **/bin
 **/obj
 **/TestResults
 **/node_modules
+**/dist
+**/coverage
+**/playwright-report
+**/test-results
 artifacts
+
+# Local environment and settings (see docs/release/client-release-exclusions.txt):
+# what is too sensitive to hand to a client is too sensitive to bake into a build layer.
+.env
+**/.env
+**/.env.local
+**/.env.development
+**/.env.production
+**/appsettings.Development.json
+**/appsettings.development.json
+**/appsettings.Local.json
+**/appsettings.local.json
+**/local.settings.json
+**/Local.settings.json
+
+# Secret-bearing key and certificate material
+*.key
+**/*.key
+*.pem
+**/*.pem
+*.p12
+**/*.p12
+*.pfx
+**/*.pfx
+*.jks
+**/*.jks
+*.keystore
+**/*.keystore

@@ -88,6 +88,31 @@ public class TestSvantekApi
         messageClient.VerifyNoOtherCalls();
     }
 
+    // ListedAtTime was the one remaining DateTime.Now write in this monitor;
+    // all three siblings write UtcNow and every reader treats it as UTC.
+    [TestMethod]
+    public async Task TestStoreMonitors_WritesListedAtTimeInUtc()
+    {
+        SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+                                                 out Mock<IDBClient> dbClient,
+                                                 out Mock<IMqttClient> _,
+                                                 out Mock<IAlertIngressPort> _);
+
+        httpClient.Setup(c => c.PostAsync("projects-get-data.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>())).
+                ReturnsAsync(_projectsJson);
+        httpClient.Setup(c => c.PostAsync("stations-get-list.php", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>())).
+                ReturnsAsync(_stationsJson);
+        DateTime before = DateTime.UtcNow.AddSeconds(-1);
+
+        await testObj.StoreMonitorsAsync(TestContext.CancellationToken);
+
+        DateTime after = DateTime.UtcNow.AddSeconds(1);
+        dbClient.Verify(c => c.WriteMonitorListAsync(
+            It.Is<IReadOnlyList<NoiseMonitorDto>>(monitors =>
+                monitors.All(monitor => monitor.ListedAtTime >= before && monitor.ListedAtTime <= after)),
+            It.IsAny<CancellationToken>()), Times.Exactly(1));
+    }
+
     [TestMethod]
     public async Task TestCheckForOfflineMonitors_NoMonitors_Success()
     {

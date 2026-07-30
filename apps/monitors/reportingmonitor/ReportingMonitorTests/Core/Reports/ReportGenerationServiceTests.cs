@@ -204,11 +204,15 @@ public sealed class ReportGenerationServiceTests
         FakeGenerationCommands commands = new();
         ReportGenerationService service = CreateService(rules, data, new FakeGenerationLocks(), commands);
 
-        IReadOnlyList<GeneratedReport> reports = await service.GenerateScheduledReportsAsync(
-            new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero),
-            CancellationToken.None);
+        // Every rule is still attempted, but the run no longer completes
+        // successfully while a report silently failed to be produced.
+        AggregateException aggregate = await Assert.ThrowsAsync<AggregateException>(() =>
+            service.GenerateScheduledReportsAsync(
+                new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero),
+                CancellationToken.None));
 
-        Assert.Single(reports);
+        Assert.Single(aggregate.InnerExceptions);
+        Assert.Contains(failedRule.Id.ToString(), aggregate.InnerExceptions[0].Message, StringComparison.Ordinal);
         Assert.Equal(successfulRule.Id, Assert.Single(commands.SaveRequests).ReportRuleId);
     }
 
@@ -251,6 +255,128 @@ public sealed class ReportGenerationServiceTests
         TimeProvider.System,
         NullLogger<ReportGenerationService>.Instance);
 
+    // A run that failed or never happened used to lose its period for good:
+    // periods were derived from the trigger day alone and never revisited, so
+    // a weekly rule lost the whole week. Periods now resume from LastGenerated.
+    [Fact]
+    public async Task GenerateScheduledReportsAsync_RegeneratesPeriodsMissedSinceLastGenerated()
+    {
+        Guid siteId = Guid.NewGuid();
+        ReportRule rule = DailyRule(siteId) with
+        {
+            LastGenerated = new DateTimeOffset(2026, 6, 27, 8, 0, 0, TimeSpan.Zero)
+        };
+        FakeRuleQueries rules = new() { DueRules = [rule] };
+        FakeGenerationCommands commands = new();
+        ReportGenerationService service = CreateService(
+            rules,
+            new FakeDataQueries(),
+            new FakeGenerationLocks(),
+            commands);
+
+        IReadOnlyList<GeneratedReport> reports = await service.GenerateScheduledReportsAsync(
+            new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        // Trigger days 27, 28, 29 and 30 - the 27th's own period is regenerated
+        // because nothing records that it completed, and the three days the
+        // job did not run are no longer lost.
+        Assert.Equal(4, reports.Count);
+        Assert.Equal(
+            [
+                new DateTimeOffset(2026, 6, 26, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 27, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 28, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero)
+            ],
+            [.. commands.SaveRequests.Select(request => request.PeriodStartUtc)]);
+    }
+
+    [Fact]
+    public async Task GenerateScheduledReportsAsync_SkipsPeriodsThatAlreadyHaveAReport()
+    {
+        Guid siteId = Guid.NewGuid();
+        ReportRule rule = DailyRule(siteId) with
+        {
+            LastGenerated = new DateTimeOffset(2026, 6, 27, 8, 0, 0, TimeSpan.Zero)
+        };
+        FakeRuleQueries rules = new() { DueRules = [rule] };
+        rules.GeneratedPeriods.Add(new GeneratedReportPeriod(
+            FrequencyType.Daily,
+            new DateTimeOffset(2026, 6, 26, 0, 0, 0, TimeSpan.Zero)));
+        rules.GeneratedPeriods.Add(new GeneratedReportPeriod(
+            FrequencyType.Daily,
+            new DateTimeOffset(2026, 6, 28, 0, 0, 0, TimeSpan.Zero)));
+        FakeGenerationCommands commands = new();
+        ReportGenerationService service = CreateService(
+            rules,
+            new FakeDataQueries(),
+            new FakeGenerationLocks(),
+            commands);
+
+        IReadOnlyList<GeneratedReport> reports = await service.GenerateScheduledReportsAsync(
+            new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        Assert.Equal(2, reports.Count);
+        Assert.Equal(
+            [
+                new DateTimeOffset(2026, 6, 27, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero)
+            ],
+            [.. commands.SaveRequests.Select(request => request.PeriodStartUtc)]);
+    }
+
+    [Fact]
+    public async Task GenerateScheduledReportsAsync_BoundsTheBackfillSoALongOutageCannotSpam()
+    {
+        Guid siteId = Guid.NewGuid();
+        ReportRule rule = DailyRule(siteId) with
+        {
+            LastGenerated = new DateTimeOffset(2026, 1, 1, 8, 0, 0, TimeSpan.Zero)
+        };
+        FakeRuleQueries rules = new() { DueRules = [rule] };
+        FakeGenerationCommands commands = new();
+        ReportGenerationService service = CreateService(
+            rules,
+            new FakeDataQueries(),
+            new FakeGenerationLocks(),
+            commands);
+
+        IReadOnlyList<GeneratedReport> reports = await service.GenerateScheduledReportsAsync(
+            new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        // Six months of missed daily periods collapse to the most recent four.
+        Assert.Equal(ReportPeriodCalculator.MaximumBackfillPeriods, reports.Count);
+        Assert.Equal(
+            new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero),
+            commands.SaveRequests[^1].PeriodStartUtc);
+    }
+
+    [Fact]
+    public async Task GenerateScheduledReportsAsync_NeverGeneratedRule_ProducesOnlyTheCurrentPeriod()
+    {
+        FakeRuleQueries rules = new() { DueRules = [DailyRule(Guid.NewGuid())] };
+        FakeGenerationCommands commands = new();
+        ReportGenerationService service = CreateService(
+            rules,
+            new FakeDataQueries(),
+            new FakeGenerationLocks(),
+            commands);
+
+        IReadOnlyList<GeneratedReport> reports = await service.GenerateScheduledReportsAsync(
+            new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        // No LastGenerated means no history to invent for a rule that may have
+        // been created yesterday.
+        Assert.Single(reports);
+        Assert.Equal(
+            new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero),
+            Assert.Single(commands.SaveRequests).PeriodStartUtc);
+    }
+
     private static ReportRule DailyRule(Guid siteId) => new()
     {
         Id = Guid.NewGuid(),
@@ -285,6 +411,15 @@ public sealed class ReportGenerationServiceTests
             RequestedRuleIds.Add(reportRuleId);
             return Task.FromResult(Rule?.Id == reportRuleId ? Rule : null);
         }
+
+        public List<GeneratedReportPeriod> GeneratedPeriods { get; } = [];
+
+        public Task<IReadOnlyList<GeneratedReportPeriod>> GetGeneratedPeriodsAsync(
+            Guid reportRuleId,
+            DateTimeOffset fromUtc,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<GeneratedReportPeriod>>(
+                [.. GeneratedPeriods.Where(period => period.PeriodStartUtc >= fromUtc)]);
     }
 
     private sealed class FakeDataQueries : IReportingDataQueries

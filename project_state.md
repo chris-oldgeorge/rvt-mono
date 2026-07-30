@@ -8,7 +8,7 @@ used to be (40+ dated sections) is archived at
 Add new detail here by *replacing* stale statements, not appending; move
 superseded narratives to the archive.
 
-## Current state — 2026-07-30
+## Current state — 2026-07-31
 
 ### Full code-review checkpoint
 
@@ -87,24 +87,32 @@ superseded narratives to the archive.
 
 ### Reviewable full-monorepo client release
 
-- Completed implementation branch:
-  `chore/full-monorepo-client-release-v2`.
-- Source-tooling PR `chris-oldgeorge/rvt-mono#43` merged to `main` as
-  `a9b1bd2a2de3e0db79fb543f4bde629dbcdf555c`.
-- Isolated worktree:
-  `/Users/oldgeorge/Developer/rvt-mono/.worktrees/full-monorepo-client-release`.
+- Current client delivery:
+  [RVT-Group-LTD/rvt-monitors#1](https://github.com/RVT-Group-LTD/rvt-monitors/pull/1),
+  merged into `release-candidate` on 2026-07-31.
+- Source release commit:
+  `1ba4e9d0e2c255e0b62a9c6661aff99a1fa4bbe5`.
+- Source validation portability PR:
+  `chris-oldgeorge/rvt-mono#80`, merged with all required checks green.
+- Release changelist boundary: `a9b1bd2..eb5aa3dd`, 134 commits and 467
+  changed source files.
 - Approved design:
   `docs/superpowers/specs/2026-07-29-full-monorepo-client-release-design.md`.
 - Implementation plan:
   `docs/superpowers/plans/2026-07-29-full-monorepo-client-release.md`.
 - Client remote:
   `https://github.com/RVT-Group-LTD/rvt-monitors.git`.
-- Client branch: `release-candidate`.
-- Published client commit:
-  `7d7d8b1f74ba7c0acd77a738b29e149259f0df0f`.
-- Published source commit:
-  `a9b1bd2a2de3e0db79fb543f4bde629dbcdf555c`.
-- Published payload: 1,445 manifested files plus `RELEASE_MANIFEST.txt`.
+- Client base branch: `release-candidate` at merge commit
+  `8e3fc1eb0d3d6a6a31d1d07febfeb2c167652f01`.
+- The reviewed payload commit is
+  `3b3b1f439a75129c618d3097d7c3f98c58f2fd2f`; the merged review branch
+  `agent/reviewable-build-17e2515` was deleted.
+- Merge commit tree:
+  `c1716b4b41ca960aca40a3226be941a2ec19fa95`, exactly matching the reviewed
+  payload. Its parents are the previous client release
+  `7d7d8b1f74ba7c0acd77a738b29e149259f0df0f` and the reviewed payload commit
+  above.
+- Prepared payload: 1,473 manifested files plus `RELEASE_MANIFEST.txt`.
 - The payload is the complete committed monorepo, preserving `.github`,
   `apps`, `libs`, `eng`, `scripts`, `tests`, operational/client-facing `docs`,
   and root build files. It excludes agent/session state, internal development
@@ -136,13 +144,20 @@ superseded narratives to the archive.
 - `RVT_CLIENT_RELEASE_POLICY` can point the verifier at an alternate policy
   during isolated contract tests. `RVT_CLIENT_RELEASE_BEFORE_PUSH_HOOK` is a
   test-only race-injection hook; do not set it during a real publication.
-- Publication verification completed with .NET SDK `10.0.302`: restore/build
-  succeeded with zero warnings, the TimescaleDB-backed suite passed
-  2,367/2,367 with no skips, all shell contracts and repository guards passed,
-  Portal passed 163/163 tests and its production build, and all Compose inputs
-  validated. GitHub PR checks passed. The publisher and a second independent
-  clone both verified the source metadata, root/orphan history, manifest,
+- Final client PR checks passed: .NET in 6m01s, Portal client in 52s,
+  Engineering standards in 2m03s, repository guards in 27s, and both
+  change-detection jobs. The prepared payload and an independent clone both
+  verified the source metadata, exact parent/tree relationship, manifest,
   required monorepo paths, internal-file exclusions, and saved-secret boundary.
+- Post-merge verification independently cloned `release-candidate`, confirmed
+  the merge commit and both parents above, confirmed its tree still equals the
+  reviewed payload tree, and passed `scripts/verify-client-release.sh`.
+- In curated payloads marked by `RELEASE_SOURCE.json`, repository guards skip
+  only the intentionally excluded internal documentation layout and shell
+  contract fixtures. Engineering standards retain the model, configuration,
+  shell-safety, and workflow-contract checks but skip the source-development
+  changed-range ratchet. Product tests and shipped architecture boundaries
+  remain active.
 
 - The consolidated report of work since the monorepo source import is
   [docs/reviews/2026-07-29-monorepo-work-report.md](docs/reviews/2026-07-29-monorepo-work-report.md).
@@ -179,11 +194,12 @@ superseded narratives to the archive.
   three Omnidots handlers while `StoreTracesHandler` uses `TimeProvider`) is
   *not* resolved and remains open.
 - Pull requests are gated by two workflows. `Engineering standards` grades the
-  changed surface; `Tests` (added by PR #20) runs the whole `Rvt.Mono.slnx`
-  suite against a TimescaleDB service container, the Portal client type check
-  and unit tests, the five repository guards, and every `tests/*.test.sh`
-  contract test as a glob. Before PR #20 no workflow ran any test on a pull
-  request, and the guards and contract tests were wired into nothing.
+  changed surface for source development; curated client payloads retain its
+  model/configuration/shell/workflow checks and skip only that source-diff
+  ratchet. `Tests` runs the whole `Rvt.Mono.slnx` suite against TimescaleDB,
+  Portal client type checking and unit tests, and the shipped repository
+  boundaries. Source PRs additionally run the internal documentation and shell
+  contract fixtures that client releases intentionally exclude.
 - `main` carries the P0 guardrail work (PR #20) from
   [docs/reviews/2026-07-28-duplication-legacy-consistency-review.md](docs/reviews/2026-07-28-duplication-legacy-consistency-review.md):
   the `Tests` workflow and its mutation-tested contract, AirQ architecture

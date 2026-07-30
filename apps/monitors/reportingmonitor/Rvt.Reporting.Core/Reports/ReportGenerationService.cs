@@ -42,6 +42,10 @@ public sealed class ReportGenerationService(
     {
         IReadOnlyList<ReportRule> dueRules = await _ruleQueries.GetDueReportRulesAsync(triggerUtc.Date, cancellationToken).ConfigureAwait(false);
         List<GeneratedReport> generatedReports = [];
+        // Per-rule failures used to be logged only, so the Quartz job completed
+        // successfully and nobody was told a report had not been produced.
+        // Each rule stays an independent unit, but the run now fails visibly.
+        List<Exception> failures = [];
 
         foreach (ReportRule rule in dueRules)
         {
@@ -63,7 +67,17 @@ public sealed class ReportGenerationService(
                     exception,
                     "Scheduled report generation failed for rule {ReportRuleId}.",
                     rule.Id);
+                failures.Add(new InvalidOperationException(
+                    $"Scheduled report generation failed for rule {rule.Id}.",
+                    exception));
             }
+        }
+
+        if (failures.Count > 0)
+        {
+            throw new AggregateException(
+                "One or more scheduled report rules failed to generate.",
+                failures);
         }
 
         return generatedReports;
@@ -121,9 +135,31 @@ public sealed class ReportGenerationService(
             return [];
         }
 
-        List<GeneratedReport> generatedReports = [];
-        foreach (ReportPeriod period in ReportPeriodCalculator.CreatePeriods(rule, triggerUtc))
+        IReadOnlyList<ReportPeriod> periods = ReportPeriodCalculator.CreatePeriods(rule, triggerUtc);
+        if (periods.Count == 0)
         {
+            return [];
+        }
+
+        // Backfilled periods must be idempotent: the advisory generation lock
+        // only serialises concurrent runs, it does not record that a period is
+        // already done, so an existing report for the same rule/frequency/start
+        // is the only thing that can say so.
+        HashSet<(FrequencyType Frequency, DateTimeOffset StartUtc)> alreadyGenerated =
+            [.. (await _ruleQueries.GetGeneratedPeriodsAsync(
+                    rule.Id,
+                    periods.Min(period => period.StartUtc),
+                    cancellationToken).ConfigureAwait(false))
+                .Select(generated => (generated.Frequency, generated.PeriodStartUtc))];
+
+        List<GeneratedReport> generatedReports = [];
+        foreach (ReportPeriod period in periods)
+        {
+            if (alreadyGenerated.Contains((period.Frequency, period.StartUtc)))
+            {
+                continue;
+            }
+
             await using RuleGenerationLock? generationLock = await _generationLocks.TryAcquireAsync(rule.Id, period, cancellationToken).ConfigureAwait(false);
             if (generationLock is null)
             {

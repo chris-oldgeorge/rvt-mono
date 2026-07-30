@@ -23,4 +23,15 @@ public interface IMonitorDeliveryOutboxCommands
         string error,
         MonitorDeliveryAudit? audit,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Removes completed deliveries older than <paramref name="cutoff"/> for one
+    /// producer. Without it the outbox grows without bound and
+    /// <c>ClaimNextDueAsync</c> orders over that table every minute; the shared
+    /// durable-alert stack purges the same way (<c>DeleteCompletedBeforeAsync</c>).
+    /// </summary>
+    Task<int> DeleteCompletedBeforeAsync(
+        string producer,
+        DateTime cutoff,
+        CancellationToken cancellationToken = default);
 }

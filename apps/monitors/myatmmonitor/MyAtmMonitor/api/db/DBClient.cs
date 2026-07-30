@@ -103,10 +103,16 @@ namespace MyAtm.Api.Db
             }
             else
             {
+                // Deleted rules are excluded at the query, as the site-rule
+                // branch above and Svantek's twin already do. The fleet-wide
+                // ReadRules(Period) below deliberately still returns them:
+                // ProcessDustLevels uses it to deactivate a deleted rule that
+                // is still latched.
                 query = from rule in context.AlertRules.AsNoTracking()
                         join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
                         where monitor.TypeOfMonitor == DustMonitorDto.MONITOR_TYPE_DUST &&
-                              rule.SerialId == serialId
+                              rule.SerialId == serialId &&
+                              !rule.IsDeleted
                         select rule;
             }
 
@@ -129,7 +135,8 @@ namespace MyAtm.Api.Db
                                                    join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
                                                    where monitor.TypeOfMonitor == DustMonitorDto.MONITOR_TYPE_DUST &&
                                                          rule.SerialId == serialId &&
-                                                         rule.AveragingPeriod == periodSeconds
+                                                         rule.AveragingPeriod == periodSeconds &&
+                                                         !rule.IsDeleted
                                                    select rule;
 
             return [.. query
@@ -556,6 +563,28 @@ namespace MyAtm.Api.Db
 
             await transaction.CommitAsync(cancellationToken);
             return true;
+        }
+
+        public async Task<int> DeleteCompletedBeforeAsync(
+            string producer,
+            DateTime cutoff,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!MonitorDeliveryProducers.IsKnown(producer))
+            {
+                throw new ArgumentException("Unknown monitor delivery producer.", nameof(producer));
+            }
+
+            DateTime normalizedCutoff = DateTimeUtil.AsUtc(cutoff);
+            await using MyAtmMonitorContext context = CreateContext();
+            return await context.DeliveryOutbox
+                .Where(row =>
+                    row.Producer == producer &&
+                    row.Status == "Completed" &&
+                    row.CompletedAt != null &&
+                    row.CompletedAt < normalizedCutoff)
+                .ExecuteDeleteAsync(cancellationToken);
         }
 
         public async Task InsertAccessoryPageAsync(

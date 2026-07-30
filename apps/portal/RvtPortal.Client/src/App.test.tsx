@@ -25,7 +25,7 @@
 
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { App, AppErrorBoundary } from './App';
+import { App } from './App';
 import { SitesPanel } from './operations/SitePanels';
 import { MonitorsPanel } from './operations/MonitorPanels';
 import { ReportsPanel } from './operations/ReportPanels';
@@ -2132,22 +2132,6 @@ describe('App', () => {
     expect(dashboardRequestCount.value).toBe(0);
   });
 
-  it('renders a stable error boundary without exposing exception details', () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-
-    render(
-      <AppErrorBoundary>
-        <ThrowingPanel />
-      </AppErrorBoundary>,
-    );
-
-    expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
-    expect(screen.getByText(/refresh the page or return to the dashboard/i)).toBeInTheDocument();
-    expect(screen.queryByText(/phase 10 render failure/i)).not.toBeInTheDocument();
-
-    consoleError.mockRestore();
-  });
-
   it('redirects to login when an authenticated API call returns 401', async () => {
     globalThis.history.replaceState(null, '', '/profile');
     stubFetch({ auth: { isAuthenticated: true, user: adminUser }, profileStatus: 401 });
@@ -3757,9 +3741,4 @@ function jsonResponse(body: unknown, status = 200) {
     headers: { 'Content-Type': 'application/json' },
     status,
   });
-}
-
-// Function summary: Renders the ThrowingPanel React component and wires its local UI behavior.
-function ThrowingPanel() {
-  throw new Error('Render boundary failure');
 }

@@ -397,7 +397,9 @@ namespace Svantek.Api.Db
             CancellationToken cancellationToken = default)
         {
             await using SvantekMonitorContext context = CreateContext();
-            DateTime cutoff = DateTime.Now.AddHours(-12);
+            // NotificationTime is written in UTC, so the cutoff must be too:
+            // DateTime.Now shifted the window by the host's offset.
+            DateTime cutoff = DateTime.UtcNow.AddHours(-12);
 
             var rows = await (from notification in context.Notifications.AsNoTracking()
                               join monitor in context.Monitors.AsNoTracking() on notification.MonitorId equals monitor.Id

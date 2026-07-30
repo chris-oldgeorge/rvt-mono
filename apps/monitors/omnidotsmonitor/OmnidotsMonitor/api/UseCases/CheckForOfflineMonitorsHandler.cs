@@ -40,20 +40,21 @@ namespace Omnidots.Api.UseCases
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _ruleQueries.ReadRules(null);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _ruleQueries.ReadRules();
 
             DateTime utcNow = DateTime.UtcNow;
             List<OmnidotsMonitorFailure> failures = [];
+            // ReadMonitors returns the full deployed fleet; the offline cutoff
+            // is applied in memory below (the reader never filtered by
+            // last-data time). It is read once per run rather than once per
+            // offline rule - the query does not depend on the rule.
+            List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
             foreach (Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule in rules)
             {
                 if (rule.Field == "offline-rule")
                 {
                     DateTime cutOff = utcNow.Subtract(new TimeSpan(hours: 0, minutes: 0, seconds: rule.AveragingPeriod));
                     DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
-                    // ReadMonitors returns the full deployed fleet; the offline
-                    // cutoff is applied in memory below (the reader never
-                    // filtered by last-data time).
-                    List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
 
                     foreach (VibrationMonitorDto monitor in monitors!)
                     {

@@ -83,8 +83,11 @@ namespace Omnidots.Api
             OmnidotsMonitoringOptions monitoringOptions,
             IOmnidotsMonitoringNotifier monitoringNotifier,
             OmnidotsTraceCollectionOptions traceCollectionOptions,
-            TimeProvider timeProvider)
+            TimeProvider timeProvider,
+            OmnidotsImportOptions? importOptions = null)
         {
+            importOptions ??= new OmnidotsImportOptions();
+            importOptions.Validate();
             _gateway = new OmnidotsHttpGateway(httpClient, RvtConfig.USER_ID, RvtConfig.USER_AUTH);
             OmnidotsMonitorReader monitorReader = new(dbClient, testLocal);
             MonitorEventPublisher eventPublisher = new(mqttClient, RvtConfig.INSERT_TOPIC, RvtConfig.ALERT_TOPIC);
@@ -103,7 +106,8 @@ namespace Omnidots.Api
                 cursorQueries,
                 importCommands,
                 dbClient,
-                eventPublisher);
+                eventPublisher,
+                importOptions);
             _storeVeffRecords = new StoreVeffRecordsHandler(
                 _gateway,
                 monitorReader,
@@ -111,7 +115,8 @@ namespace Omnidots.Api
                 cursorQueries,
                 importCommands,
                 dbClient,
-                eventPublisher);
+                eventPublisher,
+                importOptions);
             _storeVdvRecords = new StoreVdvRecordsHandler(
                 _gateway,
                 monitorReader,
@@ -119,7 +124,8 @@ namespace Omnidots.Api
                 cursorQueries,
                 importCommands,
                 dbClient,
-                eventPublisher);
+                eventPublisher,
+                importOptions);
             _storeTraces = new StoreTracesHandler(
                 _gateway,
                 monitorReader,

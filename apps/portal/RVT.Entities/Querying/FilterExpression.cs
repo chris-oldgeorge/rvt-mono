@@ -1,5 +1,6 @@
 // File summary: Defines reusable query, filter, ordering, and result models for searchable grids.
 // Major updates:
+// - 2026-07-31 pending Captured filter values so EF parameterizes them instead of inlining SQL literals.
 // - 2026-06-25 pending Returned concrete string-call expressions for CA1859 analyzer cleanup.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 
@@ -90,7 +91,10 @@ public static class FilterExpression
                 : Expression.Call(member, nameof(ToString), Type.EmptyTypes);
             BinaryExpression notNull = Expression.NotEqual(stringMember, Expression.Constant(null, typeof(string)));
             MethodInfo method = typeof(string).GetMethod(methodName, [typeof(string)])!;
-            MethodCallExpression call = Expression.Call(stringMember, method, Expression.Constant(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty));
+            MethodCallExpression call = Expression.Call(
+                stringMember,
+                method,
+                CaptureValue(Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty, typeof(string)));
             return Expression.AndAlso(notNull, call);
         }
 
@@ -117,8 +121,45 @@ public static class FilterExpression
                 value = Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
             }
 
-            ConstantExpression constant = Expression.Constant(value, targetType);
-            return targetType == propertyType ? constant : Expression.Convert(constant, propertyType);
+            Expression captured = CaptureValue(value, targetType);
+            return targetType == propertyType ? captured : Expression.Convert(captured, propertyType);
+        }
+
+        /// <summary>
+        /// Wraps a filter value so EF Core compiles it into a query <em>parameter</em> rather than a SQL literal.
+        /// <para>
+        /// A bare <c>Expression.Constant</c> is inlined: <c>WHERE m.serial_id = 'SER-123'</c>. Every distinct
+        /// serial or time bound then produces distinct SQL text, so PostgreSQL plans each variant from scratch
+        /// and nothing in the plan cache is ever reused - on measurement tables that is the hot read path.
+        /// Reading a field off a captured object is the shape EF recognises as a closure, which is exactly what
+        /// a hand-written lambda over a local variable produces: <c>WHERE m.serial_id = $1</c>.
+        /// </para>
+        /// <para>
+        /// The NULL comparisons above deliberately stay literal: <c>= $1</c> with a null parameter never matches,
+        /// while <c>IS NULL</c> is what those operations mean.
+        /// </para>
+        /// </summary>
+        private static Expression CaptureValue(object value, Type targetType)
+        {
+            Type boxType = typeof(FilterValueBox<>).MakeGenericType(targetType);
+            object box = Activator.CreateInstance(boxType, value)!;
+            return Expression.Field(Expression.Constant(box, boxType), nameof(FilterValueBox<object>.Value));
+        }
+    }
+
+    /// <summary>
+    /// The closure stand-in <see cref="ExpressionBuilder"/> reads filter values through. A public field, not a
+    /// property: EF's parameter extraction recognises both, and a field keeps the shape identical to the
+    /// compiler-generated closure classes it was written for.
+    /// </summary>
+    internal sealed class FilterValueBox<T>
+    {
+        public readonly T Value;
+
+        // Function summary: Captures one filter value for parameterized query translation.
+        public FilterValueBox(T value)
+        {
+            Value = value;
         }
     }
 }

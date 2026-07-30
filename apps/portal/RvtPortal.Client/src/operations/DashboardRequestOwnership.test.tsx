@@ -541,6 +541,21 @@ describe('Portal dashboard request ownership', () => {
     expect(screen.queryByText('Old grid')).not.toBeInTheDocument();
   });
 
+  it('drops a malformed URL date instead of crashing the data view', async () => {
+    api.queryMonitorDataGrid.mockResolvedValue(gridResponse('Malformed date grid'));
+
+    render(
+      <DataViewsPanel locationPath="/data?deploymentId=deployment-a&fromDate=not-a-date" onRequestError={vi.fn()} />,
+    );
+
+    expect(await screen.findByText('Malformed date grid')).toBeInTheDocument();
+    expect(api.queryMonitorDataGrid).toHaveBeenCalledWith(
+      'deployment-a',
+      expect.objectContaining({ fromDate: null, toDate: null }),
+      expect.anything(),
+    );
+  });
+
   it('keeps averaging controls interactive while an intermediate grid request is pending', async () => {
     const rawGrid = deferred<ReturnType<typeof gridResponse>>();
     const hourlyGrid = deferred<ReturnType<typeof gridResponse>>();

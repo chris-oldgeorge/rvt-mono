@@ -64,15 +64,23 @@ Rule-driven signals share `RuleAlertSignals.Create`, which builds the
 (MyAtm's delivery outbox) deliberately remain separate — they encode different
 product semantics (adapter registry + dead-letter aggregation vs. failure sink
 + configurable failure modes and fleet aggregate exceptions), each pinned by
-its own tests. What is single-sourced:
+its own tests. Since 2026-07-30 the MyAtm-only machinery (the dispatcher, the
+planner, the outbox contracts/codec/options, and the `monitor_delivery_outbox`
+entity + EF mapping) lives in the MyAtm project
+(`apps/monitors/myatmmonitor/MyAtmMonitor/api/Delivery/`, public namespace
+unchanged); only the two policy files remain in
+`Rvt.Monitor.Common/Delivery/`. What is single-sourced:
 
 - `DeliveryDispatchPolicy` — the terminal decision (non-transient
   `DeliveryException` or attempt exhaustion) and safe-error shaping, truncated
   at 1024 characters; only `DeliveryException` messages carry provider detail.
 - `DeliveryRetrySchedule` — capped exponential backoff honoring bounded
   `Retry-After`.
-- The claim/lease fencing pattern (fenced complete/retry by lease id;
-  ownership loss is logged, never re-mutated).
+
+The claim/lease fencing (fenced complete/retry by lease id; ownership loss is
+logged, never re-mutated) is a shared *pattern*, not shared code: each stack
+implements its own claim mechanism (`EfAlertOutboxStore` for the alerts
+outbox; MyAtm's DBClient outbox commands for the delivery outbox).
 
 ## Composition
 

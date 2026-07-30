@@ -131,52 +131,6 @@ public static class MonitorModelBuilderExtensions
             MapProperty(entity, row => row.AlertType, "alert_type");
         });
 
-        modelBuilder.Entity<MonitorDeliveryOutboxEntity>(entity =>
-        {
-            entity.ToTable(TableName(options, "MonitorDeliveryOutbox", "monitor_delivery_outbox"));
-            entity.HasKey(row => row.Id);
-            entity.HasOne<NotificationEntity>()
-                .WithMany()
-                .HasForeignKey(row => row.NotificationId)
-                .OnDelete(DeleteBehavior.SetNull);
-            entity.HasIndex(row => new { row.Producer, row.DeliveryKey })
-                .IsUnique()
-                .HasDatabaseName("uq_monitor_delivery_outbox_producer_delivery_key");
-            entity.HasIndex(row => new { row.Producer, row.Status, row.NextAttemptAt })
-                .HasDatabaseName("ix_monitor_delivery_outbox_due");
-            entity.HasIndex(row => row.NotificationId)
-                .HasDatabaseName("ix_monitor_delivery_outbox_notification_id");
-            MapProperty(entity, row => row.Id, "id");
-            MapProperty(entity, row => row.Producer, "producer");
-            MapProperty(entity, row => row.NotificationId, "notification_id");
-            MapProperty(entity, row => row.CorrelationKey, "correlation_key");
-            MapProperty(entity, row => row.DeliveryKey, "delivery_key");
-            entity.Property(row => row.Kind)
-                .HasConversion<string>()
-                .HasColumnName("kind")
-                .HasColumnType("text")
-                .HasMaxLength(64);
-            MapProperty(entity, row => row.Destination, "destination");
-            MapProperty(entity, row => row.PayloadVersion, "payload_version");
-            MapProperty(entity, row => row.Payload, "payload");
-            MapProperty(entity, row => row.Status, "status");
-            MapProperty(entity, row => row.AttemptCount, "attempt_count");
-            MapProperty(entity, row => row.NextAttemptAt, "next_attempt_at");
-            MapProperty(entity, row => row.LeaseId, "lease_id");
-            MapProperty(entity, row => row.LeaseUntil, "lease_until");
-            MapProperty(entity, row => row.CompletedAt, "completed_at");
-            MapProperty(entity, row => row.DeadLetteredAt, "dead_lettered_at");
-            MapProperty(entity, row => row.LastError, "last_error");
-            MapProperty(entity, row => row.CreatedAt, "created_at");
-
-            entity.Property(row => row.Producer).HasColumnType("text").HasMaxLength(64);
-            entity.Property(row => row.CorrelationKey).HasColumnType("text").HasMaxLength(450);
-            entity.Property(row => row.DeliveryKey).HasColumnType("text").HasMaxLength(450);
-            entity.Property(row => row.Destination).HasColumnType("text").HasMaxLength(512);
-            entity.Property(row => row.Status).HasColumnType("text").HasMaxLength(32);
-            entity.Property(row => row.LastError).HasColumnType("text").HasMaxLength(1024);
-        });
-
         modelBuilder.Entity<NotificationSentEntity>(entity =>
         {
             entity.ToTable(TableName(options, "NotificationsSent", "notification_sent"));

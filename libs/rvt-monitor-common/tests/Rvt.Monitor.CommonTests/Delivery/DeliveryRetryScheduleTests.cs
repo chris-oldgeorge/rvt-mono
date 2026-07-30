@@ -113,13 +113,12 @@ public sealed class DeliveryRetryScheduleTests
     public void NextDelay_MatchesForEquivalentAlertAndDeliveryConfiguration()
     {
         // The two dispatchers express the same policy in different units; the
-        // shared schedule must produce identical results for both.
+        // shared schedule must produce identical results for both. MyAtm's
+        // MonitorDeliveryOptions moved out of Common, so its TimeSpan form of
+        // the equivalent configuration is mirrored inline here.
         DurableAlertOptions alertOptions = new() { InitialRetrySeconds = 30, MaxRetrySeconds = 1800 };
-        MonitorDeliveryOptions deliveryOptions = new()
-        {
-            InitialRetryDelay = TimeSpan.FromSeconds(30),
-            RetryCap = TimeSpan.FromSeconds(1800),
-        };
+        TimeSpan deliveryInitialRetryDelay = TimeSpan.FromSeconds(30);
+        TimeSpan deliveryRetryCap = TimeSpan.FromSeconds(1800);
 
         for (int attempt = 1; attempt <= 10; attempt++)
         {
@@ -129,8 +128,8 @@ public sealed class DeliveryRetryScheduleTests
                 TimeSpan.FromSeconds(alertOptions.MaxRetrySeconds));
             TimeSpan fromDelivery = DeliveryRetrySchedule.NextDelay(
                 attempt,
-                deliveryOptions.InitialRetryDelay,
-                deliveryOptions.RetryCap);
+                deliveryInitialRetryDelay,
+                deliveryRetryCap);
 
             Assert.AreEqual(fromAlerts, fromDelivery, $"Attempt {attempt} diverged.");
         }

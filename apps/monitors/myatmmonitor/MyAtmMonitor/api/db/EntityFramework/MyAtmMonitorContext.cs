@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Rvt.Monitor.Common.Data;
+using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
 
 namespace MyAtm.Api.Db.EntityFramework;
@@ -15,6 +16,7 @@ public sealed class MyAtmMonitorContext : MonitorDbContextBase
     public DbSet<MyAtmAccessoryInfoEntity> AccessoryInfo => Set<MyAtmAccessoryInfoEntity>();
     public DbSet<MyAtmErrorMessageEntity> MyAtmErrorMessages => Set<MyAtmErrorMessageEntity>();
     public new DbSet<MyAtmAlertOccurrenceEntity> AlertOccurrences => Set<MyAtmAlertOccurrenceEntity>();
+    public DbSet<MonitorDeliveryOutboxEntity> DeliveryOutbox => Set<MonitorDeliveryOutboxEntity>();
 
     protected override void OnMonitorModelCreating(ModelBuilder modelBuilder)
     {
@@ -108,6 +110,47 @@ public sealed class MyAtmMonitorContext : MonitorDbContextBase
             entity.Property(row => row.Level).HasColumnName("level");
             entity.Property(row => row.TriggeredAt).HasColumnName("triggered_at");
             entity.Property(row => row.IsSuppressed).HasColumnName("is_suppressed");
+            entity.Property(row => row.CreatedAt).HasColumnName("created_at");
+        });
+
+        // MyAtm is the only monitor with a monitor_delivery_outbox table, so the
+        // mapping lives here rather than in the shared monitor model.
+        modelBuilder.Entity<MonitorDeliveryOutboxEntity>(entity =>
+        {
+            entity.ToTable("monitor_delivery_outbox");
+            entity.HasKey(row => row.Id);
+            entity.HasOne<NotificationEntity>()
+                .WithMany()
+                .HasForeignKey(row => row.NotificationId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(row => new { row.Producer, row.DeliveryKey })
+                .IsUnique()
+                .HasDatabaseName("uq_monitor_delivery_outbox_producer_delivery_key");
+            entity.HasIndex(row => new { row.Producer, row.Status, row.NextAttemptAt })
+                .HasDatabaseName("ix_monitor_delivery_outbox_due");
+            entity.HasIndex(row => row.NotificationId)
+                .HasDatabaseName("ix_monitor_delivery_outbox_notification_id");
+            entity.Property(row => row.Id).HasColumnName("id");
+            entity.Property(row => row.Producer).HasColumnName("producer").HasColumnType("text").HasMaxLength(64);
+            entity.Property(row => row.NotificationId).HasColumnName("notification_id");
+            entity.Property(row => row.CorrelationKey).HasColumnName("correlation_key").HasColumnType("text").HasMaxLength(450);
+            entity.Property(row => row.DeliveryKey).HasColumnName("delivery_key").HasColumnType("text").HasMaxLength(450);
+            entity.Property(row => row.Kind)
+                .HasConversion<string>()
+                .HasColumnName("kind")
+                .HasColumnType("text")
+                .HasMaxLength(64);
+            entity.Property(row => row.Destination).HasColumnName("destination").HasColumnType("text").HasMaxLength(512);
+            entity.Property(row => row.PayloadVersion).HasColumnName("payload_version");
+            entity.Property(row => row.Payload).HasColumnName("payload");
+            entity.Property(row => row.Status).HasColumnName("status").HasColumnType("text").HasMaxLength(32);
+            entity.Property(row => row.AttemptCount).HasColumnName("attempt_count");
+            entity.Property(row => row.NextAttemptAt).HasColumnName("next_attempt_at");
+            entity.Property(row => row.LeaseId).HasColumnName("lease_id");
+            entity.Property(row => row.LeaseUntil).HasColumnName("lease_until");
+            entity.Property(row => row.CompletedAt).HasColumnName("completed_at");
+            entity.Property(row => row.DeadLetteredAt).HasColumnName("dead_lettered_at");
+            entity.Property(row => row.LastError).HasColumnName("last_error").HasColumnType("text").HasMaxLength(1024);
             entity.Property(row => row.CreatedAt).HasColumnName("created_at");
         });
     }

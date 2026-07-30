@@ -64,12 +64,6 @@
     },
     {
       "tool": "dotnet-format-style",
-      "ruleId": "IDE0305",
-      "path": "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Delivery/MonitorDeliveryDispatchException.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
       "path": "apps/monitors/myatmmonitor/MyAtmMonitorTests/Architecture/CommonPackageBoundaryTests.cs",
       "count": 16
@@ -733,12 +727,6 @@
       "ruleId": "IDE1006",
       "path": "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Data/MonitorDb.cs",
       "count": 2
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Delivery/MonitorDeliveryDispatcher.cs",
-      "count": 7
     },
     {
       "tool": "dotnet-format-style",

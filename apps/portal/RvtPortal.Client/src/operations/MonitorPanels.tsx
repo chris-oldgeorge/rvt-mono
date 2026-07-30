@@ -1,5 +1,6 @@
 // File summary: Renders the monitors route panel with the list, edit, and installer deployment views.
 // Major updates:
+// - 2026-07-30 pending Rejected blank and non-numeric installer coordinates instead of saving 0, 0.
 // - 2026-07-30 pending Split detail, unattached-removal, and assignment panels into their own modules.
 // - 2026-06-29 pending Shared monitor search reset helper and optional-chain cleanup for Sonar maintainability.
 // - 2026-06-26 pending Added cancellation for monitor list and unattached monitor requests.
@@ -515,6 +516,8 @@ function InstallerDeploymentPanel({
   const [what3words, setWhat3words] = useState('');
   const [lat, setLat] = useState('');
   const [lng, setLng] = useState('');
+  const [latError, setLatError] = useState<string | null>(null);
+  const [lngError, setLngError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -549,6 +552,8 @@ function InstallerDeploymentPanel({
       if (typeof result.lat === 'number' && typeof result.lng === 'number') {
         setLat(String(result.lat));
         setLng(String(result.lng));
+        setLatError(null);
+        setLngError(null);
         setNotice(result.nearestPlace ? `Converted near ${result.nearestPlace}.` : result.message);
       }
     } catch (err) {
@@ -565,14 +570,26 @@ function InstallerDeploymentPanel({
       setError('This monitor does not have a current deployment.');
       return;
     }
+
+    // The deployment contract requires numbers, so a blank or mistyped coordinate has to be
+    // rejected here: coercing it would pin the monitor at 0, 0 in the Gulf of Guinea, and
+    // passing NaN through only earns an opaque 400.
+    const nextLatError = coordinateError(lat, 'Latitude', 90);
+    const nextLngError = coordinateError(lng, 'Longitude', 180);
+    setLatError(nextLatError);
+    setLngError(nextLngError);
+    if (nextLatError || nextLngError) {
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
     try {
       const response = await updateInstallerDeployment(monitor.deploymentId, {
         location,
         what3words,
-        lat: Number(lat || 0),
-        lng: Number(lng || 0),
+        lat: Number(lat),
+        lng: Number(lng),
       });
       onNavigate(withReturnTo(`/monitors/${response.item?.id ?? monitorId}`, backPath));
     } catch (err) {
@@ -614,11 +631,25 @@ function InstallerDeploymentPanel({
             </button>
           </div>
         </FormField>
-        <FormField label="Latitude">
-          <input value={lat} inputMode="decimal" onChange={(event) => setLat(event.target.value)} />
+        <FormField label="Latitude" error={latError}>
+          <input
+            value={lat}
+            inputMode="decimal"
+            onChange={(event) => {
+              setLat(event.target.value);
+              setLatError(null);
+            }}
+          />
         </FormField>
-        <FormField label="Longitude">
-          <input value={lng} inputMode="decimal" onChange={(event) => setLng(event.target.value)} />
+        <FormField label="Longitude" error={lngError}>
+          <input
+            value={lng}
+            inputMode="decimal"
+            onChange={(event) => {
+              setLng(event.target.value);
+              setLngError(null);
+            }}
+          />
         </FormField>
         <SubmitButton
           icon={<Save size={17} aria-hidden="true" />}
@@ -628,6 +659,23 @@ function InstallerDeploymentPanel({
       </form>
     </section>
   );
+}
+
+// Function summary: Validates one required deployment coordinate instead of coercing it to zero.
+function coordinateError(value: string, field: 'Latitude' | 'Longitude', limit: number) {
+  if (!value.trim()) {
+    return `${field} is required. Convert the what3words address or type the coordinate.`;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    return `${field} must be a number, for example ${field === 'Latitude' ? '51.5072' : '-0.1276'}.`;
+  }
+  if (parsed < -limit || parsed > limit) {
+    return `${field} must be between -${limit} and ${limit}.`;
+  }
+
+  return null;
 }
 
 // Function summary: Renders the MonitorStatusBadge React component and wires its local UI behavior.

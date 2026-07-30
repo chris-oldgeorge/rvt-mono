@@ -172,15 +172,15 @@ public sealed class HelpReadAdapterPostgresTests
     /// </summary>
     private sealed class HelpSchemaFixture : IAsyncDisposable
     {
-        private readonly string baseConnectionString;
-        private readonly string schema;
-        private readonly string scopedConnectionString;
+        private readonly string _baseConnectionString;
+        private readonly string _schema;
+        private readonly string _scopedConnectionString;
 
         private HelpSchemaFixture(string baseConnectionString, string schema)
         {
-            this.baseConnectionString = baseConnectionString;
-            this.schema = schema;
-            scopedConnectionString = new NpgsqlConnectionStringBuilder(baseConnectionString)
+            _baseConnectionString = baseConnectionString;
+            _schema = schema;
+            _scopedConnectionString = new NpgsqlConnectionStringBuilder(baseConnectionString)
             {
                 SearchPath = schema
             }.ConnectionString;
@@ -239,14 +239,14 @@ public sealed class HelpReadAdapterPostgresTests
         }
 
         public RVTDbContext CreateDomainContext() =>
-            new(TestDbContexts.Npgsql<RVTDbContext>(scopedConnectionString));
+            new(TestDbContexts.Npgsql<RVTDbContext>(_scopedConnectionString));
 
         public async ValueTask DisposeAsync()
         {
-            await using NpgsqlConnection connection = new(baseConnectionString);
+            await using NpgsqlConnection connection = new(_baseConnectionString);
             await connection.OpenAsync();
             await using NpgsqlCommand command = connection.CreateCommand();
-            command.CommandText = $"""DROP SCHEMA IF EXISTS "{schema}" CASCADE;""";
+            command.CommandText = $"""DROP SCHEMA IF EXISTS "{_schema}" CASCADE;""";
             await command.ExecuteNonQueryAsync();
         }
     }

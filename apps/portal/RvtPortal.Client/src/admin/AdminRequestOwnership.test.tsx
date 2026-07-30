@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CompanyListItem, PagedResponse, SearchLookupResponse, UserListItem } from '../dtos';
-import { CompaniesPanel, UsersPanel } from './AdminPanels';
+import { CompaniesPanel } from './CompanyPanels';
+import { UsersPanel } from './UserPanels';
 
 const api = vi.hoisted(() => ({
   queryCompanies: vi.fn(),
@@ -62,7 +63,7 @@ function lookup(query: string, results: string[]): SearchLookupResponse {
   return { kind: 'companies', query, take: 8, results };
 }
 
-describe('AdminPanels request ownership', () => {
+describe('Admin panels request ownership', () => {
   beforeEach(() => {
     api.queryCompanies.mockReset();
     api.queryUsers.mockReset();

@@ -43,7 +43,11 @@ public sealed class CheckForSoundRecordingsHandler
             cancellationToken.ThrowIfCancellationRequested();
             try
             {
-                string dayCode = alert.NotificationTime.AddMinutes(-1).ToString("yyyyMMdd");
+                // The vendor's day code is invariant: a culture with a non-
+                // Gregorian calendar formats a different year here, and the
+                // rest of this file is already invariant.
+                string dayCode = alert.NotificationTime.AddMinutes(-1)
+                    .ToString("yyyyMMdd", CultureInfo.InvariantCulture);
                 List<SoundFile> audioFiles = await FindFilesAsync(
                     filesCache,
                     dayCode,

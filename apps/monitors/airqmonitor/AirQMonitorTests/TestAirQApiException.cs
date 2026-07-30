@@ -518,6 +518,32 @@ namespace AirQMonitorTests
             mqttClient.VerifyNoOtherCalls();
         }
 
+        // An online monitor used to get SetMonitorOffline(id, false) rewritten
+        // on every run, three times an hour across the whole fleet, and the
+        // fleet was re-read once per offline rule.
+        [TestMethod]
+        public async Task TestCheckForOfflineMonitors_OnlineMonitorsCauseNoWritesAndOneFleetRead()
+        {
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+                                                     out Mock<IDBClient> dbClient,
+                                                     out Mock<IMqttClient> mqttClient,
+                                                     out Mock<IAlertIngressPort> messageClient);
+
+            // Two offline rules: the fleet must still be read once.
+            dbClient.Setup(c => c.ReadRules(null))
+                .Returns([.. AirQFixture.OfflineRules(), .. AirQFixture.OfflineRules()]);
+            dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>()))
+                .Returns(AirQFixture.MonitorDtos(DateTime.UtcNow.AddMinutes(-5), NoiseMonitorStatus.ACTIVE));
+
+            await testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken);
+
+            dbClient.Verify(c => c.ReadMonitorList(It.IsAny<DateTime?>()), Times.Exactly(1));
+            dbClient.Verify(c => c.SetMonitorOffline(It.IsAny<Guid>(), It.IsAny<bool>()), Times.Never);
+            httpClient.VerifyNoOtherCalls();
+            mqttClient.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
+        }
+
         public TestContext TestContext { get; set; } = null!;
     }
 }

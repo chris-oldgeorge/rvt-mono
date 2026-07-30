@@ -45,13 +45,16 @@ namespace AirQ.Api.UseCases
             // unrecorded. Failures are captured per monitor and rethrown as an
             // aggregate so the job still fails visibly (Svantek's shape).
             List<Exception> failures = [];
+            // The fleet is read once per run rather than once per offline rule:
+            // the query does not depend on the rule, and any state a rule writes
+            // is written back to the same in-memory monitor.
+            List<NoiseMonitorDto> monitors = _monitorReader.ReadMonitors(null);
             foreach (RvtAlertRuleDto rule in rules)
             {
                 if (RuleConstants.OFFLINE_RULE.Equals(rule.Field))
                 {
                     DateTime cutOff = utcNow.Subtract(new TimeSpan(hours: 0, minutes: 0, seconds: rule.AveragingPeriod));
                     DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
-                    List<NoiseMonitorDto> monitors = _monitorReader.ReadMonitors(null);
 
                     foreach (NoiseMonitorDto monitor in monitors!)
                     {
@@ -126,16 +129,18 @@ namespace AirQ.Api.UseCases
                                         field: rule.Field,
                                         cancellationToken: cancellationToken);
                 monitor.Offline = true;
+                _monitorCommands.SetMonitorOffline(monitor.Id, true);
+                return;
             }
-            else
+
+            // Only the offline transition is written. This branch is reached
+            // only for a monitor already flagged online, so the previous
+            // unconditional write re-set false for every online monitor on
+            // every run - three times an hour across the whole fleet.
+            if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
             {
-                if (RvtLogger.Logger.IsEnabled(LogLevel.Debug))
-                {
-                    RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data has been recieved marking as online", monitor.SerialId);
-                }
-                monitor.Offline = false;
+                RvtLogger.Logger.LogDebug("Device serialId = {Value1} Data has been recieved marking as online", monitor.SerialId);
             }
-            _monitorCommands.SetMonitorOffline(monitor.Id, monitor.Offline);
         }
     }
 }

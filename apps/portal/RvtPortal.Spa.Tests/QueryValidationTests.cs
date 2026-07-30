@@ -23,9 +23,9 @@ public sealed class QueryValidationTests
     public async Task ReadFilteredAsync_UnknownFilterField_Throws()
     {
         await using RVTDbContext context = CreateContext();
-        CompanyRepository repository = new(context);
 
-        QueryValidationException error = await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
+        QueryValidationException error = await Assert.ThrowsAsync<QueryValidationException>(() => ReadFilteredAsync(
+            context,
             [new SingleFilter { Operation = Op.Equals, PropertyName = "NotAField", Value = "x" }],
             _byName,
             maximumRecords: 10,
@@ -43,10 +43,10 @@ public sealed class QueryValidationTests
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Alpha" });
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Beta" });
         await context.SaveChangesAsync();
-        CompanyRepository repository = new(context);
 
         // The whole point: an entirely invalid filter used to build "WHERE true" and hand back the table.
-        await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
+        await Assert.ThrowsAsync<QueryValidationException>(() => ReadFilteredAsync(
+            context,
             [new SingleFilter { Operation = Op.Equals, PropertyName = "Nonsense", Value = "x" }],
             _byName,
             maximumRecords: 10,
@@ -59,9 +59,9 @@ public sealed class QueryValidationTests
     public async Task ReadFilteredAsync_UnknownSortField_Throws()
     {
         await using RVTDbContext context = CreateContext();
-        CompanyRepository repository = new(context);
 
-        QueryValidationException error = await Assert.ThrowsAsync<QueryValidationException>(() => repository.ReadFilteredAsync(
+        QueryValidationException error = await Assert.ThrowsAsync<QueryValidationException>(() => ReadFilteredAsync(
+            context,
             [],
             [new OrderByProperty { OrderByColumn = "NotASortField" }],
             maximumRecords: 10,
@@ -79,9 +79,9 @@ public sealed class QueryValidationTests
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Alpha" });
         context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = "Beta" });
         await context.SaveChangesAsync();
-        CompanyRepository repository = new(context);
 
-        SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
+        SearchQueryResult<Company> result = await ReadFilteredAsync(
+            context,
             [],
             _byName,
             maximumRecords: 10,
@@ -89,6 +89,19 @@ public sealed class QueryValidationTests
             CancellationToken.None);
 
         Assert.Equal(2, result.RecordCount);
+    }
+
+    // Function summary: Drives the shared search executor with the repository-shaped argument list the tests use.
+    private static Task<SearchQueryResult<Company>> ReadFilteredAsync(
+        RVTDbContext context,
+        List<Filter> whereFilter,
+        OrderByProperty[] orderBy,
+        int maximumRecords,
+        Paging paging,
+        CancellationToken cancellationToken)
+    {
+        return SearchQueryExecutor.ReadFilteredAsync<Company>(
+            context, whereFilter, orderBy, maximumRecords, paging.Paged, paging.Page, paging.PageSize, cancellationToken);
     }
 
     // Function summary: Creates an isolated in-memory domain context for query-builder tests.

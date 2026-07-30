@@ -1,5 +1,6 @@
-// File summary: Hosts dashboard-adjacent route panels that are lazy-loaded outside the core SPA shell.
+// File summary: Hosts the lazy-loaded Map and Calendar route panels outside the core SPA shell.
 // Major updates:
+// - 2026-07-30 pending Renamed from DashboardRoutePanels.tsx to reflect the Map+Calendar content.
 // - 2026-07-08 pending Split map and calendar panels from the eager dashboard module to reduce the initial bundle.
 
 import { AlertTriangle, CalendarDays, ChevronLeft, MapPin, RefreshCcw } from 'lucide-react';
@@ -18,7 +19,7 @@ import type {
   OptionItem,
 } from '../dtos';
 
-type DashboardRoutePanelProps = Readonly<{
+type MapCalendarPanelProps = Readonly<{
   locationPath: string;
   onRequestError: (error: unknown) => void;
 }>;
@@ -58,7 +59,7 @@ type CalendarDayResult = Readonly<{
 }>;
 
 // Function summary: Renders the MapPanel React component and wires its local UI behavior.
-export function MapPanel({ locationPath, onRequestError }: DashboardRoutePanelProps) {
+export function MapPanel({ locationPath, onRequestError }: MapCalendarPanelProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [siteId, setSiteId] = useState(initialParams.get('siteId') ?? '');
   const [sites, setSites] = useState<OptionItem[]>([]);
@@ -121,7 +122,7 @@ export function MapPanel({ locationPath, onRequestError }: DashboardRoutePanelPr
 }
 
 // Function summary: Renders the CalendarPanel React component and wires its local UI behavior.
-export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePanelProps) {
+export function CalendarPanel({ locationPath, onRequestError }: MapCalendarPanelProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const initialDate = useMemo(() => initialCalendarDate(initialParams), [initialParams]);
   const [deployments, setDeployments] = useState<OptionItem[]>([]);
@@ -158,8 +159,11 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
     getDashboardSummary({ signal: controller.signal })
       .then((summary) => {
         setDeployments(summary.calendarDeployments);
-        if (!deploymentId && summary.calendarDeployments[0]) {
-          setDeploymentId(summary.calendarDeployments[0].value);
+        const firstDeployment = summary.calendarDeployments[0]?.value;
+        if (firstDeployment) {
+          // Functional update keeps deploymentId out of the effect deps so
+          // switching deployments does not refetch the summary.
+          setDeploymentId((current) => current || firstDeployment);
         }
       })
       .catch((err: Error) => {
@@ -170,7 +174,7 @@ export function CalendarPanel({ locationPath, onRequestError }: DashboardRoutePa
         onRequestError(err);
       });
     return () => controller.abort();
-  }, [deploymentId, onRequestError]);
+  }, [onRequestError]);
 
   useEffect(() => {
     if (!monthExecution.deploymentId) {

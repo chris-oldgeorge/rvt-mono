@@ -19,16 +19,4 @@ public static class DateExtensions
     {
         return dateTimeProvider.LocalToUtc(dt);
     }
-
-    // Function summary: Formats UTC time as configured local time through the injected provider.
-    public static string DisplayUtcAsLocal(this DateTime dt, string format, IRvtDateTimeProvider dateTimeProvider)
-    {
-        return dateTimeProvider.DisplayUtcAsLocal(dt, format);
-    }
-
-    // Function summary: Formats nullable UTC time as configured local time through the injected provider.
-    public static string DisplayUtcAsLocal(this DateTime? dt, string format, IRvtDateTimeProvider dateTimeProvider, string nullValue = "")
-    {
-        return dt == null ? nullValue : dateTimeProvider.DisplayUtcAsLocal(dt.Value, format);
-    }
 }

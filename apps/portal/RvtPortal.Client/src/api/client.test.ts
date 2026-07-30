@@ -9,7 +9,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ApiError, createHelpArticle, downloadFile, getHealth, queryAdminHelp, queryCompanies } from './client';
+import {
+  ApiError,
+  createHelpArticle,
+  downloadMonitorTraceCsv,
+  getHealth,
+  queryAdminHelp,
+  queryCompanies,
+} from './client';
 
 const apiDirectory = dirname(fileURLToPath(import.meta.url));
 
@@ -55,38 +62,45 @@ describe('API client infrastructure', () => {
   });
 
   it('downloads files without navigating away from the SPA', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response('RVT diagnostics', {
-            headers: {
-              'Content-Disposition': 'attachment; filename="rvt-diagnostics.txt"',
-              'Content-Type': 'text/plain',
-              'X-Correlation-Id': 'download-id',
-            },
-            status: 200,
-          }),
-      ),
+    const fetch = vi.fn(
+      async () =>
+        new Response('RVT trace data', {
+          headers: {
+            'Content-Disposition': 'attachment; filename="rvt-trace.csv"',
+            'Content-Type': 'text/csv',
+            'X-Correlation-Id': 'download-id',
+          },
+          status: 200,
+        }),
     );
-
-    const file = await downloadFile('/api/health/diagnostics/download');
-
-    expect(file.fileName).toBe('rvt-diagnostics.txt');
-    expect(file.contentType).toBe('text/plain');
-    expect(file.correlationId).toBe('download-id');
-    expect(await file.blob.text()).toBe('RVT diagnostics');
-  });
-
-  it('blocks client requests to absolute or non-api URLs', async () => {
-    const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);
 
-    await expect(downloadFile('https://attacker.example/api/health/diagnostics/download')).rejects.toThrow(
-      /unsafe API request URL/i,
+    const file = await downloadMonitorTraceCsv('deployment-1', 'trace-1');
+
+    expect(file.fileName).toBe('rvt-trace.csv');
+    expect(file.contentType).toBe('text/csv');
+    expect(file.correlationId).toBe('download-id');
+    expect(await file.blob.text()).toBe('RVT trace data');
+    const requestedUrl = new URL(String(fetch.mock.calls[0]?.[0]));
+    expect(requestedUrl.pathname).toBe('/api/data/deployments/deployment-1/traces/trace-1/download');
+  });
+
+  it('keeps download requests on the API origin when identifiers carry URL syntax', async () => {
+    const fetch = vi.fn(
+      async () =>
+        new Response('', {
+          headers: { 'Content-Type': 'text/csv' },
+          status: 200,
+        }),
     );
-    await expect(downloadFile('/content/report.csv')).rejects.toThrow(/unsafe API request URL/i);
-    expect(fetch).not.toHaveBeenCalled();
+    vi.stubGlobal('fetch', fetch);
+
+    await downloadMonitorTraceCsv('https://attacker.example/escape', '../../../content/report.csv');
+
+    const requestedUrl = new URL(String(fetch.mock.calls[0]?.[0]));
+    expect(requestedUrl.host).not.toBe('attacker.example');
+    expect(requestedUrl.pathname.startsWith('/api/data/deployments/')).toBe(true);
+    expect(requestedUrl.pathname).not.toContain('/content/');
   });
 
   it('passes abort signals through generated API helper calls', async () => {

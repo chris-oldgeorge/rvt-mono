@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace RvtPortal.Application.Time;
 
 public sealed class RvtTimeZoneOptions
@@ -16,8 +14,6 @@ public interface IRvtDateTimeProvider
     DateTime UtcToLocal(DateTime utcDateTime);
 
     DateTime LocalToUtc(DateTime localDateTime);
-
-    string DisplayUtcAsLocal(DateTime utcDateTime, string format);
 }
 
 public sealed class RvtDateTimeProvider : IRvtDateTimeProvider
@@ -42,12 +38,6 @@ public sealed class RvtDateTimeProvider : IRvtDateTimeProvider
     public DateTime LocalToUtc(DateTime localDateTime)
     {
         return TimeZoneInfo.ConvertTimeToUtc(new DateTime(localDateTime.Ticks, DateTimeKind.Unspecified), LocalTimeZone);
-    }
-
-    // Function summary: Formats UTC time in the configured local time zone.
-    public string DisplayUtcAsLocal(DateTime utcDateTime, string format)
-    {
-        return UtcToLocal(utcDateTime).ToString(format, CultureInfo.InvariantCulture);
     }
 
     // Function summary: Resolves a configured time-zone ID, including cross-platform Windows/IANA conversion when available.

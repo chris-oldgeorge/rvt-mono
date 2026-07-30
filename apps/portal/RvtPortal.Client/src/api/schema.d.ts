@@ -476,6 +476,17 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         delete?: never;
@@ -556,8 +567,8 @@ export interface paths {
                         "text/json": components["schemas"]["MessageResponse"];
                     };
                 };
-                /** @description Internal Server Error */
-                500: {
+                /** @description Too Many Requests */
+                429: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -619,6 +630,17 @@ export interface paths {
                         "text/plain": components["schemas"]["ValidationProblemDetails"];
                         "application/json": components["schemas"]["ValidationProblemDetails"];
                         "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -723,6 +745,69 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/change-email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    userId?: string;
+                    email?: string;
+                    code?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ConfirmEmailResponse"];
+                        "application/json": components["schemas"]["ConfirmEmailResponse"];
+                        "text/json": components["schemas"]["ConfirmEmailResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2019,6 +2104,381 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/help": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    searchText?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HelpOverviewResponse"];
+                        "application/json": components["schemas"]["HelpOverviewResponse"];
+                        "text/json": components["schemas"]["HelpOverviewResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/help/articles/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HelpArticleResponseEntityResponse"];
+                        "application/json": components["schemas"]["HelpArticleResponseEntityResponse"];
+                        "text/json": components["schemas"]["HelpArticleResponseEntityResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/help/admin/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["HelpArticleMutationRequest"];
+                    "text/json": components["schemas"]["HelpArticleMutationRequest"];
+                    "application/*+json": components["schemas"]["HelpArticleMutationRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HelpArticleResponseEntityResponse"];
+                        "application/json": components["schemas"]["HelpArticleResponseEntityResponse"];
+                        "text/json": components["schemas"]["HelpArticleResponseEntityResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/help/admin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    searchText?: string;
+                    status?: string;
+                    contentType?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HelpAdminOverviewResponse"];
+                        "application/json": components["schemas"]["HelpAdminOverviewResponse"];
+                        "text/json": components["schemas"]["HelpAdminOverviewResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/help/admin/articles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HelpArticleResponseEntityResponse"];
+                        "application/json": components["schemas"]["HelpArticleResponseEntityResponse"];
+                        "text/json": components["schemas"]["HelpArticleResponseEntityResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["HelpArticleMutationRequest"];
+                    "text/json": components["schemas"]["HelpArticleMutationRequest"];
+                    "application/*+json": components["schemas"]["HelpArticleMutationRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HelpArticleResponseEntityResponse"];
+                        "application/json": components["schemas"]["HelpArticleResponseEntityResponse"];
+                        "text/json": components["schemas"]["HelpArticleResponseEntityResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MutationResponse"];
+                        "application/json": components["schemas"]["MutationResponse"];
+                        "text/json": components["schemas"]["MutationResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/help/admin/articles/{id}/publication": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["HelpPublishRequest"];
+                    "text/json": components["schemas"]["HelpPublishRequest"];
+                    "application/*+json": components["schemas"]["HelpPublishRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["HelpArticleResponseEntityResponse"];
+                        "application/json": components["schemas"]["HelpArticleResponseEntityResponse"];
+                        "text/json": components["schemas"]["HelpArticleResponseEntityResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/installer/monitors": {
         parameters: {
             query?: never;
@@ -2293,6 +2753,17 @@ export interface paths {
                         "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
             };
         };
         put?: never;
@@ -2424,43 +2895,6 @@ export interface paths {
                         "text/plain": components["schemas"]["ProblemDetails"];
                         "application/json": components["schemas"]["ProblemDetails"];
                         "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/monitors/options": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["MonitorOptionsResponse"];
-                        "application/json": components["schemas"]["MonitorOptionsResponse"];
-                        "text/json": components["schemas"]["MonitorOptionsResponse"];
                     };
                 };
             };
@@ -2636,7 +3070,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/monitors/deployments/{deploymentId}": {
+    "/api/monitors/{id}/picture": {
         parameters: {
             query?: never;
             header?: never;
@@ -2648,7 +3082,7 @@ export interface paths {
                 query?: never;
                 header?: never;
                 path: {
-                    deploymentId: string;
+                    id: string;
                 };
                 cookie?: never;
             };
@@ -2659,11 +3093,7 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content: {
-                        "text/plain": components["schemas"]["MonitorDetailResponseEntityResponse"];
-                        "application/json": components["schemas"]["MonitorDetailResponseEntityResponse"];
-                        "text/json": components["schemas"]["MonitorDetailResponseEntityResponse"];
-                    };
+                    content?: never;
                 };
                 /** @description Not Found */
                 404: {
@@ -2679,22 +3109,7 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/monitors/{id}/fleet-number": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put: {
+        post: {
             parameters: {
                 query?: never;
                 header?: never;
@@ -2705,9 +3120,10 @@ export interface paths {
             };
             requestBody?: {
                 content: {
-                    "application/json": components["schemas"]["FleetNumberMutationRequest"];
-                    "text/json": components["schemas"]["FleetNumberMutationRequest"];
-                    "application/*+json": components["schemas"]["FleetNumberMutationRequest"];
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        picture?: string;
+                    };
                 };
             };
             responses: {
@@ -2746,7 +3162,6 @@ export interface paths {
                 };
             };
         };
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2845,6 +3260,129 @@ export interface paths {
                         "text/plain": components["schemas"]["ValidationProblemDetails"];
                         "application/json": components["schemas"]["ValidationProblemDetails"];
                         "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/monitors/unattached": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    State?: string;
+                    MonitorType?: components["schemas"]["MonitorTypeEnum"];
+                    SearchText?: string;
+                    Page?: number;
+                    PageSize?: number;
+                    Sort?: string;
+                    SortDir?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["QueryUnattachedMonitorsResponse"];
+                        "application/json": components["schemas"]["QueryUnattachedMonitorsResponse"];
+                        "text/json": components["schemas"]["QueryUnattachedMonitorsResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/monitors/{id}/unattached": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["MonitorRemovalRequest"];
+                    "text/json": components["schemas"]["MonitorRemovalRequest"];
+                    "application/*+json": components["schemas"]["MonitorRemovalRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["MonitorRemovalResponse"];
+                        "application/json": components["schemas"]["MonitorRemovalResponse"];
+                        "text/json": components["schemas"]["MonitorRemovalResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ValidationProblemDetails"];
+                        "application/json": components["schemas"]["ValidationProblemDetails"];
+                        "text/json": components["schemas"]["ValidationProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
                     };
                 };
             };
@@ -3115,6 +3653,76 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/report-content/sites/{siteId}/customer-logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "X-RVT-Internal-Key"?: string;
+                };
+                path: {
+                    siteId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": string;
+                        "application/json": string;
+                        "text/json": string;
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3487,6 +4095,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/report-rules/{id}/available-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    SearchText?: string;
+                    Page?: number;
+                    PageSize?: number;
+                    Sort?: string;
+                    SortDir?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["QueryReportUsersResponse"];
+                        "application/json": components["schemas"]["QueryReportUsersResponse"];
+                        "text/json": components["schemas"]["QueryReportUsersResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/report-rules/{id}/assigned-users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    SearchText?: string;
+                    Page?: number;
+                    PageSize?: number;
+                    Sort?: string;
+                    SortDir?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["QueryReportUsersResponse"];
+                        "application/json": components["schemas"]["QueryReportUsersResponse"];
+                        "text/json": components["schemas"]["QueryReportUsersResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/report-rules/{id}/users/{userId}": {
         parameters: {
             query?: never;
@@ -3538,6 +4258,84 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/report-rules/{id}/generation-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": components["schemas"]["ReportGenerationRequest"];
+                    "text/json": components["schemas"]["ReportGenerationRequest"];
+                    "application/*+json": components["schemas"]["ReportGenerationRequest"];
+                };
+            };
+            responses: {
+                /** @description Accepted */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ReportGenerationRequestResponse"];
+                        "application/json": components["schemas"]["ReportGenerationRequestResponse"];
+                        "text/json": components["schemas"]["ReportGenerationRequestResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Bad Gateway */
+                502: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Service Unavailable */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reports": {
         parameters: {
             query?: never;
@@ -3573,56 +4371,6 @@ export interface paths {
                 };
                 /** @description Bad Request */
                 400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/reports/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ReportListItemEntityResponse"];
-                        "application/json": components["schemas"]["ReportListItemEntityResponse"];
-                        "text/json": components["schemas"]["ReportListItemEntityResponse"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -3876,6 +4624,142 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sites/{id}/customer-logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": string;
+                        "application/json": string;
+                        "text/json": string;
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "multipart/form-data": {
+                        /** Format: binary */
+                        logo?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SiteDetailResponseEntityResponse"];
+                        "application/json": components["schemas"]["SiteDetailResponseEntityResponse"];
+                        "text/json": components["schemas"]["SiteDetailResponseEntityResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["SiteDetailResponseEntityResponse"];
+                        "application/json": components["schemas"]["SiteDetailResponseEntityResponse"];
+                        "text/json": components["schemas"]["SiteDetailResponseEntityResponse"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sites/{id}/archive": {
         parameters: {
             query?: never;
@@ -3920,118 +4804,6 @@ export interface paths {
                 };
             };
         };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/sites/{id}/monitors": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    SearchText?: string;
-                    Page?: number;
-                    PageSize?: number;
-                    Sort?: string;
-                    SortDir?: string;
-                };
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["QuerySiteMonitorsResponse"];
-                        "application/json": components["schemas"]["QuerySiteMonitorsResponse"];
-                        "text/json": components["schemas"]["QuerySiteMonitorsResponse"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/sites/{id}/notifications/open": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: {
-                    SearchText?: string;
-                    Page?: number;
-                    PageSize?: number;
-                    Sort?: string;
-                    SortDir?: string;
-                };
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["QuerySiteNotificationsResponse"];
-                        "application/json": components["schemas"]["QuerySiteNotificationsResponse"];
-                        "text/json": components["schemas"]["QuerySiteNotificationsResponse"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "text/plain": components["schemas"]["ProblemDetails"];
-                        "application/json": components["schemas"]["ProblemDetails"];
-                        "text/json": components["schemas"]["ProblemDetails"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5220,9 +5992,6 @@ export interface components {
             createdAlertLevels?: number;
             monitorIds?: string[] | null;
         };
-        FleetNumberMutationRequest: {
-            fleetNumber?: string | null;
-        };
         ForgotPasswordRequest: {
             /** Format: email */
             email: string;
@@ -5233,6 +6002,101 @@ export interface components {
             framework?: string | null;
             /** Format: date-time */
             serverTimeUtc?: string;
+        };
+        HelpAdminOverviewResponse: {
+            searchText?: string | null;
+            status?: string | null;
+            contentType?: string | null;
+            sections?: components["schemas"]["HelpSectionResponse"][] | null;
+            articles?: components["schemas"]["HelpArticleResponse"][] | null;
+        };
+        HelpArticleMutationRequest: {
+            sectionTitle?: string | null;
+            sectionSlug?: string | null;
+            title?: string | null;
+            slug?: string | null;
+            summary?: string | null;
+            body?: string | null;
+            contentType?: string | null;
+            isPublished: boolean;
+            /** Format: int32 */
+            sectionSortOrder: number;
+            /** Format: int32 */
+            sortOrder: number;
+            assets?: components["schemas"]["HelpAssetMutationRequest"][] | null;
+        };
+        HelpArticleResponse: {
+            /** Format: uuid */
+            id?: string;
+            title?: string | null;
+            slug?: string | null;
+            summary?: string | null;
+            contentType?: string | null;
+            sectionTitle?: string | null;
+            sectionSlug?: string | null;
+            /** Format: int32 */
+            sectionSortOrder?: number;
+            /** Format: int32 */
+            sortOrder?: number;
+            body?: string | null;
+            isPublished?: boolean;
+            /** Format: date-time */
+            createdAtUtc?: string;
+            /** Format: date-time */
+            updatedAtUtc?: string;
+            assets?: components["schemas"]["HelpAssetResponse"][] | null;
+        };
+        HelpArticleResponseEntityResponse: {
+            item?: components["schemas"]["HelpArticleResponse"];
+        };
+        HelpArticleSummaryResponse: {
+            /** Format: uuid */
+            id?: string;
+            title?: string | null;
+            slug?: string | null;
+            summary?: string | null;
+            contentType?: string | null;
+            sectionTitle?: string | null;
+            sectionSlug?: string | null;
+            /** Format: int32 */
+            sectionSortOrder?: number;
+            /** Format: int32 */
+            sortOrder?: number;
+        };
+        HelpAssetMutationRequest: {
+            /** Format: uuid */
+            id?: string | null;
+            title?: string | null;
+            assetType?: string | null;
+            url?: string | null;
+            /** Format: int32 */
+            sortOrder: number;
+        };
+        HelpAssetResponse: {
+            /** Format: uuid */
+            id?: string;
+            title?: string | null;
+            assetType?: string | null;
+            url?: string | null;
+            internalPath?: string | null;
+            /** Format: int32 */
+            sortOrder?: number;
+        };
+        HelpOverviewResponse: {
+            searchText?: string | null;
+            sections?: components["schemas"]["HelpSectionResponse"][] | null;
+        };
+        HelpPublishRequest: {
+            isPublished: boolean;
+        };
+        HelpSectionResponse: {
+            /** Format: uuid */
+            id?: string;
+            title?: string | null;
+            slug?: string | null;
+            /** Format: int32 */
+            sortOrder?: number;
+            articles?: components["schemas"]["HelpArticleSummaryResponse"][] | null;
         };
         InstallerDeploymentMutationRequest: {
             what3words?: string | null;
@@ -5347,6 +6211,7 @@ export interface components {
             filterOptions?: components["schemas"]["OptionItem"][] | null;
             columns?: components["schemas"]["MonitorDataColumn"][] | null;
             rows?: components["schemas"]["MonitorDataRow"][] | null;
+            truncated?: boolean;
             /** Format: int32 */
             total?: number;
             /** Format: int32 */
@@ -5366,6 +6231,19 @@ export interface components {
             values?: {
                 [key: string]: number | null;
             } | null;
+        };
+        MonitorDeploymentSummary: {
+            /** Format: uuid */
+            deploymentId?: string;
+            contractNumber?: string | null;
+            siteName?: string | null;
+            companyName?: string | null;
+            /** Format: date-time */
+            onHireDate?: string;
+            /** Format: date-time */
+            offHireDate?: string | null;
+            /** Format: date-time */
+            addedDate?: string;
         };
         MonitorDetailResponse: {
             /** Format: uuid */
@@ -5414,6 +6292,11 @@ export interface components {
             what3words?: string | null;
             pictureLink?: string | null;
             statusLabel?: string | null;
+            monitorNotes?: string | null;
+            latestReading?: components["schemas"]["MonitorMetricSummary"];
+            latestAverage?: components["schemas"]["MonitorMetricSummary"];
+            latestBattery?: components["schemas"]["MonitorMetricSummary"];
+            deploymentSummary?: components["schemas"]["MonitorDeploymentSummary"];
             alertLevels?: components["schemas"]["MonitorAlertLevelItem"][] | null;
             recentNotifications?: components["schemas"]["MonitorNotificationItem"][] | null;
         };
@@ -5454,6 +6337,7 @@ export interface components {
             maxDuration?: string | null;
             filterOption?: string | null;
             filterOptions?: components["schemas"]["OptionItem"][] | null;
+            truncated?: boolean;
             xAxisLabel?: string | null;
             xAxisField?: string | null;
             xAxisUnit?: string | null;
@@ -5510,6 +6394,16 @@ export interface components {
             canAssign?: boolean;
             canInstallerEdit?: boolean;
         };
+        MonitorMetricSummary: {
+            label?: string | null;
+            field?: string | null;
+            /** Format: double */
+            value?: number | null;
+            unit?: string | null;
+            /** Format: date-time */
+            sampleTime?: string | null;
+            detail?: string | null;
+        };
         MonitorMutationRequest: {
             fleetNumber?: string | null;
             /** Format: date-time */
@@ -5528,6 +6422,8 @@ export interface components {
         MonitorNotificationItem: {
             /** Format: uuid */
             id?: string;
+            /** Format: uuid */
+            monitorId?: string;
             /** Format: date-time */
             notificationTime?: string;
             alertType?: string | null;
@@ -5539,10 +6435,28 @@ export interface components {
             /** Format: date-time */
             closedTime?: string | null;
         };
-        MonitorOptionsResponse: {
-            monitorTypes?: components["schemas"]["OptionItem"][] | null;
-            contracts?: components["schemas"]["OptionItem"][] | null;
-            sites?: components["schemas"]["OptionItem"][] | null;
+        MonitorRemovalImpactResponse: {
+            /** Format: int32 */
+            deploymentCount?: number;
+            /** Format: int32 */
+            notificationCount?: number;
+            /** Format: int32 */
+            alertRuleCount?: number;
+            /** Format: int32 */
+            measurementTableCount?: number;
+            /** Format: int32 */
+            measurementRowCount?: number;
+            readonly hasRelatedData?: boolean;
+        };
+        MonitorRemovalRequest: {
+            reason?: string | null;
+        };
+        MonitorRemovalResponse: {
+            /** Format: uuid */
+            id?: string | null;
+            message?: string | null;
+            action?: string | null;
+            impact?: components["schemas"]["MonitorRemovalImpactResponse"];
         };
         /**
          * Format: int32
@@ -5801,40 +6715,34 @@ export interface components {
             sort?: string | null;
             sortDir?: string | null;
         };
+        QueryReportUsersResponse: {
+            results?: components["schemas"]["UserListItem"][] | null;
+            /** Format: int32 */
+            total?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            hasPreviousPage?: boolean;
+            hasNextPage?: boolean;
+            searchText?: string | null;
+            sort?: string | null;
+            sortDir?: string | null;
+            /** Format: uuid */
+            reportRuleId?: string;
+            /** Format: uuid */
+            siteId?: string;
+            siteName?: string | null;
+            /** Format: uuid */
+            companyId?: string | null;
+            companyName?: string | null;
+            /** Format: int32 */
+            assignedUserCount?: number;
+        };
         QueryReportsResponse: {
             results?: components["schemas"]["ReportListItem"][] | null;
-            /** Format: int32 */
-            total?: number;
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            pageSize?: number;
-            /** Format: int32 */
-            totalPages?: number;
-            hasPreviousPage?: boolean;
-            hasNextPage?: boolean;
-            searchText?: string | null;
-            sort?: string | null;
-            sortDir?: string | null;
-        };
-        QuerySiteMonitorsResponse: {
-            results?: components["schemas"]["SiteMonitorItem"][] | null;
-            /** Format: int32 */
-            total?: number;
-            /** Format: int32 */
-            page?: number;
-            /** Format: int32 */
-            pageSize?: number;
-            /** Format: int32 */
-            totalPages?: number;
-            hasPreviousPage?: boolean;
-            hasNextPage?: boolean;
-            searchText?: string | null;
-            sort?: string | null;
-            sortDir?: string | null;
-        };
-        QuerySiteNotificationsResponse: {
-            results?: components["schemas"]["SiteNotificationItem"][] | null;
             /** Format: int32 */
             total?: number;
             /** Format: int32 */
@@ -5866,6 +6774,23 @@ export interface components {
             sortDir?: string | null;
             isScopedToCurrentUser?: boolean;
         };
+        QueryUnattachedMonitorsResponse: {
+            results?: components["schemas"]["UnattachedMonitorListItem"][] | null;
+            /** Format: int32 */
+            total?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            pageSize?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            hasPreviousPage?: boolean;
+            hasNextPage?: boolean;
+            searchText?: string | null;
+            sort?: string | null;
+            sortDir?: string | null;
+            canRemove?: boolean;
+        };
         QueryUsersResponse: {
             results?: components["schemas"]["UserListItem"][] | null;
             /** Format: int32 */
@@ -5885,11 +6810,33 @@ export interface components {
             companyId?: string | null;
             companyName?: string | null;
         };
+        ReportAlertRuleGuidelineItem: {
+            monitorType?: string | null;
+            title?: string | null;
+            summary?: string | null;
+            body?: string | null;
+            articleSlug?: string | null;
+        };
         /**
          * Format: int32
          * @enum {integer}
          */
         ReportFrequencyType: 0 | 1 | 2 | 3 | 4;
+        ReportGenerationRequest: {
+            /** Format: date-time */
+            reportDate?: string | null;
+            sendToRecipients?: boolean | null;
+        };
+        ReportGenerationRequestResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            reportRuleId?: string;
+            status?: string | null;
+            message?: string | null;
+            /** Format: date-time */
+            requestedAtUtc?: string;
+        };
         ReportListItem: {
             /** Format: uuid */
             id?: string;
@@ -5911,9 +6858,6 @@ export interface components {
             reportName?: string | null;
             contracts?: string | null;
         };
-        ReportListItemEntityResponse: {
-            item?: components["schemas"]["ReportListItem"];
-        };
         ReportRuleDetailResponse: {
             /** Format: uuid */
             id?: string;
@@ -5932,6 +6876,7 @@ export interface components {
             sites?: components["schemas"]["OptionItem"][] | null;
             frequencies?: components["schemas"]["OptionItem"][] | null;
             daysOfWeek?: components["schemas"]["OptionItem"][] | null;
+            alertRuleGuidelines?: components["schemas"]["ReportAlertRuleGuidelineItem"][] | null;
             /** Format: int32 */
             assignedUserCount?: number;
         };
@@ -5967,6 +6912,7 @@ export interface components {
             sites?: components["schemas"]["OptionItem"][] | null;
             frequencies?: components["schemas"]["OptionItem"][] | null;
             daysOfWeek?: components["schemas"]["OptionItem"][] | null;
+            alertRuleGuidelines?: components["schemas"]["ReportAlertRuleGuidelineItem"][] | null;
         };
         ReportUserAssignmentResponse: {
             /** Format: uuid */
@@ -6048,12 +6994,14 @@ export interface components {
             monitorCount?: number;
             /** Format: int32 */
             openNotificationCount?: number;
+            customerLogoUrl?: string | null;
             startTime?: string | null;
             endTime?: string | null;
             satStartTime?: string | null;
             satEndTime?: string | null;
             sunStartTime?: string | null;
             sunEndTime?: string | null;
+            operatingHours?: components["schemas"]["SiteOperatingHoursResponse"][] | null;
             contractList?: components["schemas"]["ContractListItem"][] | null;
             monitors?: components["schemas"]["SiteMonitorItem"][] | null;
             openNotifications?: components["schemas"]["SiteNotificationItem"][] | null;
@@ -6103,6 +7051,11 @@ export interface components {
             /** Format: date-time */
             lastDataTime?: string | null;
             offLine?: boolean;
+            /** Format: double */
+            lat?: number | null;
+            /** Format: double */
+            lng?: number | null;
+            what3words?: string | null;
         };
         SiteMutationRequest: {
             siteName?: string | null;
@@ -6121,6 +7074,7 @@ export interface components {
             satEndTime?: string | null;
             sunStartTime?: string | null;
             sunEndTime?: string | null;
+            operatingHours?: components["schemas"]["SiteOperatingHoursMutationRequest"][] | null;
         };
         SiteNotificationItem: {
             /** Format: uuid */
@@ -6171,6 +7125,21 @@ export interface components {
             siteId?: string;
             siteName?: string | null;
             settings?: components["schemas"]["SiteNotificationSettingItem"][] | null;
+        };
+        SiteOperatingHoursMutationRequest: {
+            /** Format: int32 */
+            dayOfWeek: number;
+            startTime?: string | null;
+            endTime?: string | null;
+            isClosed: boolean;
+        };
+        SiteOperatingHoursResponse: {
+            /** Format: int32 */
+            dayOfWeek?: number;
+            dayName?: string | null;
+            startTime?: string | null;
+            endTime?: string | null;
+            isClosed?: boolean;
         };
         SiteOptionsResponse: {
             companies?: components["schemas"]["OptionItem"][] | null;
@@ -6248,6 +7217,43 @@ export interface components {
             endTime?: string;
             /** Format: int32 */
             durationSeconds?: number;
+        };
+        UnattachedMonitorListItem: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            deploymentId?: string | null;
+            fleetNumber?: string | null;
+            serialId?: string | null;
+            manufacturer?: string | null;
+            model?: string | null;
+            firmwareVersion?: string | null;
+            typeOfMonitor?: string | null;
+            /** Format: uuid */
+            contractId?: string | null;
+            contractNumber?: string | null;
+            /** Format: uuid */
+            siteId?: string | null;
+            siteName?: string | null;
+            /** Format: uuid */
+            companyId?: string | null;
+            companyName?: string | null;
+            /** Format: date-time */
+            startDate?: string | null;
+            /** Format: date-time */
+            endDate?: string | null;
+            /** Format: date-time */
+            lastDataTime?: string | null;
+            isAssigned?: boolean;
+            isOffline?: boolean;
+            hasAlerts?: boolean;
+            hasCautions?: boolean;
+            canEdit?: boolean;
+            canAssign?: boolean;
+            canInstallerEdit?: boolean;
+            hasRelatedData?: boolean;
+            willArchiveOnRemoval?: boolean;
+            impact?: components["schemas"]["MonitorRemovalImpactResponse"];
         };
         UpdateProfileRequest: {
             /** Format: email */

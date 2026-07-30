@@ -1,5 +1,7 @@
 // File summary: Exposes SPA API DTO types from the generated OpenAPI schema.
 // Major updates:
+// - 2026-07-30 pending Realigned with the regenerated schema: dropped aliases for deleted endpoints and kept the
+//   operating-hours overrides authoritative over the now-generated schema fields.
 // - 2026-06-26 pending Replaced hand-maintained API contract bodies with schema-derived aliases.
 // - 2026-06-26 pending Added local schema-gap extensions for Help CMS, report guidelines, and newer detail fields.
 // - 2026-06-26 pending Added disabled option metadata for unavailable select choices.
@@ -212,7 +214,7 @@ export type SiteOperatingHours = {
 };
 export type SiteDetailResponse = Omit<
   ApiSchema<'SiteDetailResponse'>,
-  'contractList' | 'monitors' | 'openNotifications' | 'archive' | 'companies' | 'availableContracts'
+  'contractList' | 'monitors' | 'openNotifications' | 'archive' | 'companies' | 'availableContracts' | 'operatingHours'
 > & {
   customerLogoUrl?: string | null;
   operatingHours: SiteOperatingHours[];
@@ -237,6 +239,7 @@ export type SiteMutationRequest = Omit<
   | 'satEndTime'
   | 'sunStartTime'
   | 'sunEndTime'
+  | 'operatingHours'
 > & {
   contractId?: string | null;
   addressLine1?: string | null;
@@ -253,9 +256,6 @@ export type SiteMutationRequest = Omit<
   operatingHours?: SiteOperatingHours[] | null;
 };
 export type SiteOptionsResponse = ApiSchema<'SiteOptionsResponse'>;
-export type QuerySiteMonitorsResponse = ApiSchema<'QuerySiteMonitorsResponse'> & PagedResponse<SiteMonitorItem>;
-export type QuerySiteNotificationsResponse = ApiSchema<'QuerySiteNotificationsResponse'> &
-  PagedResponse<SiteNotificationItem>;
 export type SiteNotificationSettingsResponse = ApiSchema<'SiteNotificationSettingsResponse'>;
 export type SiteNotificationSettingItem = ApiSchema<'SiteNotificationSettingItem'>;
 export type SiteNotificationSettingMutationRequest = Omit<
@@ -347,8 +347,6 @@ export type MonitorRemovalResponse = MutationResponse & {
   action: 'deleted' | 'archived';
   impact: MonitorRemovalImpactResponse;
 };
-export type FleetNumberMutationRequest = ApiSchema<'FleetNumberMutationRequest'>;
-export type MonitorOptionsResponse = ApiSchema<'MonitorOptionsResponse'>;
 export type MonitorAssignmentRequest = ApiSchema<'MonitorAssignmentRequest'>;
 export type MonitorAssignmentContextResponse = ApiSchema<'MonitorAssignmentContextResponse'> & {
   contracts: OptionItem[];

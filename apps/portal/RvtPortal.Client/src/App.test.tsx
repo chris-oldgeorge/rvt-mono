@@ -26,7 +26,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App, AppErrorBoundary } from './App';
-import { SitesPanel } from './operations/ContractSitePanels';
+import { SitesPanel } from './operations/SitePanels';
 import { MonitorsPanel } from './operations/MonitorPanels';
 import { ReportsPanel } from './operations/ReportPanels';
 
@@ -1233,6 +1233,22 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /view notification/i }));
     await waitFor(() => expect(globalThis.location.pathname).toBe('/notifications/notification-id'));
     expect(await screen.findByRole('heading', { name: /PM10 > 50/i })).toBeInTheDocument();
+  });
+
+  it('surfaces a failed installer status check instead of a healthy fallback', async () => {
+    globalThis.history.replaceState(null, '', '/monitors/monitor-id');
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) =>
+        url.pathname === '/api/installer/monitors/monitor-id/status'
+          ? jsonResponse({ title: 'Upstream failure', detail: 'Vendor API unavailable' }, 502)
+          : undefined,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /^MON-ONLINE$/i })).toBeInTheDocument();
+    expect(await screen.findByText('Status check failed')).toBeInTheDocument();
   });
 
   it('hides the Average column for vibration alert levels', async () => {

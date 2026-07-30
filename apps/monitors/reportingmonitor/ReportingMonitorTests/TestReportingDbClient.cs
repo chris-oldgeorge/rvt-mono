@@ -119,6 +119,37 @@ public sealed class TestReportingDbClient(ReportingDbFixture fixture) : IClassFi
         Assert.Equal(0, await Fixture.CountAsync("report_sent"));
     }
 
+    // Backfilling a missed period must not regenerate one that already exists.
+    // The advisory generation lock only serialises concurrent runs, so an
+    // existing report row is the only record that a period is done.
+    [Fact]
+    public async Task GetGeneratedPeriodsAsync_ReturnsThisRulesPeriodsAtOrAfterTheCutoff()
+    {
+        await Fixture.ResetAsync();
+        GeneratedReport saved = await Fixture.Client.SaveGeneratedReportAsync(
+            Fixture.GeneratedReportRequest(withInvalidRecipient: false),
+            CancellationToken.None);
+
+        IReadOnlyList<GeneratedReportPeriod> atCutoff = await Fixture.Client.GetGeneratedPeriodsAsync(
+            saved.ReportRuleId,
+            Fixture.FromUtc.AddDays(-1),
+            CancellationToken.None);
+        IReadOnlyList<GeneratedReportPeriod> afterCutoff = await Fixture.Client.GetGeneratedPeriodsAsync(
+            saved.ReportRuleId,
+            Fixture.FromUtc,
+            CancellationToken.None);
+        IReadOnlyList<GeneratedReportPeriod> otherRule = await Fixture.Client.GetGeneratedPeriodsAsync(
+            Guid.NewGuid(),
+            Fixture.FromUtc.AddDays(-1),
+            CancellationToken.None);
+
+        GeneratedReportPeriod period = Assert.Single(atCutoff);
+        Assert.Equal(FrequencyType.OneTime, period.Frequency);
+        Assert.Equal(Fixture.FromUtc.AddDays(-1), period.PeriodStartUtc);
+        Assert.Empty(afterCutoff);
+        Assert.Empty(otherRule);
+    }
+
     [Fact]
     public async Task SaveGeneratedReportAsync_ReusesAndReactivatesDeletedHiddenOneTimeRule()
     {

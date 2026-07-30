@@ -130,6 +130,27 @@ namespace AirQMonitorTests
             Assert.IsTrue(rule.RuleActiveTime.Sundays);
         }
 
+        // The per-serial branch relied on a downstream evaluator guard while the
+        // site-rule branch filtered at the query; the two mechanisms could drift.
+        [TestMethod]
+        public void TestReadPerSerialRulesExcludeDeletedRules()
+        {
+            string connectionString = _database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
+            connection.Open();
+            const string serialId = "E9999";
+            List<NoiseMonitorDto> monitorsIn = CreateMonitorsList(1);
+            _testObj!.WriteMonitorList(monitorsIn);
+            Guid monitorId = _testObj.ReadMonitorList(null)[0].Id;
+            InsertAlertRule(connection, 1, serialId, monitorId);
+            InsertAlertRule(connection, 2, serialId, monitorId, isDeleted: true);
+
+            List<RvtAlertRuleDto> rules = _testObj.ReadRules(serialId);
+
+            Assert.HasCount(1, rules);
+            Assert.IsFalse(rules[0].IsDeleted);
+        }
+
         [TestMethod]
         public void TestReadGlobalRulesExcludesDeletedRules()
         {
@@ -513,7 +534,7 @@ namespace AirQMonitorTests
         }
 
         private static void InsertAlertRule(NpgsqlConnection connection, int index, string serialId, Guid monitorId,
-                                            AlertType? alertType = null)
+                                            AlertType? alertType = null, bool isDeleted = false)
         {
             string sql = @"INSERT INTO rvt_alert_rule
                             (id, serial_id, alert_field, limit_on, limit_off, alert_type, is_active, averaging_period,
@@ -541,7 +562,7 @@ namespace AirQMonitorTests
                 "@StartTime", NpgsqlDbType.Time, isEven ? new TimeSpan(9, 0, 0) : (object)DBNull.Value);
             cmd.Parameters.AddWithValue(
                 "@EndTime", NpgsqlDbType.Time, isEven ? new TimeSpan(17, 0, 0) : (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@IsDeleted", false);
+            cmd.Parameters.AddWithValue("@IsDeleted", isDeleted);
             cmd.Parameters.AddWithValue("@MonitorId", monitorId);
             cmd.Parameters.AddWithValue("@Created", DateTime.UtcNow);
             cmd.ExecuteNonQuery();

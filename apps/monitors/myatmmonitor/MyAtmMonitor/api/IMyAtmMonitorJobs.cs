@@ -13,4 +13,6 @@ public interface IMyAtmMonitorJobs
     Task StoreAccessoryInfoAsync(CancellationToken cancellationToken = default);
 
     Task DispatchOutboxAsync(CancellationToken cancellationToken = default);
+
+    Task CleanupOutboxAsync(CancellationToken cancellationToken = default);
 }

@@ -64,6 +64,12 @@ public static class OmnidotsMonitorServices
             .ValidateOnStart();
         services.AddSingleton(provider =>
             provider.GetRequiredService<IOptions<OmnidotsTraceCollectionOptions>>().Value);
+        services.AddSingleton<IValidateOptions<OmnidotsImportOptions>, OmnidotsImportOptionsValidator>();
+        services.AddOptions<OmnidotsImportOptions>()
+            .BindConfiguration(OmnidotsImportOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton(provider =>
+            provider.GetRequiredService<IOptions<OmnidotsImportOptions>>().Value);
         services.AddOptions<OmnidotsApiSecurityOptions>()
             .BindConfiguration(OmnidotsApiSecurityOptions.SectionName)
             .ValidateOnStart();
@@ -121,7 +127,8 @@ public static class OmnidotsMonitorServices
             provider.GetRequiredService<OmnidotsMonitoringOptions>(),
             provider.GetRequiredService<IOmnidotsMonitoringNotifier>(),
             provider.GetRequiredService<OmnidotsTraceCollectionOptions>(),
-            provider.GetRequiredService<TimeProvider>()));
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<OmnidotsImportOptions>()));
         services.AddSingleton(provider =>
         {
             RvtLogger.CreateLogger(provider.GetRequiredService<ILoggerFactory>(), "OmnidotsService");

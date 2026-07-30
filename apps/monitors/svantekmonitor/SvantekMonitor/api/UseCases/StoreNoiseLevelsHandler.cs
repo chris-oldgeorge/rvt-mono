@@ -241,10 +241,6 @@ public sealed class StoreNoiseLevelsHandler
                 cancellationToken).ConfigureAwait(false);
         }
 
-        await _monitorCommands.WriteLatestTimestampAsync(
-            monitor.SerialId,
-            watermark,
-            cancellationToken).ConfigureAwait(false);
         if (monitor.Offline && watermark > utcNow.AddDays(-1))
         {
             await _monitorCommands.SetMonitorOfflineAsync(
@@ -256,6 +252,18 @@ public sealed class StoreNoiseLevelsHandler
         cancellationToken.ThrowIfCancellationRequested();
         List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId);
         await _ruleProcessor.ProcessRulesAsync(monitor, rules, periodStart, watermark, cancellationToken).ConfigureAwait(false);
+
+        // The watermark is written last, after rules have been evaluated.
+        // Advancing it first meant a rule-processing failure moved the start of
+        // the next run past the samples that were never evaluated, losing those
+        // alerts permanently. Re-evaluating the same samples is safe: window
+        // boundaries are derived from the unchanged watermark, so
+        // RuleAlertSignals.Create produces the same source event key and the
+        // durable stack dedupes.
+        await _monitorCommands.WriteLatestTimestampAsync(
+            monitor.SerialId,
+            watermark,
+            cancellationToken).ConfigureAwait(false);
     }
 
     private DateTime ClampToInitialBackfill(DateTime start, DateTime end)

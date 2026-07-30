@@ -54,7 +54,9 @@ public sealed class HelpCmsOperationsTests
 
         HttpClient userClient = CreateClient(factory);
         await LoginAsync(userClient, CompanyUserEmail, Password);
-        HelpOverviewResponse? overview = await userClient.GetFromJsonAsync<HelpOverviewResponse>("/api/help?searchText=dust");
+        // Search runs PostgreSQL ILike (HelpReadAdapterPostgresTests covers it); the InMemory host reads the
+        // unfiltered overview.
+        HelpOverviewResponse? overview = await userClient.GetFromJsonAsync<HelpOverviewResponse>("/api/help");
         EntityResponse<HelpArticleResponse>? article = await userClient.GetFromJsonAsync<EntityResponse<HelpArticleResponse>>($"/api/help/articles/{articleRequest.Slug}");
 
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);

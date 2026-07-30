@@ -14,7 +14,9 @@ namespace RvtPortal.Spa.Tests;
 public sealed class HelpAdapterTests
 {
     [Fact]
-    public async Task ReadAdapter_PublishedQueryFiltersSearchesAndOrders()
+    // The search paths run PostgreSQL ILike, so HelpReadAdapterPostgresTests covers them; this InMemory test
+    // pins the provider-neutral publication filtering and ordering.
+    public async Task ReadAdapter_PublishedQueryFiltersAndOrders()
     {
         SeededHelpData seeded = await SeedAsync();
         using SpaTestApplicationFactory factory = seeded.Factory;
@@ -25,9 +27,6 @@ public sealed class HelpAdapterTests
         HelpOverviewModel overview = await adapter.QueryPublishedAsync(
             searchText: null,
             CancellationToken.None);
-        HelpOverviewModel searched = await adapter.QueryPublishedAsync(
-            "DUST",
-            CancellationToken.None);
 
         Assert.Equal(
             ["Alerts", "Data"],
@@ -36,16 +35,15 @@ public sealed class HelpAdapterTests
             ["Alert response", "Dust guide"],
             overview.Sections.SelectMany(section => section.Articles)
                 .Select(article => article.Title));
-        HelpSectionModel searchedSection = Assert.Single(searched.Sections);
-        Assert.Equal("Data", searchedSection.Title);
-        Assert.Equal("Dust guide", Assert.Single(searchedSection.Articles).Title);
         Assert.DoesNotContain(
             overview.Sections.SelectMany(section => section.Articles),
             article => article.Title is "Draft FAQ" or "Hidden guide");
     }
 
     [Fact]
-    public async Task ReadAdapter_AdminQueryAppliesStatusTypeAndSearchFilters()
+    // The search and content-type filters run PostgreSQL ILike, so HelpReadAdapterPostgresTests covers them;
+    // this InMemory test pins the provider-neutral status filter.
+    public async Task ReadAdapter_AdminQueryAppliesStatusFilter()
     {
         SeededHelpData seeded = await SeedAsync();
         using SpaTestApplicationFactory factory = seeded.Factory;
@@ -54,18 +52,18 @@ public sealed class HelpAdapterTests
             scope.ServiceProvider.GetRequiredService<RVTDbContext>());
 
         HelpAdminOverviewModel overview = await adapter.QueryAdminAsync(
-            new HelpAdminQuery("draft", "Draft", "faq"),
+            new HelpAdminQuery(SearchText: null, "Draft", ContentType: null),
             CancellationToken.None);
 
         HelpArticleModel article = Assert.Single(overview.Articles);
         Assert.Equal(seeded.DraftArticleId, article.Id);
         Assert.Equal("Draft FAQ", article.Title);
         Assert.Equal("Draft", overview.Status);
-        Assert.Equal("faq", overview.ContentType);
+        Assert.Equal("All", overview.ContentType);
         Assert.Contains(
             overview.Sections,
             section => section.Id == seeded.DataSectionId &&
-                section.Articles.Single().Id == seeded.DraftArticleId);
+                section.Articles.Any(item => item.Id == seeded.DraftArticleId));
     }
 
     [Fact]

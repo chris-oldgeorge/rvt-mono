@@ -1,70 +1,50 @@
 // File summary: Pins the page-batched removal-impact query to the per-row BuildAsync results.
 // Major updates:
+// - 2026-07-30 pending Moved the parity test onto PostgreSQL after the InMemory view fallback was deleted.
 // - 2026-07-30 pending Added with the batched unattached-monitors impact path (N+1 removal).
 
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RVT.DataAccess.Context;
-using RVT.DataAccess.EntityModels.Models;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Monitors;
 using RvtPortal.Spa.Tests.Support;
-using MonitorEntity = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Tests;
 
 public sealed class MonitorRemovalImpactReaderTests
 {
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies the batched page query returns exactly what per-row BuildAsync returns for every monitor.
     public async Task BuildForPageAsync_MatchesPerRowBuildAsync()
     {
-        using RVTDbContext domainContext = new(TestDbContexts.InMemory<RVTDbContext>());
-        using RVTSearchContext searchContext = new(TestDbContexts.InMemory<RVTSearchContext>());
+        await using RemovalImpactFixture fixture = await RemovalImpactFixture.CreateAsync();
 
-        MonitorEntity withEverything = TestData.Monitor();
-        MonitorEntity withNothing = TestData.Monitor();
-        MonitorEntity withMeasurementsOnly = TestData.Monitor();
-        Guid contractId = Guid.NewGuid();
+        Guid withEverything = Guid.NewGuid();
+        Guid withNothing = Guid.NewGuid();
+        Guid withMeasurementsOnly = Guid.NewGuid();
+        string everythingSerial = $"SER-EVERYTHING-{Guid.NewGuid():N}";
+        string nothingSerial = $"SER-NOTHING-{Guid.NewGuid():N}";
+        string measurementsSerial = $"SER-MEASUREMENTS-{Guid.NewGuid():N}";
 
-        domainContext.Deployments.AddRange(
-            TestData.Deployment(contractId, withEverything.Id),
-            TestData.Deployment(contractId, withEverything.Id));
-        domainContext.Notifications.AddRange(
-            TestData.Notification(withEverything.Id),
-            TestData.Notification(withEverything.Id),
-            TestData.Notification(withEverything.Id));
-        domainContext.RvtAlertRules.Add(
-            TestData.AlertLevel(withEverything.Id, withEverything.SerialId));
-        await domainContext.SaveChangesAsync();
+        await fixture.SeedAsync(
+            deploymentMonitorIds: [withEverything, withEverything],
+            notificationMonitorIds: [withEverything, withEverything, withEverything],
+            alertRuleMonitorIds: [withEverything],
+            measurementImpacts:
+            [
+                (everythingSerial, TableCount: 2, RowCount: 5),
+                (measurementsSerial, TableCount: 1, RowCount: 3)
+            ]);
 
-        searchContext.OmnidotsTracesIndices.AddRange(
-            new OmnidotsTracesIndex
-            {
-                Id = Guid.NewGuid(),
-                SerialId = withEverything.SerialId,
-                StartTime = DateTime.UtcNow.AddHours(-2),
-                EndTime = DateTime.UtcNow.AddHours(-1)
-            },
-            new OmnidotsTracesIndex
-            {
-                Id = Guid.NewGuid(),
-                SerialId = withMeasurementsOnly.SerialId,
-                StartTime = DateTime.UtcNow.AddHours(-4),
-                EndTime = DateTime.UtcNow.AddHours(-3)
-            });
-        searchContext.OmnidotsMonitorStatuses.Add(new OmnidotsMonitorStatus
-        {
-            Id = Guid.NewGuid(),
-            SerialId = withMeasurementsOnly.SerialId,
-            BuildingLevel = "0"
-        });
-        await searchContext.SaveChangesAsync();
-
+        await using RVTDbContext domainContext = fixture.CreateDomainContext();
+        await using RVTSearchContext searchContext = fixture.CreateSearchContext();
         MonitorRemovalImpactReader reader = new(domainContext, searchContext);
         List<MonitorRemovalImpactKey> page =
         [
-            new(withEverything.Id, withEverything.SerialId),
-            new(withNothing.Id, withNothing.SerialId),
-            new(withMeasurementsOnly.Id, withMeasurementsOnly.SerialId)
+            new(withEverything, everythingSerial),
+            new(withNothing, nothingSerial),
+            new(withMeasurementsOnly, measurementsSerial)
         ];
 
         IReadOnlyDictionary<Guid, MonitorRemovalImpactResponse> batched =
@@ -85,11 +65,13 @@ public sealed class MonitorRemovalImpactReaderTests
         }
 
         // The monitor with related rows must actually have non-zero counts, or this parity check proves nothing.
-        Assert.Equal(2, batched[withEverything.Id].DeploymentCount);
-        Assert.Equal(3, batched[withEverything.Id].NotificationCount);
-        Assert.Equal(1, batched[withEverything.Id].AlertRuleCount);
-        Assert.True(batched[withMeasurementsOnly.Id].MeasurementRowCount > 0);
-        Assert.False(batched[withNothing.Id].HasRelatedData);
+        Assert.Equal(2, batched[withEverything].DeploymentCount);
+        Assert.Equal(3, batched[withEverything].NotificationCount);
+        Assert.Equal(1, batched[withEverything].AlertRuleCount);
+        Assert.Equal(2, batched[withEverything].MeasurementTableCount);
+        Assert.Equal(5, batched[withEverything].MeasurementRowCount);
+        Assert.True(batched[withMeasurementsOnly].MeasurementRowCount > 0);
+        Assert.False(batched[withNothing].HasRelatedData);
     }
 
     [Fact]
@@ -104,5 +86,122 @@ public sealed class MonitorRemovalImpactReaderTests
             await reader.BuildForPageAsync([], CancellationToken.None);
 
         Assert.Empty(batched);
+    }
+
+    /// <summary>
+    /// A throwaway PostgreSQL schema holding only the relations the impact reader queries. The reader never
+    /// selects beyond the monitor-id and impact-count columns, so the tables carry just those; the
+    /// monitor_measurement_removal_impact view is stood in by a table of the same shape, letting the test seed
+    /// per-serial counts directly instead of loading the fourteen measurement tables the real view aggregates.
+    /// </summary>
+    private sealed class RemovalImpactFixture : IAsyncDisposable
+    {
+        private readonly string baseConnectionString;
+        private readonly string schema;
+        private readonly string scopedConnectionString;
+
+        private RemovalImpactFixture(string baseConnectionString, string schema)
+        {
+            this.baseConnectionString = baseConnectionString;
+            this.schema = schema;
+            scopedConnectionString = new NpgsqlConnectionStringBuilder(baseConnectionString)
+            {
+                SearchPath = schema
+            }.ConnectionString;
+        }
+
+        public static async Task<RemovalImpactFixture> CreateAsync()
+        {
+            string baseConnectionString = Environment.GetEnvironmentVariable(
+                RequiresPostgresFactAttribute.ConnectionVariable)!;
+            string schema = $"removal_impact_{Guid.NewGuid():N}";
+            RemovalImpactFixture fixture = new(baseConnectionString, schema);
+
+            await using NpgsqlConnection connection = new(baseConnectionString);
+            await connection.OpenAsync();
+            await using NpgsqlCommand command = connection.CreateCommand();
+            command.CommandText = $"""
+                CREATE SCHEMA "{schema}";
+
+                CREATE TABLE "{schema}".deployment
+                (
+                    monitor_id uuid NOT NULL
+                );
+
+                CREATE TABLE "{schema}".notification
+                (
+                    monitor_id uuid NOT NULL
+                );
+
+                CREATE TABLE "{schema}".rvt_alert_rule
+                (
+                    monitor_id uuid NOT NULL
+                );
+
+                CREATE TABLE "{schema}".monitor_measurement_removal_impact
+                (
+                    serial_id character varying(255) NOT NULL,
+                    measurement_table_count bigint NOT NULL,
+                    measurement_row_count bigint NOT NULL
+                );
+                """;
+            await command.ExecuteNonQueryAsync();
+            return fixture;
+        }
+
+        public async Task SeedAsync(
+            IReadOnlyList<Guid> deploymentMonitorIds,
+            IReadOnlyList<Guid> notificationMonitorIds,
+            IReadOnlyList<Guid> alertRuleMonitorIds,
+            IReadOnlyList<(string SerialId, int TableCount, int RowCount)> measurementImpacts)
+        {
+            await using NpgsqlConnection connection = new(scopedConnectionString);
+            await connection.OpenAsync();
+            foreach ((string table, IReadOnlyList<Guid> monitorIds) in new (string, IReadOnlyList<Guid>)[]
+            {
+                ("deployment", deploymentMonitorIds),
+                ("notification", notificationMonitorIds),
+                ("rvt_alert_rule", alertRuleMonitorIds)
+            })
+            {
+                foreach (Guid monitorId in monitorIds)
+                {
+                    await using NpgsqlCommand insert = connection.CreateCommand();
+                    insert.CommandText = $"INSERT INTO {table} (monitor_id) VALUES (@monitor_id);";
+                    insert.Parameters.AddWithValue("monitor_id", monitorId);
+                    await insert.ExecuteNonQueryAsync();
+                }
+            }
+
+            foreach ((string serialId, int tableCount, int rowCount) in measurementImpacts)
+            {
+                await using NpgsqlCommand insert = connection.CreateCommand();
+                insert.CommandText = """
+                    INSERT INTO monitor_measurement_removal_impact
+                        (serial_id, measurement_table_count, measurement_row_count)
+                    VALUES
+                        (@serial_id, @table_count, @row_count);
+                    """;
+                insert.Parameters.AddWithValue("serial_id", serialId);
+                insert.Parameters.AddWithValue("table_count", (long)tableCount);
+                insert.Parameters.AddWithValue("row_count", (long)rowCount);
+                await insert.ExecuteNonQueryAsync();
+            }
+        }
+
+        public RVTDbContext CreateDomainContext() =>
+            new(TestDbContexts.Npgsql<RVTDbContext>(scopedConnectionString));
+
+        public RVTSearchContext CreateSearchContext() =>
+            new(TestDbContexts.Npgsql<RVTSearchContext>(scopedConnectionString));
+
+        public async ValueTask DisposeAsync()
+        {
+            await using NpgsqlConnection connection = new(baseConnectionString);
+            await connection.OpenAsync();
+            await using NpgsqlCommand command = connection.CreateCommand();
+            command.CommandText = $"""DROP SCHEMA IF EXISTS "{schema}" CASCADE;""";
+            await command.ExecuteNonQueryAsync();
+        }
     }
 }

@@ -59,7 +59,9 @@ public class ReportWorkflowTests
         };
         HttpResponseMessage create = await client.PostAsJsonAsync("/api/report-rules", createRequest);
         EntityResponse<ReportRuleDetailResponse>? created = await create.Content.ReadFromJsonAsync<EntityResponse<ReportRuleDetailResponse>>();
-        QueryReportRulesResponse? list = await client.GetFromJsonAsync<QueryReportRulesResponse>("/api/report-rules?searchText=weekly&sort=siteName");
+        // The rules list reads the report_rule_search SQL view, which the InMemory host cannot populate;
+        // ReportRuleQueryPostgresTests covers the list query, and the detail read-back proves persistence here.
+        EntityResponse<ReportRuleDetailResponse>? readBack = await client.GetFromJsonAsync<EntityResponse<ReportRuleDetailResponse>>($"/api/report-rules/{created!.Item!.Id}");
         ReportRuleMutationRequest updateRequest = new()
         {
             SiteId = ids.SiteId,
@@ -71,19 +73,20 @@ public class ReportWorkflowTests
         HttpResponseMessage update = await client.PutAsJsonAsync($"/api/report-rules/{created!.Item!.Id}", updateRequest);
         EntityResponse<ReportRuleDetailResponse>? updated = await update.Content.ReadFromJsonAsync<EntityResponse<ReportRuleDetailResponse>>();
         HttpResponseMessage delete = await client.DeleteAsync($"/api/report-rules/{created.Item.Id}");
-        QueryReportRulesResponse? afterDelete = await client.GetFromJsonAsync<QueryReportRulesResponse>("/api/report-rules");
+        HttpResponseMessage afterDelete = await client.GetAsync($"/api/report-rules/{created.Item.Id}");
 
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
         Assert.Equal(createRequest.ReportName, created.Item.ReportName);
         Assert.Equal(ReportSiteName, created.Item.SiteName);
-        Assert.Contains(list!.Results, rule => rule.Id == created.Item.Id);
+        Assert.Equal(created.Item.Id, readBack!.Item!.Id);
+        Assert.Equal(createRequest.ReportName, readBack.Item.ReportName);
         Assert.Equal(HttpStatusCode.OK, update.StatusCode);
         Assert.Equal(updateRequest.Frequency, updated?.Item?.Frequency);
         Assert.Equal(updateRequest.DayOfWeek, updated?.Item?.DayOfWeek);
         Assert.Equal(updateRequest.DayOfMonth, updated?.Item?.DayOfMonth);
         Assert.Equal(HttpStatusCode.OK, delete.StatusCode);
-        Assert.DoesNotContain(afterDelete!.Results, rule => rule.Id == created.Item.Id);
+        Assert.Equal(HttpStatusCode.NotFound, afterDelete.StatusCode);
     }
 
     [Fact]

@@ -120,6 +120,58 @@ public sealed class DurableAlertDispatcherTests
     }
 
     [TestMethod]
+    public async Task DispatchAsync_WhenADeliveryDeadLetters_ReportsItInsteadOfFailingTheJob()
+    {
+        ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test", attemptCount: 8);
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
+        adapter.Setup(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new EmailDeliveryException("SendGrid", DeliveryFailureKind.Permanent, "400"));
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        AlertDispatchResult result = await dispatcher.DispatchAsync(CancellationToken.None);
+
+        Assert.AreEqual(1, result.DeadLettered);
+        CollectionAssert.AreEqual(new[] { message.Id }, result.DeadLetteredIds.ToArray());
+        Assert.AreEqual(0, result.Delivered);
+        Assert.IsNull(result.ClaimFailure);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_WhenAMidBatchClaimFails_KeepsWhatTheBatchAlreadyAccountedFor()
+    {
+        ClaimedAlertDelivery deadLettered = CreateDelivery("Email", "ops@example.test", attemptCount: 8);
+        InvalidOperationException claimFailure = new("database is unavailable");
+        Queue<object> claims = new([deadLettered, claimFailure]);
+        Mock<IAlertOutboxStore> store = new();
+        store.Setup(x => x.ClaimNextDueAsync(
+                It.IsAny<DateTime>(),
+                It.IsAny<TimeSpan>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(() => claims.Dequeue() is ClaimedAlertDelivery claimed
+                ? Task.FromResult<ClaimedAlertDelivery?>(claimed)
+                : Task.FromException<ClaimedAlertDelivery?>(claimFailure));
+        store.Setup(x => x.RetryAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<Guid>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<AlertDeliveryAudit?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Email");
+        adapter.Setup(x => x.DeliverAsync(deadLettered, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new EmailDeliveryException("SendGrid", DeliveryFailureKind.Permanent, "400"));
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        AlertDispatchResult result = await dispatcher.DispatchAsync(CancellationToken.None);
+
+        Assert.AreSame(claimFailure, result.ClaimFailure);
+        CollectionAssert.AreEqual(new[] { deadLettered.Id }, result.DeadLetteredIds.ToArray());
+    }
+
+    [TestMethod]
     public async Task DispatchAsync_SelectsAdapterByExactKind()
     {
         ClaimedAlertDelivery message = CreateDelivery("Email", "ops@example.test");
@@ -132,6 +184,163 @@ public sealed class DurableAlertDispatcherTests
 
         emailAdapter.Verify(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()), Times.Once);
         mqttAdapter.Verify(x => x.DeliverAsync(It.IsAny<ClaimedAlertDelivery>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_BackfilledAlertOutsideTheSendWindow_IsDeferredNotDroppedOrDeadLettered()
+    {
+        // The dispatcher clock is 14:00 UTC. A backfill run committing a
+        // 14:00 breach at 00:03 used to SMS the contact at midnight because
+        // the window was checked at plan time against the event time.
+        ClaimedAlertDelivery message = DeliveryWithWindow(
+            new TimeSpan(9, 0, 0),
+            new TimeSpan(12, 0, 0));
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        store.Verify(x => x.DeferAsync(
+            message.Id,
+            message.LeaseId,
+            UtcNow.Date.AddDays(1).AddHours(9),
+            It.IsAny<CancellationToken>()), Times.Once);
+        adapter.Verify(
+            x => x.DeliverAsync(It.IsAny<ClaimedAlertDelivery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        store.Verify(x => x.RetryAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<DateTime>(),
+            It.IsAny<string>(),
+            It.IsAny<bool>(),
+            It.IsAny<AlertDeliveryAudit?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        store.Verify(x => x.CompleteAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<DateTime>(),
+            It.IsAny<AlertDeliveryAudit?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_InsideTheSendWindow_DeliversImmediately()
+    {
+        ClaimedAlertDelivery message = DeliveryWithWindow(
+            new TimeSpan(9, 0, 0),
+            new TimeSpan(17, 0, 0));
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        adapter.Verify(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+        store.Verify(x => x.DeferAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<DateTime>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_MidnightSpanningWindowThatIsOpenNow_DeliversImmediately()
+    {
+        ClaimedAlertDelivery message = DeliveryWithWindow(
+            new TimeSpan(13, 0, 0),
+            new TimeSpan(2, 0, 0));
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        adapter.Verify(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_MidnightSpanningWindowThatIsClosedNow_DefersToTonightsOpening()
+    {
+        ClaimedAlertDelivery message = DeliveryWithWindow(
+            new TimeSpan(22, 0, 0),
+            new TimeSpan(6, 0, 0));
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        store.Verify(x => x.DeferAsync(
+            message.Id,
+            message.LeaseId,
+            UtcNow.Date.AddHours(22),
+            It.IsAny<CancellationToken>()), Times.Once);
+        adapter.Verify(
+            x => x.DeliverAsync(It.IsAny<ClaimedAlertDelivery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_ContactWithNoConfiguredWindow_DeliversImmediately()
+    {
+        ClaimedAlertDelivery message = CreateDelivery("Sms", "+15550001111");
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        adapter.Verify(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+        store.Verify(x => x.DeferAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<DateTime>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_WhenTheDeferLosesOwnership_LogsAndMovesOn()
+    {
+        ClaimedAlertDelivery message = DeliveryWithWindow(
+            new TimeSpan(9, 0, 0),
+            new TimeSpan(12, 0, 0));
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        store.Setup(x => x.DeferAsync(
+                message.Id,
+                message.LeaseId,
+                It.IsAny<DateTime>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        TestLogger<DurableAlertDispatcher> logger = new();
+        DurableAlertDispatcher dispatcher = CreateDispatcher(
+            store.Object,
+            [CreateAdapter("Sms").Object],
+            logger: logger);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        Assert.IsTrue(logger.Messages.Any(entry =>
+            entry.Contains("ownership was lost", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_WhenTheEnvelopeCannotBeRead_IsNotTreatedAsAQuietHoursDecision()
+    {
+        ClaimedAlertDelivery message = CreateDelivery("Sms", "+15550001111") with { Payload = "{bad-json" };
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        store.Verify(x => x.DeferAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<DateTime>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        adapter.Verify(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [TestMethod]
@@ -209,8 +418,7 @@ public sealed class DurableAlertDispatcherTests
             .ThrowsAsync(failure);
         DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
-        AggregateException exception = await Assert.ThrowsExactlyAsync<AggregateException>(
-            () => dispatcher.DispatchAsync(CancellationToken.None));
+        AlertDispatchResult result = await dispatcher.DispatchAsync(CancellationToken.None);
 
         store.Verify(x => x.RetryAsync(
             message.Id,
@@ -227,7 +435,7 @@ public sealed class DurableAlertDispatcherTests
             It.IsAny<CancellationToken>()), Times.Once);
         if (rawPayload.Length > 0)
         {
-            Assert.IsFalse(exception.ToString().Contains(rawPayload, StringComparison.Ordinal));
+            Assert.IsFalse(result.ToString().Contains(rawPayload, StringComparison.Ordinal));
         }
     }
 
@@ -362,8 +570,7 @@ public sealed class DurableAlertDispatcherTests
             .ThrowsAsync(new EmailDeliveryException("SendGrid", failureKind, "400"));
         DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
-        await Assert.ThrowsExactlyAsync<AggregateException>(
-            () => dispatcher.DispatchAsync(CancellationToken.None));
+        AlertDispatchResult result = await dispatcher.DispatchAsync(CancellationToken.None);
 
         store.Verify(x => x.RetryAsync(
             message.Id,
@@ -440,8 +647,7 @@ public sealed class DurableAlertDispatcherTests
                 "503"));
         DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
 
-        await Assert.ThrowsExactlyAsync<AggregateException>(
-            () => dispatcher.DispatchAsync(CancellationToken.None));
+        AlertDispatchResult result = await dispatcher.DispatchAsync(CancellationToken.None);
 
         store.Verify(x => x.RetryAsync(
             message.Id,
@@ -465,8 +671,7 @@ public sealed class DurableAlertDispatcherTests
             .ThrowsAsync(new HttpRequestException("provider failure"));
         DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object], timeProvider: clock);
 
-        await Assert.ThrowsExactlyAsync<AggregateException>(
-            () => dispatcher.DispatchAsync(CancellationToken.None));
+        AlertDispatchResult result = await dispatcher.DispatchAsync(CancellationToken.None);
 
         DateTime outcomeTime = UtcNow.AddSeconds(20);
         store.Verify(x => x.RetryAsync(
@@ -571,8 +776,7 @@ public sealed class DurableAlertDispatcherTests
             [emailAdapter.Object, mqttAdapter.Object],
             logger: logger);
 
-        AggregateException exception = await Assert.ThrowsExactlyAsync<AggregateException>(
-            () => dispatcher.DispatchAsync(CancellationToken.None));
+        AlertDispatchResult result = await dispatcher.DispatchAsync(CancellationToken.None);
 
         mqttAdapter.Verify(x => x.DeliverAsync(successful, It.IsAny<CancellationToken>()), Times.Once);
         store.Verify(x => x.RetryAsync(
@@ -589,8 +793,8 @@ public sealed class DurableAlertDispatcherTests
                 audit.Message == "Alert delivery failed (InvalidOperationException)." &&
                 audit.SentAt == UtcNow),
             It.IsAny<CancellationToken>()), Times.Once);
-        Assert.IsFalse(exception.ToString().Contains(destination, StringComparison.Ordinal));
-        Assert.IsFalse(exception.ToString().Contains(rawFailure, StringComparison.Ordinal));
+        Assert.IsFalse(result.ToString().Contains(destination, StringComparison.Ordinal));
+        Assert.IsFalse(result.ToString().Contains(rawFailure, StringComparison.Ordinal));
         Assert.IsTrue(logger.Messages.Any(entry =>
             entry.Contains("dead-lettered", StringComparison.OrdinalIgnoreCase) &&
             !entry.Contains("aler****", StringComparison.Ordinal) &&
@@ -643,8 +847,24 @@ public sealed class DurableAlertDispatcherTests
                 It.IsAny<AlertDeliveryAudit?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        store.Setup(x => x.DeferAsync(
+                message.Id,
+                message.LeaseId,
+                It.IsAny<DateTime>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
         return store;
     }
+
+    private static ClaimedAlertDelivery DeliveryWithWindow(TimeSpan start, TimeSpan end) =>
+        CreateDelivery("Sms", "+15550001111") with
+        {
+            Payload = JsonSerializer.Serialize(CreateEnvelope() with
+            {
+                SendWindowStart = start,
+                SendWindowEnd = end
+            })
+        };
 
     private static ClaimedAlertDelivery CreateDelivery(
         string kind,

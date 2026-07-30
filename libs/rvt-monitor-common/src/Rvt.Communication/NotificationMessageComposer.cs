@@ -25,10 +25,10 @@ public sealed class NotificationMessageComposer : INotificationMessageComposer
                 string.Empty,
                 Html("Your monitor has detected an alert above the safe limit set. <br/><br/>Click <a href='{callbackUrl}'>here</a> to view the details. <br/><br/>Many thanks From the RVT Group")),
             [(NotificationMessageKind.Alert, NotificationChannel.Sms)] = new(
-                "Alert received from  {Monitor}",
-                "Alert received from  {Monitor}" + Environment.NewLine +
+                "Alert received from {Monitor}",
+                "Alert received from {Monitor}" + Environment.NewLine +
                 "Your monitor has detected an alert above the safe limit set." + Environment.NewLine +
-                "Click here '{callbackUrl}' to view the details." + Environment.NewLine +
+                "Click here {callbackUrl} to view the details." + Environment.NewLine +
                 _smsSignOff,
                 string.Empty),
             [(NotificationMessageKind.Caution, NotificationChannel.Email)] = new(

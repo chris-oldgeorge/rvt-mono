@@ -1,6 +1,6 @@
-// File summary: Shares props types, paging constants, and site operating-hours helpers across the contract/site panels.
+// File summary: Shares the paging constant, route-prop shapes, and list helpers across every operations panel.
 // Major updates:
-// - 2026-07-30 pending Extracted from ContractSitePanels.tsx during the contracts/sites split.
+// - 2026-07-30 pending Merged monitorShared.ts and contractSiteShared.ts, which had already diverged.
 
 import type { SiteOperatingHours } from '../dtos';
 
@@ -15,6 +15,19 @@ export type OperationsPanelCallbacks = Readonly<{
 export type OperationsRouteProps = OperationsPanelCallbacks &
   Readonly<{
     locationPath: string;
+  }>;
+
+// Panels that read the route but never navigate away from it.
+export type ReadOnlyRouteProps = Readonly<{
+  locationPath: string;
+  onRequestError: (error: unknown) => void;
+}>;
+
+export type MonitorsPanelProps = OperationsRouteProps &
+  Readonly<{
+    canManage?: boolean;
+    canUseInstallerTools?: boolean;
+    installerOnly?: boolean;
   }>;
 
 export const siteOperatingDays: SiteOperatingHours[] = [
@@ -35,6 +48,16 @@ type LegacySiteHours = {
   sunStartTime?: string | null;
   sunEndTime?: string | null;
 } | null;
+
+// Function summary: Resets the list page alongside a search text change.
+export function resetSearchPage(
+  value: string,
+  setSearchText: (nextValue: string) => void,
+  setPage: (nextPage: number) => void,
+) {
+  setSearchText(value);
+  setPage(1);
+}
 
 // Function summary: Normalizes API and legacy site-hour values into the seven-day editor/detail model.
 export function normalizeOperatingHours(operatingHours?: SiteOperatingHours[] | null, legacy?: LegacySiteHours) {

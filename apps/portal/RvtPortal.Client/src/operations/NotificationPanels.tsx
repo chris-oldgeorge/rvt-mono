@@ -20,6 +20,9 @@ import { formatDateTime, formatNumber } from '../format';
 import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
 import { useRequestLifecycle } from '../requestLifecycle';
 import { alertLevelColumnsForMonitorType } from './alertLevelColumns';
+import { DetailItem } from './panelComponents';
+import { pageSize } from './panelShared';
+import type { ListExecution, OperationsRouteProps } from './panelShared';
 import type {
   NotificationDetailResponse,
   NotificationListItem,
@@ -28,17 +31,8 @@ import type {
   SortDirection,
 } from '../dtos';
 
-const pageSize = 10;
-type ListExecution<TQuery> = Readonly<{ query: TQuery }>;
-
-type OperationsPanelProps = Readonly<{
-  locationPath: string;
-  onNavigate: (path: string) => void;
-  onRequestError: (error: unknown) => void;
-}>;
-
 // Function summary: Renders the NotificationsPanel React component and wires its local UI behavior.
-export function NotificationsPanel({ locationPath, onNavigate, onRequestError }: OperationsPanelProps) {
+export function NotificationsPanel({ locationPath, onNavigate, onRequestError }: OperationsRouteProps) {
   const route = parseNotificationRoute(locationPath);
   if (route.notificationId) {
     return (
@@ -55,7 +49,7 @@ export function NotificationsPanel({ locationPath, onNavigate, onRequestError }:
 }
 
 // Function summary: Renders the NotificationListPanel React component and wires its local UI behavior.
-function NotificationListPanel({ locationPath, onNavigate, onRequestError }: OperationsPanelProps) {
+function NotificationListPanel({ locationPath, onNavigate, onRequestError }: OperationsRouteProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [state, setState] = useState<NotificationListState>(() =>
     normalizeNotificationState(initialParams.get('state')),
@@ -346,7 +340,7 @@ function NotificationDetailPanel({
   locationPath,
   onNavigate,
   onRequestError,
-}: OperationsPanelProps & Readonly<{ notificationId: string }>) {
+}: OperationsRouteProps & Readonly<{ notificationId: string }>) {
   const [notification, setNotification] = useState<NotificationDetailResponse | null>(null);
   const [closeNote, setCloseNote] = useState('');
   const [notice, setNotice] = useState<string | null>(null);
@@ -547,16 +541,6 @@ function notificationStatusClassName(notification: NotificationListItem) {
     return 'success';
   }
   return 'danger';
-}
-
-// Function summary: Renders the DetailItem React component and wires its local UI behavior.
-function DetailItem({ label, value }: Readonly<{ label: string; value: string }>) {
-  return (
-    <div className="detail-item">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
 }
 
 // Function summary: Handles the parse notification route workflow for this module.

@@ -50,6 +50,9 @@ import { formatDate, formatDateTime } from '../format';
 import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
 import { useRequestLifecycle } from '../requestLifecycle';
 import { safeHref } from '../safeUrl';
+import { DetailItem } from './panelComponents';
+import { pageSize } from './panelShared';
+import type { ListExecution, OperationsRouteProps } from './panelShared';
 import type {
   QueryCompaniesRequest,
   QueryReportRulesRequest,
@@ -65,19 +68,11 @@ import type {
   UserListItem,
 } from '../dtos';
 
-const pageSize = 10;
-type ListExecution<TQuery> = Readonly<{ query: TQuery }>;
 const dailyFrequency = 1;
 const weeklyFrequency = 2;
 const monthlyFrequency = 3;
 const weeklyAndMonthlyFrequency = 4;
 const monday = 1;
-
-type ReportsPanelProps = Readonly<{
-  locationPath: string;
-  onNavigate: (path: string) => void;
-  onRequestError: (error: unknown) => void;
-}>;
 
 type ReportsRoute =
   | { kind: 'reports' }
@@ -100,7 +95,7 @@ type UserGridState = Readonly<{
 }>;
 
 // Function summary: Renders the ReportsPanel React component and wires its local UI behavior.
-export function ReportsPanel({ locationPath, onNavigate, onRequestError }: ReportsPanelProps) {
+export function ReportsPanel({ locationPath, onNavigate, onRequestError }: OperationsRouteProps) {
   const route = parseReportsRoute(locationPath);
   if (route.kind === 'rules') {
     return <ReportRulesListPanel locationPath={locationPath} onNavigate={onNavigate} onRequestError={onRequestError} />;
@@ -141,7 +136,7 @@ export function ReportsPanel({ locationPath, onNavigate, onRequestError }: Repor
 }
 
 // Function summary: Renders the ReportsListPanel React component and wires its local UI behavior.
-function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsPanelProps) {
+function ReportsListPanel({ locationPath, onNavigate, onRequestError }: OperationsRouteProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [reports, setReports] = useState<ReportListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -283,7 +278,7 @@ function ReportsListPanel({ locationPath, onNavigate, onRequestError }: ReportsP
 }
 
 // Function summary: Renders the ReportRulesListPanel React component and wires its local UI behavior.
-function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: ReportsPanelProps) {
+function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: OperationsRouteProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [rules, setRules] = useState<ReportRuleListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -490,7 +485,7 @@ function ReportRuleForm({
   locationPath,
   onNavigate,
   onRequestError,
-}: ReportsPanelProps & Readonly<{ ruleId?: string }>) {
+}: OperationsRouteProps & Readonly<{ ruleId?: string }>) {
   const [options, setOptions] = useState<ReportRuleOptionsResponse | null>(null);
   const [form, setForm] = useState<ReportRuleMutationRequest>(emptyRuleForm());
   const [notice, setNotice] = useState<string | null>(null);
@@ -714,7 +709,7 @@ function ReportRuleUsersPanel({
   locationPath,
   onNavigate,
   onRequestError,
-}: ReportsPanelProps & Readonly<{ ruleId: string }>) {
+}: OperationsRouteProps & Readonly<{ ruleId: string }>) {
   const [context, setContext] = useState<ReportRuleAssignmentContext | null>(null);
   const [available, setAvailable] = useState<UserGridState>(emptyUserGrid());
   const [assigned, setAssigned] = useState<UserGridState>(emptyUserGrid());
@@ -1150,16 +1145,6 @@ function contextFromPagedUsers(response: QueryReportRuleUsersResponse): ReportRu
     companyId: response.companyId,
     companyName: response.companyName,
   };
-}
-
-// Function summary: Renders the DetailItem React component and wires its local UI behavior.
-function DetailItem({ label, value }: Readonly<{ label: string; value: string }>) {
-  return (
-    <div className="detail-item">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
 }
 
 // Function summary: Handles the open report workflow for this module.

@@ -306,9 +306,14 @@ public sealed class OmnidotsAlertOutboxStoreTests
             new FixedTimeProvider(failedAt),
             NullLogger<DurableAlertDispatcher>.Instance);
 
-        AggregateException exception = await Assert.ThrowsExactlyAsync<AggregateException>(
-            () => dispatcher.DispatchAsync(TestContext.CancellationToken));
+        // Dead-lettering is the designed terminal outcome, so it is reported
+        // in the result rather than thrown as an AggregateException that
+        // failed the whole dispatch job.
+        AlertDispatchResult result = await dispatcher.DispatchAsync(TestContext.CancellationToken);
 
+        Assert.AreEqual(1, result.DeadLettered);
+        CollectionAssert.AreEqual(new[] { id }, result.DeadLetteredIds.ToArray());
+        Assert.IsNull(result.ClaimFailure);
         Assert.AreEqual("DeadLetter", await ReadStringAsync(
             "SELECT status FROM alert_delivery_outbox WHERE id = @id;",
             id));
@@ -326,7 +331,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
             id);
         Assert.AreEqual("Alert delivery failed (JsonException).", safeError);
         Assert.IsFalse(safeError.Contains(rawPayload, StringComparison.Ordinal));
-        Assert.IsFalse(exception.ToString().Contains(rawPayload, StringComparison.Ordinal));
+        Assert.IsFalse(result.ToString().Contains(rawPayload, StringComparison.Ordinal));
     }
 
     [TestMethod]

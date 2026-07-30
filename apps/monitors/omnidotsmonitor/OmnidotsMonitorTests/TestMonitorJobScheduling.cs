@@ -330,7 +330,7 @@ public sealed class TestMonitorJobScheduling
     }
 
     [TestMethod]
-    public async Task MonitorHost_OneShotDispatchWithAmbientApiEnabledAndNoEndpointSecrets_ReportsJobFailure()
+    public async Task MonitorHost_OneShotDispatchWithAmbientApiEnabledAndNoEndpointSecrets_DeadLettersWithoutFailingTheJob()
     {
         DateTime now = new(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
         ClaimedAlertDelivery delivery = new(
@@ -396,7 +396,9 @@ public sealed class TestMonitorJobScheduling
                 services.AddSingleton<TimeProvider>(new FixedTimeProvider(now));
             });
 
-        Assert.AreEqual(1, exitCode);
+        // Dead-lettering is the retry policy's designed terminal outcome and
+        // is recorded on the row, so it no longer fails the dispatch job.
+        Assert.AreEqual(0, exitCode);
         store.Verify(outbox => outbox.ClaimNextDueAsync(
             now,
             TimeSpan.FromSeconds(120),

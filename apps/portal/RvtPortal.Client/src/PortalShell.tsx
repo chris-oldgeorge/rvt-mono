@@ -1,5 +1,6 @@
 // File summary: Renders the authenticated portal shell with navigation, shared error handling, and routed panels.
 // Major updates:
+// - 2026-07-30 pending Reported sign-out failures instead of leaving an unhandled rejection.
 // - 2026-07-30 pending Extracted from App.tsx during the shell/page split; replaced the "SPA migration" brand placeholder.
 
 import {
@@ -151,14 +152,20 @@ export function PortalShell({ auth, locationPath, route, onAuthChanged, onNaviga
   }, [handleShellRequestError]);
 
   async function handleLogout() {
-    const nextAuth = await logout().catch((error: unknown) => {
-      if (isUnauthorized(error)) {
-        return { isAuthenticated: false, user: null };
-      }
-      throw error;
-    });
-    onAuthChanged(nextAuth);
-    onNavigate('/login');
+    try {
+      const nextAuth = await logout().catch((error: unknown) => {
+        if (isUnauthorized(error)) {
+          return { isAuthenticated: false, user: null };
+        }
+        throw error;
+      });
+      onAuthChanged(nextAuth);
+      onNavigate('/login');
+    } catch (error) {
+      // Rethrowing from a click handler produced an unhandled rejection and no feedback:
+      // the user was left signed in with nothing on screen to say why.
+      handleShellRequestError(error);
+    }
   }
 
   return (
@@ -218,7 +225,7 @@ export function PortalShell({ auth, locationPath, route, onAuthChanged, onNaviga
               <ShieldCheck size={18} aria-hidden="true" />
               <span>{health ? `${health.status} / ${health.framework}` : 'checking API'}</span>
             </div>
-            <button className="icon-text-button" type="button" onClick={handleLogout}>
+            <button className="icon-text-button" type="button" onClick={() => void handleLogout()}>
               <LogOut size={18} aria-hidden="true" />
               <span>Sign out</span>
             </button>

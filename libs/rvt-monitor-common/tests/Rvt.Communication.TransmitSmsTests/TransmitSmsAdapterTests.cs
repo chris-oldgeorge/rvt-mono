@@ -96,6 +96,41 @@ public sealed class TransmitSmsAdapterTests
     }
 
     [TestMethod]
+    [DataRow("")]
+    [DataRow("   ")]
+    [DataRow("null")]
+    [DataRow("{}")]
+    [DataRow("""{"error":{}}""")]
+    [DataRow("""{"result":"queued"}""")]
+    public async Task SendAsync_SuccessfulResponseWithNoRecognisableErrorCodeIsTransient(string body)
+    {
+        using CapturingHandler handler = new(HttpStatusCode.OK, body);
+        using HttpClient httpClient = new(handler);
+        TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
+
+        SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
+            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body"), TestContext.CancellationToken));
+
+        // An empty or blank body fails to parse at all and already routed
+        // through the JsonException path; the rest used to dead-letter.
+        Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
+    }
+
+    [TestMethod]
+    public async Task SendAsync_SuccessfulResponseWithNoErrorCode_CarriesTheUnknownSentinel()
+    {
+        using CapturingHandler handler = new(HttpStatusCode.OK, """{"error":{}}""");
+        using HttpClient httpClient = new(handler);
+        TransmitSmsAdapter adapter = new(httpClient, EnabledOptions());
+
+        SmsDeliveryException exception = await Assert.ThrowsExactlyAsync<SmsDeliveryException>(() =>
+            adapter.SendAsync(new SmsDeliveryRequest("447700900123", "private-body"), TestContext.CancellationToken));
+
+        Assert.AreEqual("UNKNOWN", exception.Code);
+        Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
+    }
+
+    [TestMethod]
     public async Task SendAsync_NetworkFailureIsTransient()
     {
         using ThrowingHandler handler = new(new HttpRequestException("raw network secret"));

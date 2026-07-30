@@ -74,7 +74,13 @@ public sealed class DurableAlertBackgroundService : BackgroundService
 
         try
         {
-            await dispatcher.DispatchAsync(cancellationToken);
+            AlertDispatchResult result = await dispatcher.DispatchAsync(cancellationToken);
+            if (result.ClaimFailure is { } claimFailure)
+            {
+                logger.LogError(
+                    "Durable alert dispatch iteration failed ({ExceptionType}); the worker will continue.",
+                    claimFailure.GetType().Name);
+            }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -92,10 +98,14 @@ public sealed class DurableAlertBackgroundService : BackgroundService
             return;
         }
 
-        lastCleanupDate = utcNow.Date;
         try
         {
             await cleanupService.CleanupAsync(utcNow, cancellationToken);
+
+            // Stamped only on success. Stamping first meant one transient
+            // failure skipped cleanup for a full day, and the outbox kept
+            // growing under the claim query's ORDER BY.
+            lastCleanupDate = utcNow.Date;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

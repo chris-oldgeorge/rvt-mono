@@ -307,7 +307,7 @@ def verify_workflow(path)
     ],
     [
       standards_step,
-      ["scripts/verify-engineering-standards.sh --base auto --head HEAD"],
+      ['scripts/verify-engineering-standards.sh --base "${BASE_SHA}" --head HEAD'],
       "workflow standards verification"
     ],
     [

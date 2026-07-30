@@ -7,7 +7,7 @@ namespace MyAtmMonitorTests.Architecture;
 [TestClass]
 public sealed class CommonPackageBoundaryTests
 {
-    private const string MonitorsScope = "apps/monitors";
+    private const string _monitorsScope = "apps/monitors";
     private const string CommonProject = "libs/rvt-monitor-common/src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj";
     private const string CommunicationAbstractionsProject = "libs/rvt-monitor-common/src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj";
     private const string CommunicationProject = "libs/rvt-monitor-common/src/Rvt.Communication/Rvt.Communication.csproj";
@@ -110,7 +110,7 @@ public sealed class CommonPackageBoundaryTests
     {
         string root = RepositoryLayout.Root;
         string[] violations = [.. Directory
-            .EnumerateFiles(Path.Combine(root, MonitorsScope), "*.csproj", SearchOption.AllDirectories)
+            .EnumerateFiles(Path.Combine(root, _monitorsScope), "*.csproj", SearchOption.AllDirectories)
             .Where(path => !HasGeneratedDirectory(root, path))
             .SelectMany(FindCrossMonitorReferences)
             .Order(StringComparer.Ordinal)];
@@ -288,7 +288,7 @@ public sealed class CommonPackageBoundaryTests
     private static IEnumerable<string> FindActiveRvtPackageReferences()
     {
         string root = RepositoryLayout.Root;
-        foreach (string? scope in new[] { MonitorsScope, "apps/portal" })
+        foreach (string? scope in new[] { _monitorsScope, "apps/portal" })
         {
             foreach (string? projectPath in Directory.EnumerateFiles(
                          Path.Combine(root, scope),

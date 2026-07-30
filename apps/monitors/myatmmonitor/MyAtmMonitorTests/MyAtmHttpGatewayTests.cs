@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Moq;
-using MyAtm.Api;
 using MyAtm.Api.Http;
 using MyAtm.Api.Ports;
 using MyAtm.Model;

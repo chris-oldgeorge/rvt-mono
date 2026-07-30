@@ -1,7 +1,6 @@
 using System.Data;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
-using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.Rules;
 using MyAtm.Model;

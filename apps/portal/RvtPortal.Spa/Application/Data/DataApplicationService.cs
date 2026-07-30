@@ -263,7 +263,7 @@ public sealed class DataApplicationService : IDataApplicationService
                 Page: page,
                 PageSize: pageSize,
                 Sort: serviceSort,
-                SortDir: ToOrderDirection(sortDir)));
+                SortDir: ToOrderDirection(sortDir)), cancellationToken);
 
         return DataWorkflowResult<MonitorDataGridResponse>.Success(BuildGridResponse(deployment, monitorData, requestedSort, sortDir, page, pageSize));
     }
@@ -299,7 +299,7 @@ public sealed class DataApplicationService : IDataApplicationService
                 ToDate: clampedWindow.Value.To,
                 GraphData: false,
                 Sort: SampleTimeSort,
-                SortDir: OrderByDirectionEnum.Ascending));
+                SortDir: OrderByDirectionEnum.Ascending), cancellationToken);
         MonitorDataGridResponse response = BuildGridResponse(deployment, monitorData, SampleTimeKey, SortDirections.Ascending, 1, Math.Max(RowCount(monitorData), 1));
         if (response.Total == 0)
         {
@@ -343,7 +343,7 @@ public sealed class DataApplicationService : IDataApplicationService
                 FilterOption: request.FilterOption,
                 FromDate: clampedWindow.Value.From,
                 ToDate: clampedWindow.Value.To,
-                GraphData: true));
+                GraphData: true), cancellationToken);
 
         return DataWorkflowResult<MonitorGraphResponse>.Success(await BuildGraphResponseAsync(deployment, monitorData, traceId: null, cancellationToken));
     }
@@ -430,7 +430,7 @@ public sealed class DataApplicationService : IDataApplicationService
             FilterOption: null,
             FromDate: null,
             ToDate: null,
-            GraphData: true));
+            GraphData: true), cancellationToken);
 
         return DataWorkflowResult<TraceDetailResponse>.Success(BuildTraceDetailResponse(deployment, traceId, monitorData));
     }

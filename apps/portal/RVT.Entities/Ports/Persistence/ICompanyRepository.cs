@@ -8,6 +8,6 @@ namespace RVT.Entities.Ports.Persistence;
 
 public interface ICompanyRepository
 {
-    Task<Company?> GetByIdAsync(Guid id);
+    Task<Company?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<SearchQueryResult<Company>> ReadFilteredAsync(List<Filter> whereFilter, OrderByProperty[] orderBy, int maximumRecords, Paging pagedata, CancellationToken cancellationToken = default);
 }

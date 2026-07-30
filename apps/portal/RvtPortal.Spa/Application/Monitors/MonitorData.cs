@@ -216,19 +216,19 @@ public class MonitorData
 
 
     // Function summary: Retrieves deployment data data for callers.
-    public static async Task<MonitorData> GetDeploymentData(IMonitorService monitorService, IRvtDateTimeProvider dateTimeProvider, Guid deploymentId, Guid? traceId, string? filterOption, DateTime? fromDate, DateTime? toDate, bool graphData, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortDir = null)
+    public static async Task<MonitorData> GetDeploymentData(IMonitorService monitorService, IRvtDateTimeProvider dateTimeProvider, Guid deploymentId, Guid? traceId, string? filterOption, DateTime? fromDate, DateTime? toDate, bool graphData, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortDir = null, CancellationToken cancellationToken = default)
     {
-        Deployment deployment = (await monitorService.DeploymentReadOneAsync(deploymentId))!;
+        Deployment deployment = (await monitorService.DeploymentReadOneAsync(deploymentId, cancellationToken))!;
 
         DateTime defaultFromDate = DateTime.Today.AddDays(-1).LocalToUtc(dateTimeProvider);
         DateTime defaultToDate = DateTime.Today.AddDays(1).LocalToUtc(dateTimeProvider);
         (DateTime chosenFromDate, DateTime chosenToDate) = NormalizeDeploymentDateRange(fromDate, toDate, defaultFromDate, defaultToDate);
         TimeSpan chosenTimeSpan = chosenToDate - chosenFromDate;
-        RVT.Entities.Monitor? monitor = await monitorService.ReadOneAsync(deployment.MonitorId);
+        RVT.Entities.Monitor? monitor = await monitorService.ReadOneAsync(deployment.MonitorId, cancellationToken);
 
         if (traceId != null)
         {
-            return await BuildTraceMonitorData(monitorService, monitor, (Guid)traceId, defaultFromDate, defaultToDate, filterOption);
+            return await BuildTraceMonitorData(monitorService, monitor, (Guid)traceId, defaultFromDate, defaultToDate, filterOption, cancellationToken);
         }
 
         if (monitor == null)
@@ -240,7 +240,7 @@ public class MonitorData
         (DateTime validFromDate, DateTime validToDate) = ClampDeploymentDateRange(minDate, maxDate, chosenFromDate, chosenToDate, chosenTimeSpan, dateTimeProvider);
         MonitorData monitorData = BuildMonitorData(monitor, minDate, maxDate, validFromDate, validToDate, filterOption);
 
-        await ApplyMonitorReadings(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir);
+        await ApplyMonitorReadings(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir, cancellationToken);
 
         monitorData.FromDateChanged = fromDate != null && fromDate != monitorData.FromDate.TruncateSeconds();
         monitorData.ToDateChanged = toDate != null && toDate != monitorData.ToDate.TruncateSeconds();
@@ -269,10 +269,10 @@ public class MonitorData
     }
 
     // Function summary: Builds monitor data for a vibration trace request.
-    private static async Task<MonitorData> BuildTraceMonitorData(IMonitorService monitorService, RVT.Entities.Monitor? monitor, Guid traceId, DateTime defaultFromDate, DateTime defaultToDate, string? filterOption)
+    private static async Task<MonitorData> BuildTraceMonitorData(IMonitorService monitorService, RVT.Entities.Monitor? monitor, Guid traceId, DateTime defaultFromDate, DateTime defaultToDate, string? filterOption, CancellationToken cancellationToken)
     {
-        OmnidotsTracesIndex? traceIndex = await monitorService.TracesIndexReadOne(traceId);
-        SearchQueryResult<OmnidotsTrace> traces = await monitorService.GetVibrationTraces(traceId);
+        OmnidotsTracesIndex? traceIndex = await monitorService.TracesIndexReadOne(traceId, cancellationToken);
+        SearchQueryResult<OmnidotsTrace> traces = await monitorService.GetVibrationTraces(traceId, cancellationToken);
 
         return new MonitorData
         {
@@ -343,18 +343,18 @@ public class MonitorData
     }
 
     // Function summary: Populates monitor-type specific readings.
-    private static async Task ApplyMonitorReadings(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir)
+    private static async Task ApplyMonitorReadings(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir, CancellationToken cancellationToken)
     {
         switch (monitor.TypeOfMonitor)
         {
             case MonitorTypeEnum.Dust:
-                await ApplyDustData(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir);
+                await ApplyDustData(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir, cancellationToken);
                 break;
             case MonitorTypeEnum.Noise:
-                await ApplyNoiseData(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir);
+                await ApplyNoiseData(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir, cancellationToken);
                 break;
             case MonitorTypeEnum.Vibration:
-                await ApplyVibrationData(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir);
+                await ApplyVibrationData(monitorService, monitorData, monitor, validFromDate, validToDate, filterOption, graphData, page, pageSize, sort, sortDir, cancellationToken);
                 break;
             default:
                 break;
@@ -380,14 +380,14 @@ public class MonitorData
     }
 
     // Function summary: Populates dust readings and filter options.
-    private static async Task ApplyDustData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir)
+    private static async Task ApplyDustData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir, CancellationToken cancellationToken)
     {
         int avrgDuration = GetAvrgDurationFromFilterOption(filterOption, MonitorTypeEnum.Dust);
         validToDate = ApplyMaxDuration(monitorData, validFromDate, validToDate, avrgDuration / 5, graphData);
 
         monitorData.DustLevels = avrgDuration == 28800
-            ? await monitorService.GetMyAtmDustLevels8hourAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir)
-            : await monitorService.GetMyAtmDustLevels(monitor.SerialId, validFromDate, validToDate, avrgDuration, page, pageSize, sort, sortDir);
+            ? await monitorService.GetMyAtmDustLevels8hourAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir, cancellationToken)
+            : await monitorService.GetMyAtmDustLevels(monitor.SerialId, validFromDate, validToDate, avrgDuration, page, pageSize, sort, sortDir, cancellationToken);
 
         monitorData.FilterOptions = new Dictionary<string, string>
         {
@@ -402,7 +402,7 @@ public class MonitorData
     }
 
     // Function summary: Populates noise readings and filter options.
-    private static async Task ApplyNoiseData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir)
+    private static async Task ApplyNoiseData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir, CancellationToken cancellationToken)
     {
         int avrgDuration = GetAvrgDurationFromFilterOption(filterOption, MonitorTypeEnum.Noise);
         int maxDurationDays = (filterOption == "site" ? 86400 : avrgDuration) / 5;
@@ -410,10 +410,10 @@ public class MonitorData
 
         monitorData.NoiseLevels = filterOption switch
         {
-            "site" => await monitorService.GetAirQnoiseLevelsSiteAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir),
-            _ when avrgDuration == 3600 => await monitorService.GetAirQnoiseLevels1hourAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir),
-            _ when avrgDuration == 86400 => await monitorService.GetAirQnoiseLevels1dayAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir),
-            _ => await monitorService.GetAirQnoiseLevels(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir)
+            "site" => await monitorService.GetAirQnoiseLevelsSiteAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir, cancellationToken),
+            _ when avrgDuration == 3600 => await monitorService.GetAirQnoiseLevels1hourAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir, cancellationToken),
+            _ when avrgDuration == 86400 => await monitorService.GetAirQnoiseLevels1dayAvg(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir, cancellationToken),
+            _ => await monitorService.GetAirQnoiseLevels(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir, cancellationToken)
         };
 
         monitorData.FilterOptions = new Dictionary<string, string>
@@ -428,15 +428,15 @@ public class MonitorData
     }
 
     // Function summary: Populates vibration readings or frequency data and filter options.
-    private static async Task ApplyVibrationData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir)
+    private static async Task ApplyVibrationData(IMonitorService monitorService, MonitorData monitorData, RVT.Entities.Monitor monitor, DateTime validFromDate, DateTime validToDate, string? filterOption, bool graphData, int? page, int? pageSize, string? sort, OrderByDirectionEnum? sortDir, CancellationToken cancellationToken)
     {
         monitorData.FilterOption = filterOption ?? "time";
         validToDate = ApplyMaxDuration(monitorData, validFromDate, validToDate, filterOption == "frequency" ? 1 : 3, graphData);
-        SearchQueryResult<OmnidotsPeakLevel> vibrationLevels = await monitorService.GetOmnidotsPeakLevels(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir);
+        SearchQueryResult<OmnidotsPeakLevel> vibrationLevels = await monitorService.GetOmnidotsPeakLevels(monitor.SerialId, validFromDate, validToDate, page, pageSize, sort, sortDir, cancellationToken);
 
         if (monitorData.FilterOption == "frequency")
         {
-            await ApplyVibrationFrequencyData(monitorService, monitorData, monitor.SerialId, vibrationLevels);
+            await ApplyVibrationFrequencyData(monitorService, monitorData, monitor.SerialId, vibrationLevels, cancellationToken);
         }
         else
         {
@@ -451,9 +451,9 @@ public class MonitorData
     }
 
     // Function summary: Builds vibration frequency magnitudes from peak levels.
-    private static async Task ApplyVibrationFrequencyData(IMonitorService monitorService, MonitorData monitorData, string serialId, SearchQueryResult<OmnidotsPeakLevel> vibrationLevels)
+    private static async Task ApplyVibrationFrequencyData(IMonitorService monitorService, MonitorData monitorData, string serialId, SearchQueryResult<OmnidotsPeakLevel> vibrationLevels, CancellationToken cancellationToken)
     {
-        OmnidotsMonitorStatus? monitorStatus = await monitorService.GetVibrationMonitorStatusAsync(serialId);
+        OmnidotsMonitorStatus? monitorStatus = await monitorService.GetVibrationMonitorStatusAsync(serialId, cancellationToken);
         if (monitorStatus?.MeasurementDuration == null || vibrationLevels.Value.Count == 0)
         {
             return;

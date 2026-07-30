@@ -89,7 +89,7 @@ namespace Svantek.Api.UseCases
                 }
                 catch (Exception exception)
                 {
-                    failures.Capture(identifier, exception);
+                    failures.Capture(identifier, exception, cancellationToken);
                 }
             }
 

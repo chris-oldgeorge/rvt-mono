@@ -70,6 +70,17 @@ public sealed class AlertPersistenceExceptionClassifierTests
         AssertSafe(classified);
     }
 
+    [TestMethod]
+    public void UnknownMonitorException_PassesThroughAsPermanentOutcome()
+    {
+        AlertUnknownMonitorException unknownMonitor = new("23423");
+
+        Exception classified = AlertPersistenceExceptionClassifier.Classify(unknownMonitor);
+
+        Assert.AreSame(unknownMonitor, classified);
+        Assert.IsNotInstanceOfType<AlertTransientPersistenceException>(classified);
+    }
+
     private static PostgresException PostgreSqlException(
         string sqlState,
         string? constraintName = null) =>

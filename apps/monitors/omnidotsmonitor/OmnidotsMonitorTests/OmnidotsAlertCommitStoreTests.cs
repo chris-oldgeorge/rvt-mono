@@ -430,9 +430,10 @@ public sealed class OmnidotsAlertCommitStoreTests
             }
         };
 
-        await Assert.ThrowsExactlyAsync<InvalidOperationException>(
+        AlertUnknownMonitorException exception = await Assert.ThrowsExactlyAsync<AlertUnknownMonitorException>(
             () => _store.CommitAsync(request, TestContext.CancellationToken));
 
+        Assert.AreEqual("missing-monitor", exception.SerialId);
         Assert.AreEqual(0, await CountAsync("alert_occurrence"));
         Assert.AreEqual(0, await CountAsync("notification"));
         Assert.AreEqual(0, await CountAsync("alert_delivery_outbox"));

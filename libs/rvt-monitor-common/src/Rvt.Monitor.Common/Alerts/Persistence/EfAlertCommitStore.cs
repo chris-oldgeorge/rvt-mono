@@ -99,9 +99,17 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             cancellationToken);
 
         string serialId = request.Signal.SerialId.Trim();
-        MonitorEntity monitor = await context.Monitors.SingleAsync(
+
+        // ix_monitor_serial_id_type_of_monitor is not unique, but each monitor
+        // database hosts one monitor type and its fleet import upserts by
+        // serial, so a second match means the data is corrupt; SingleOrDefault
+        // keeps that corruption loud instead of silently picking a row. An
+        // absent serial (device webhooks before the fleet import) maps to a
+        // distinct permanent exception so callers stop retrying blindly.
+        MonitorEntity monitor = await context.Monitors.SingleOrDefaultAsync(
             row => row.SerialId == serialId,
-            cancellationToken);
+            cancellationToken)
+            ?? throw new AlertUnknownMonitorException(serialId);
         AlertOccurrenceEntity occurrence = NewOccurrence(request, monitor.Id, serialId);
         context.AlertOccurrences.Add(occurrence);
 

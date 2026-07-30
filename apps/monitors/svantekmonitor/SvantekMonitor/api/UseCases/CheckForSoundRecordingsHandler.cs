@@ -84,7 +84,8 @@ public sealed class CheckForSoundRecordingsHandler
             {
                 failures.Capture(
                     $"sound:{alert.NotificationId}",
-                    exception);
+                    exception,
+                    cancellationToken);
             }
         }
 

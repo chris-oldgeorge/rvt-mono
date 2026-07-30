@@ -247,9 +247,36 @@ unifiable). The durable-alerts doc's claim that claim/lease fencing is
       branches deleted (v2 was merged as PR #43; abandoned v1 tip was
       4ea5b31f). M5 had already been resolved by PR #50's M1 (AForge vendored
       beside `MonitorData` in the Spa).
-    - **Still open (recorded, not P3 debt):** replatforming
-      `SpaTestApplicationFactory` off EF InMemory (~30 workflow test files) —
-      the follow-up noted under the InMemory ruling.
+    - **Follow-up closed 2026-07-30, PR #63:** `SpaTestApplicationFactory` is
+      replatformed off EF InMemory. It no longer swaps providers at all — it
+      points the production wiring at a throwaway schema (`spa_host_<guid>`,
+      `SearchPath`-scoped, dropped on dispose) on the integration database, so
+      real transactions, `ExecuteUpdateAsync`, the `ON CONFLICT` upserts, and
+      startup schema validation all execute under test. Schema DDL is derived
+      once per run from the EF models and replayed per schema, so wall time
+      went 20s → 17-18s rather than up. All six `IsRelational()`/InMemory
+      production guards are deleted (`grep IsRelational` over non-test code:
+      zero hits); the schema validator's `information_schema` read is now
+      scoped to reachable schemas, without which a relation in *any* schema
+      would satisfy validation. 142 tests became Postgres-gated and skip
+      cleanly (396 pass / 159 skip / 0 fail without the connection string);
+      InMemory survives only in ~12 direct-context unit tests that cross none
+      of the guarded paths. Test expectations moved to production truth:
+      assignment-window probes use microseconds (PostgreSQL's real
+      resolution — a 100 ns offset collapsed to equality and inverted the
+      expected outcomes), timestamptz seeds need `Kind=Utc` now that
+      `UtcTimestampGuardInterceptor` is no longer inert, and
+      `omnidots_sensor.lastseen` seeds are naive per its column type.
+    - **Two production bugs the replatform exposed** — both were invisible
+      because InMemory bypassed the timestamptz contract:
+      **(a)** `DashboardController.TryCreateDate` parsed calendar-day requests
+      with `DateTimeStyles.None`, so `/api/dashboard/calendar/day` 500ed on
+      every real request (fixed in PR #63, parsed as UTC per the ruling).
+      **(b)** `MonitorMutationCommands` persisted calibration dates without
+      kind normalization, so saving a monitor with a calibration date 500ed
+      from the portal's own form (which posts `…T00:00:00`, no `Z`) — fixed in
+      PR #64 by adopting `ContractCommands`' `AsUtcDate` idiom, pinned by a
+      test verified to fail against the unfixed code.
 
 **Product rulings — all decided 2026-07-30, executed same day (PRs #54, #55):**
 
@@ -283,7 +310,9 @@ unifiable). The durable-alerts doc's claim that claim/lease fencing is
   `IsRelational()` guards protecting the InMemory test host itself
   (transactions, ExecuteUpdate/raw SQL, schema validation); removing them
   requires replatforming `SpaTestApplicationFactory` (~30 workflow test
-  files) onto a relational provider — recorded as a follow-up work item.**
+  files) onto a relational provider — recorded as a follow-up work item.
+  That follow-up is now also done (PR #63): the ruling is fully satisfied —
+  zero provider sniffing remains anywhere in production code.**
 - **M11 no-split: signed off.** `Rvt.Monitor.Common` stays one package; the
   G7 technology-confinement guard is the enforcement mechanism.
   **Done 2026-07-30, PR #54: `TechnologyConfinementTests` in CommonTests pins

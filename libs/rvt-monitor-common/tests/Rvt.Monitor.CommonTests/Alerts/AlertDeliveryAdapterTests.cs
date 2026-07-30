@@ -4,6 +4,7 @@ using Moq;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Alerts.Persistence;
+using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 
@@ -13,6 +14,7 @@ namespace Rvt.Monitor.CommonTests.Alerts;
 public sealed class AlertDeliveryAdapterTests
 {
     private static readonly DateTime SentAt = new(2026, 7, 15, 12, 30, 0, DateTimeKind.Utc);
+    private static readonly MqttOptions _enabledMqtt = new() { Enabled = true };
 
     [TestMethod]
     public async Task MqttAdapter_DeliversVersionOneEnvelopeAndReturnsNoAudit()
@@ -20,7 +22,7 @@ public sealed class AlertDeliveryAdapterTests
         Mock<IMonitorEventPublisher> publisher = new();
         AlertDeliveryEnvelope envelope = CreateEnvelope();
         ClaimedAlertDelivery delivery = CreateDelivery("MqttAlert", "alert", envelope);
-        MqttAlertDeliveryAdapter adapter = new(publisher.Object);
+        MqttAlertDeliveryAdapter adapter = new(publisher.Object, _enabledMqtt);
 
         AlertDeliveryAudit? audit = await adapter.DeliverAsync(delivery, CancellationToken.None);
 
@@ -30,6 +32,22 @@ public sealed class AlertDeliveryAdapterTests
             envelope.SerialId,
             envelope.Message,
             envelope.CustomerId, CancellationToken.None), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task MqttAdapter_WhenTheBrokerIsDisabled_FailsWithAConfigurationKindDeliveryException()
+    {
+        Mock<IMonitorEventPublisher> publisher = new();
+        ClaimedAlertDelivery delivery = CreateDelivery("MqttAlert", "alert", CreateEnvelope());
+        MqttAlertDeliveryAdapter adapter = new(publisher.Object, new MqttOptions { Enabled = false });
+
+        MqttAlertDeliveryException exception =
+            await Assert.ThrowsExactlyAsync<MqttAlertDeliveryException>(
+                () => adapter.DeliverAsync(delivery, CancellationToken.None));
+
+        Assert.AreEqual(DeliveryFailureKind.Configuration, exception.FailureKind);
+        Assert.IsTrue(DeliveryDispatchPolicy.IsTerminal(exception, attemptCount: 1, maxAttempts: 5));
+        publisher.VerifyNoOtherCalls();
     }
 
     [TestMethod]
@@ -213,7 +231,7 @@ public sealed class AlertDeliveryAdapterTests
             })
             .Returns(Task.CompletedTask);
         MonitorEventPublisher publisher = new(mqttClient.Object, "insert/topic", "configured/alert/topic");
-        MqttAlertDeliveryAdapter adapter = new(publisher);
+        MqttAlertDeliveryAdapter adapter = new(publisher, _enabledMqtt);
         AlertDeliveryEnvelope envelope = CreateEnvelope();
 
         await adapter.DeliverAsync(
@@ -235,7 +253,7 @@ public sealed class AlertDeliveryAdapterTests
         IMonitorEventPublisher publisher,
         INotificationDeliveryService notificationDelivery) => adapterKind switch
         {
-            "mqtt" => new MqttAlertDeliveryAdapter(publisher),
+            "mqtt" => new MqttAlertDeliveryAdapter(publisher, _enabledMqtt),
             "email" => new EmailAlertDeliveryAdapter(
                 notificationDelivery,
                 Options.Create(new DurableAlertOptions()),

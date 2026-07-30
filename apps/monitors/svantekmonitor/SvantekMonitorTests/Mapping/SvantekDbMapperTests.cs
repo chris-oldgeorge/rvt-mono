@@ -1,3 +1,4 @@
+using System.Globalization;
 using Rvt.Monitor.Common.Data.Entities;
 using Svantek.Api.Db.EntityFramework;
 using Svantek.Api.Db.Mapping;
@@ -51,6 +52,45 @@ public sealed class SvantekDbMapperTests
         Assert.IsTrue(dto.Offline);
         Assert.AreEqual(BatteryAlertType.BatteryCaution, dto.BatteryStatus);
         Assert.AreEqual(77, dto.BatteryCharge);
+    }
+
+    // The last-status timestamp gates the request window, so a culture-flipped
+    // day/month silently stops imports for that monitor with no error.
+    [DataRow("de-DE")]
+    [DataRow("en-GB")]
+    [DataRow("fr-FR")]
+    [TestMethod]
+    public void ToNoiseMonitorReadDto_ParsesTheVendorTimestampInvariantlyAndAsUtc(string cultureName)
+    {
+        CultureInfo original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo(cultureName);
+            Guid id = Guid.NewGuid();
+            MonitorEntity entity = new()
+            {
+                Id = id,
+                SerialId = "157206",
+                FleetNr = "E125V",
+                TypeOfMonitor = NoiseMonitorDto.MONITOR_TYPE_NOISE
+            };
+            SvantekMonitorStatusEntity status = new()
+            {
+                SerialId = "157206",
+                // Invariant m/d/y: July 6th. Day-first cultures read June 7th.
+                LastStatusTimestamp = "07/06/2026 08:20:00"
+            };
+            DeploymentEntity deployment = new() { MonitorId = id };
+
+            NoiseMonitorReadDto dto = SvantekDbMapper.ToNoiseMonitorReadDto(entity, status, deployment);
+
+            Assert.AreEqual(new DateTime(2026, 7, 6, 8, 20, 0, DateTimeKind.Utc), dto.LastStatusTimestamp);
+            Assert.AreEqual(DateTimeKind.Utc, dto.LastStatusTimestamp!.Value.Kind);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 
     [TestMethod]

@@ -24,6 +24,7 @@ internal static class MyAtmMonitorJobs
             ["Process8HourAverageDustLevels"] = (service, cancellationToken) => service.Process8HourAverageDustLevelsAsync(cancellationToken),
             ["ClearOlderErrorMessages"] = (service, cancellationToken) => service.ClearOlderErrorMessagesAsync(cancellationToken),
             ["StoreAccessoryInfo"] = (service, cancellationToken) => service.StoreAccessoryInfoAsync(cancellationToken),
-            ["DispatchOutbox"] = (service, cancellationToken) => service.DispatchOutboxAsync(cancellationToken)
+            ["DispatchOutbox"] = (service, cancellationToken) => service.DispatchOutboxAsync(cancellationToken),
+            ["CleanupOutbox"] = (service, cancellationToken) => service.CleanupOutboxAsync(cancellationToken)
         });
 }

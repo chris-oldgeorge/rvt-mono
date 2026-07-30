@@ -309,38 +309,6 @@ namespace MyAtmMonitorTests
         }
 
 
-        [TestMethod]
-        public async Task TestClearMonitorsOfflineFlag_Success()
-
-        {
-
-            MyAtmApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
-                                         out Mock<IDBClient> dbClient,
-                                         out Mock<IMqttClient> mqttClient,
-                                         out Mock<INotificationDeliveryService> messageClient);
-
-            int customerId = 656;
-            DateTime expectedDateTime = DateTime.UtcNow;
-            List<DustMonitorDto> monitors = MyAtmFixture.CustomerDeviceDtos(expectedDateTime);
-            dbClient.Setup(c => c.ReadMonitorList(It.IsAny<int>(), null)).
-                    Returns(monitors);
-
-            await testObj.ClearMonitorsOfflineFlagAsync(customerId, TestContext.CancellationToken);
-
-            httpClient.VerifyNoOtherCalls();
-
-            mqttClient.VerifyNoOtherCalls();
-
-            dbClient.Verify(c => c.ReadMonitorList(It.IsAny<int>(), null), Times.Exactly(1));
-
-            foreach (DustMonitorDto m in monitors)
-            {
-                dbClient.Verify(c => c.SetMonitorOffline(m.Id, false), Times.Exactly(1));
-            }
-            dbClient.VerifyNoOtherCalls();
-            messageClient.VerifyNoOtherCalls();
-
-        }
         private static MonitorDeliveryMessage CreateDataInsertedDelivery()
         {
             MonitorDeliveryPayloadV1 payload = new(

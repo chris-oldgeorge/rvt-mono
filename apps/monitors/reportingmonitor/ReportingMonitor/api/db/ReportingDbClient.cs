@@ -164,6 +164,19 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
         return await MapRulesAsync(rules, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<GeneratedReportPeriod>> GetGeneratedPeriodsAsync(
+        Guid reportRuleId,
+        DateTimeOffset fromUtc,
+        CancellationToken cancellationToken)
+    {
+        return await context.Reports
+            .AsNoTracking()
+            .Where(report => report.ReportRuleId == reportRuleId && report.ReportFrom >= fromUtc)
+            .Select(report => new GeneratedReportPeriod((FrequencyType)report.Frequency, report.ReportFrom))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<ReportRule?> GetReportRuleAsync(Guid reportRuleId, CancellationToken cancellationToken)
     {
         ReportRuleEntity? rule = await (

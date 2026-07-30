@@ -1,5 +1,6 @@
 // File summary: Renders reusable monitor map views for dashboard, site detail, and monitor detail pages.
 // Major updates:
+// - 2026-07-30 pending Bound Leaflet tooltips to text nodes so marker labels never reach innerHTML.
 // - 2026-06-29 pending Used single-host OSM tiles to avoid partial subdomain tile gaps.
 // - 2026-06-29 pending Invalidated Leaflet size after initialization so tiles fill resized containers.
 // - 2026-06-26 pending Stabilized Leaflet lifecycle against marker array identity churn.
@@ -60,7 +61,7 @@ export function MonitorMap({ markers, label = 'Leaflet monitor map' }: MonitorMa
                 iconAnchor: [12, 12],
               }),
             })
-            .bindTooltip(markerLabel(marker))
+            .bindTooltip(markerTooltipNode(marker))
             .addTo(map);
         });
         if (currentMarkers.length > 1) {
@@ -142,6 +143,16 @@ export function MonitorMarkerList({ markers }: Readonly<{ markers: ReadonlyArray
       ))}
     </div>
   );
+}
+
+// Function summary: Builds a text-only tooltip node so Leaflet never routes marker labels through innerHTML.
+function markerTooltipNode(marker: MapMonitorMarker) {
+  // Leaflet's DivOverlay._updateContent assigns string content with innerHTML, which would
+  // execute markup smuggled through the admin-written fleet number or the vendor serial id.
+  // A DOM node is appended verbatim, so textContent keeps the label inert.
+  const node = document.createElement('span');
+  node.textContent = markerLabel(marker);
+  return node;
 }
 
 // Function summary: Builds display text for monitor map markers.

@@ -1,5 +1,6 @@
 // File summary: Renders the monitor alert-level list, form, and vibration threshold panels.
 // Major updates:
+// - 2026-07-30 pending Rejected blank and non-numeric thresholds instead of saving a 0 that alerts on every reading.
 // - 2026-07-30 pending Split from NotificationAlertPanels.tsx so notifications and alert levels live in separate modules.
 // - 2026-06-26 pending Added cancellation for notification and alert-level list requests.
 // - 2026-06-26 pending Preserved origin-aware Back navigation for notification and alert-level forms.
@@ -27,6 +28,8 @@ import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
 import { useRequestLifecycle } from '../requestLifecycle';
 import { alertLevelColumnsForMonitorType } from './alertLevelColumns';
+import { pageSize } from './panelShared';
+import type { ListExecution, OperationsRouteProps } from './panelShared';
 import type {
   AlertLevelItem,
   AlertLevelMutationRequest,
@@ -36,22 +39,11 @@ import type {
   SortDirection,
 } from '../dtos';
 
-const pageSize = 10;
-type ListExecution<TQuery> = Readonly<{ query: TQuery }>;
-
-type OperationsPanelProps = Readonly<{
-  locationPath: string;
-  onNavigate: (path: string) => void;
-  onRequestError: (error: unknown) => void;
-}>;
-
-type AlertLevelsPanelProps = Readonly<{
-  monitorId: string;
-  locationPath: string;
-  onNavigate: (path: string) => void;
-  onRequestError: (error: unknown) => void;
-  canManage?: boolean;
-}>;
+type AlertLevelsPanelProps = OperationsRouteProps &
+  Readonly<{
+    monitorId: string;
+    canManage?: boolean;
+  }>;
 
 type AlertLevelRoute = { kind: 'list' } | { kind: 'new' } | { kind: 'edit'; levelId: string } | { kind: 'vibration' };
 
@@ -304,9 +296,15 @@ function AlertLevelForm({
   locationPath,
   onNavigate,
   onRequestError,
-}: OperationsPanelProps & Readonly<{ monitorId: string; levelId?: string }>) {
+}: OperationsRouteProps & Readonly<{ monitorId: string; levelId?: string }>) {
   const [options, setOptions] = useState<AlertLevelOptionsResponse | null>(null);
   const [form, setForm] = useState<AlertLevelMutationRequest>(() => emptyAlertLevelForm(monitorId));
+  // The limits are edited as text so a partial entry ("5.", "-") survives keystrokes and a
+  // blank or unparseable value can be refused on submit instead of collapsing to 0.
+  const [limitOnText, setLimitOnText] = useState('');
+  const [limitOffText, setLimitOffText] = useState('');
+  const [limitOnError, setLimitOnError] = useState<string | null>(null);
+  const [limitOffError, setLimitOffError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const backPath = returnToOr(locationPath, `/monitors/${monitorId}/alert-levels`);
@@ -351,6 +349,8 @@ function AlertLevelForm({
           startTime: level.startTime ?? '',
           endTime: level.endTime ?? '',
         });
+        setLimitOnText(String(level.limitOn));
+        setLimitOffText(String(level.limitOff));
       })
       .catch((err: Error) => {
         setError(err.message);
@@ -360,13 +360,26 @@ function AlertLevelForm({
 
   async function handleSubmit(event: SyntheticEvent) {
     event.preventDefault();
+    const nextLimitOnError = thresholdError(limitOnText, 'Limit On');
+    const nextLimitOffError = thresholdError(limitOffText, 'Limit Off');
+    setLimitOnError(nextLimitOnError);
+    setLimitOffError(nextLimitOffError);
+    if (nextLimitOnError || nextLimitOffError) {
+      return;
+    }
+
+    const request: AlertLevelMutationRequest = {
+      ...form,
+      limitOn: Number(limitOnText),
+      limitOff: Number(limitOffText),
+    };
     setIsSubmitting(true);
     setError(null);
     try {
       if (levelId) {
-        await updateAlertLevel(levelId, form);
+        await updateAlertLevel(levelId, request);
       } else {
-        await createAlertLevel(form);
+        await createAlertLevel(request);
       }
       onNavigate(backPath);
     } catch (err) {
@@ -409,18 +422,24 @@ function AlertLevelForm({
             ))}
           </select>
         </FormField>
-        <FormField label="Limit On">
+        <FormField label="Limit On" error={limitOnError}>
           <input
-            value={form.limitOn || ''}
+            value={limitOnText}
             inputMode="decimal"
-            onChange={(event) => setForm({ ...form, limitOn: numberValue(event.target.value) })}
+            onChange={(event) => {
+              setLimitOnText(event.target.value);
+              setLimitOnError(null);
+            }}
           />
         </FormField>
-        <FormField label="Limit Off">
+        <FormField label="Limit Off" error={limitOffError}>
           <input
-            value={form.limitOff || ''}
+            value={limitOffText}
             inputMode="decimal"
-            onChange={(event) => setForm({ ...form, limitOff: numberValue(event.target.value) })}
+            onChange={(event) => {
+              setLimitOffText(event.target.value);
+              setLimitOffError(null);
+            }}
           />
         </FormField>
         <FormField label="Averaging Period">
@@ -495,9 +514,11 @@ function VibrationAlertLevelForm({
   locationPath,
   onNavigate,
   onRequestError,
-}: OperationsPanelProps & Readonly<{ monitorId: string }>) {
+}: OperationsRouteProps & Readonly<{ monitorId: string }>) {
   const [alertLevel, setAlertLevel] = useState('');
   const [cautionLevel, setCautionLevel] = useState('');
+  const [alertLevelError, setAlertLevelError] = useState<string | null>(null);
+  const [cautionLevelError, setCautionLevelError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -522,16 +543,25 @@ function VibrationAlertLevelForm({
 
   async function handleSubmit(event: SyntheticEvent) {
     event.preventDefault();
+    const nextAlertError = thresholdError(alertLevel, 'Alert Level');
+    const nextCautionError = thresholdError(cautionLevel, 'Caution Level');
+    setAlertLevelError(nextAlertError);
+    setCautionLevelError(nextCautionError);
+    if (nextAlertError || nextCautionError) {
+      return;
+    }
+
     setIsSubmitting(true);
     setNotice(null);
     setError(null);
     try {
       const response = await updateVibrationAlertLevels(monitorId, {
-        alertLevel: numberValue(alertLevel),
-        cautionLevel: numberValue(cautionLevel),
+        alertLevel: Number(alertLevel),
+        cautionLevel: Number(cautionLevel),
       });
+      // Stay on the form: whether the external sync was attempted is the substance of this
+      // response, and navigating away unmounted the component before the notice could render.
       setNotice(response.externalSyncAttempted ? 'Vibration levels saved and synced.' : 'Vibration levels saved.');
-      onNavigate(backPath);
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);
@@ -555,11 +585,25 @@ function VibrationAlertLevelForm({
       {notice && <Notice tone="success" message={notice} />}
       {error && <Notice tone="error" message={error} />}
       <form className="form-grid" onSubmit={handleSubmit}>
-        <FormField label="Alert Level">
-          <input value={alertLevel} inputMode="decimal" onChange={(event) => setAlertLevel(event.target.value)} />
+        <FormField label="Alert Level" error={alertLevelError}>
+          <input
+            value={alertLevel}
+            inputMode="decimal"
+            onChange={(event) => {
+              setAlertLevel(event.target.value);
+              setAlertLevelError(null);
+            }}
+          />
         </FormField>
-        <FormField label="Caution Level">
-          <input value={cautionLevel} inputMode="decimal" onChange={(event) => setCautionLevel(event.target.value)} />
+        <FormField label="Caution Level" error={cautionLevelError}>
+          <input
+            value={cautionLevel}
+            inputMode="decimal"
+            onChange={(event) => {
+              setCautionLevel(event.target.value);
+              setCautionLevelError(null);
+            }}
+          />
         </FormField>
         <SubmitButton
           icon={<Save size={17} aria-hidden="true" />}
@@ -613,8 +657,13 @@ function emptyAlertLevelForm(monitorId: string): AlertLevelMutationRequest {
   };
 }
 
-// Function summary: Handles the number value workflow for this module.
-function numberValue(value: string) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
+// Function summary: Validates one alert threshold instead of coercing blanks and typos to zero.
+// A 0 threshold is not a missing threshold: it latches on the first reading of every monitor
+// it is saved against, so an unparseable value has to be refused rather than defaulted.
+function thresholdError(value: string, field: string) {
+  if (!value.trim()) {
+    return `${field} is required. A blank threshold would alert on every reading.`;
+  }
+
+  return Number.isFinite(Number(value)) ? null : `${field} must be a number.`;
 }

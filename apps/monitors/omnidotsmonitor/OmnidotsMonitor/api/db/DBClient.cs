@@ -108,16 +108,22 @@ namespace Omnidots.Api.Db
         {
             using OmnidotsMonitorContext context = CreateContext();
 
+            // The sensor join is a LEFT join: a measuring point that has not yet
+            // reported a sensor is legitimate - the DTO models it nullable and
+            // ReadMonitor uses FirstOrDefault - and an inner join made such a
+            // point invisible to the whole fleet pipeline, so it was catalogued
+            // but never polled and never alerted on.
             var rows = (from monitor in context.Monitors.AsNoTracking()
                         join deployment in context.Deployments.AsNoTracking() on monitor.Id equals deployment.MonitorId
-                        join sensor in context.Sensors.AsNoTracking() on monitor.SerialId equals sensor.SerialId
+                        join sensor in context.Sensors.AsNoTracking() on monitor.SerialId equals sensor.SerialId into sensors
+                        from sensor in sensors.DefaultIfEmpty()
                         where monitor.FleetNr != null &&
                               monitor.TypeOfMonitor == VibrationMonitorDto.MONITOR_TYPE_VIBRATION &&
                               deployment.EndDate == null
                         select new
                         {
                             Monitor = monitor,
-                            Sensor = sensor,
+                            Sensor = (OmnidotsSensorEntity?)sensor,
                             DeployDate = (DateTime?)deployment.StartDate
                         }).ToList();
 
@@ -137,7 +143,7 @@ namespace Omnidots.Api.Db
                             SerialId = row.Monitor.SerialId
                         },
                     row.Sensor,
-                    row.Sensor.Lastseen,
+                    row.Sensor?.Lastseen,
                     row.DeployDate))];
         }
 
@@ -368,27 +374,15 @@ namespace Omnidots.Api.Db
             });
         }
 
-        public List<RvtAlertRuleDto> ReadRules(string? serialId)
+        public List<RvtAlertRuleDto> ReadRules()
         {
             using OmnidotsMonitorContext context = CreateContext();
 
-            IQueryable<RvtAlertRuleEntity> query;
-            if (serialId == null)
-            {
-                query = context.AlertRules.AsNoTracking().Where(row => row.SerialId == null && !row.IsDeleted);
-            }
-            else
-            {
-                query = from rule in context.AlertRules.AsNoTracking()
-                        join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
-                        where monitor.TypeOfMonitor == VibrationMonitorDto.MONITOR_TYPE_VIBRATION &&
-                              rule.SerialId == serialId
-                        select rule;
-            }
-
-            return [.. query
+            return [.. context.AlertRules
+                .AsNoTracking()
+                .Where(row => row.SerialId == null && !row.IsDeleted)
                 .AsEnumerable()
-                .Select(rule => ToRuleDto(rule, serialId))];
+                .Select(rule => ToRuleDto(rule, null))];
         }
 
         public void WriteTraces(string serialId, IReadOnlyList<TraceData> traces)

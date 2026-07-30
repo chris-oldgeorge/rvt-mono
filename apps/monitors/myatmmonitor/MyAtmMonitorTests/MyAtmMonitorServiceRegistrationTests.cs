@@ -52,7 +52,6 @@ public sealed class MyAtmMonitorServiceRegistrationTests
         Assert.IsInstanceOfType<MyAtmRuleProcessor>(provider.GetRequiredService<MyAtmRuleProcessor>());
         Assert.IsInstanceOfType<StoreMonitorsHandler>(provider.GetRequiredService<StoreMonitorsHandler>());
         Assert.IsInstanceOfType<CheckForOfflineMonitorsHandler>(provider.GetRequiredService<CheckForOfflineMonitorsHandler>());
-        Assert.IsInstanceOfType<ClearMonitorsOfflineFlagHandler>(provider.GetRequiredService<ClearMonitorsOfflineFlagHandler>());
         Assert.IsInstanceOfType<StoreDustLevelsHandler>(provider.GetRequiredService<StoreDustLevelsHandler>());
         Assert.IsInstanceOfType<ProcessDustLevelsHandler>(provider.GetRequiredService<ProcessDustLevelsHandler>());
         Assert.IsInstanceOfType<ClearOlderErrorMessagesHandler>(provider.GetRequiredService<ClearOlderErrorMessagesHandler>());

@@ -163,10 +163,15 @@ namespace AirQ.Api.Db
             }
             else
             {
+                // Deleted rules are excluded at the query, as the site-rule
+                // branch above and Svantek's twin already do. Relying on the
+                // downstream evaluator guard instead let the two mechanisms
+                // drift apart.
                 query = from rule in context.AlertRules.AsNoTracking()
                         join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
                         where monitor.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE &&
-                              rule.SerialId == serialNumber
+                              rule.SerialId == serialNumber &&
+                              !rule.IsDeleted
                         select rule;
             }
 

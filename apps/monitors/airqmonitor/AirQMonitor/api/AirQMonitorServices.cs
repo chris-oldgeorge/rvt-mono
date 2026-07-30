@@ -79,7 +79,8 @@ public static class AirQMonitorServices
                 return new AirQService(
                     provider.GetRequiredService<AirQApi>(),
                     provider.GetRequiredService<DurableAlertDispatcher>(),
-                    provider.GetRequiredService<DurableAlertCleanupService>());
+                    provider.GetRequiredService<DurableAlertCleanupService>(),
+                    provider.GetRequiredService<TimeProvider>());
             }
             catch (Exception e)
             {

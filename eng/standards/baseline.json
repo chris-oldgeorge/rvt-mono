@@ -1021,12 +1021,6 @@
       "ruleId": "IDE2003",
       "path": "apps/portal/RvtPortal.Spa/Application/Users/UserAccountCommands.cs",
       "count": 1
-    },
-    {
-      "tool": "eslint",
-      "ruleId": "react-refresh/only-export-components",
-      "path": "apps/portal/RvtPortal.Client/src/operations/DataViewPanels.tsx",
-      "count": 1
     }
   ]
 }

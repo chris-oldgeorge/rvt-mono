@@ -15,13 +15,15 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         TContext Context,
         AlertCommitRequest Request,
         Guid OccurrenceId,
-        string Payload,
+        AlertDeliveryEnvelope Envelope,
         HashSet<string> Planned);
 
     private sealed record DeliveryTarget(
         string Kind,
         string Destination,
-        string CanonicalDestination);
+        string CanonicalDestination,
+        TimeSpan? SendWindowStart = null,
+        TimeSpan? SendWindowEnd = null);
 
     private const string MqttKind = "MqttAlert";
     private const string EmailKind = "Email";
@@ -53,12 +55,25 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         {
             return await TryCommitAsync(request, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
         catch (Exception exception)
         {
             Exception classified = AlertPersistenceExceptionClassifier.Classify(exception);
             if (classified is AlertOccurrenceConflictException)
             {
                 return await RecoverDuplicateAsync(request, cancellationToken);
+            }
+
+            // The classifier returns the caught instance unchanged for
+            // pass-through cases; rethrowing it would reset StackTrace and
+            // lose the origin. RecoverDuplicateAsync below has always had
+            // both guards — this keeps the two siblings identical.
+            if (ReferenceEquals(classified, exception))
+            {
+                throw;
             }
 
             throw classified;
@@ -162,9 +177,8 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             monitor.CustomerId,
             monitor.FleetNr?.Trim() is { Length: > 0 } fleetNr ? fleetNr : serialId,
             request.Signal.Message);
-        string payload = JsonSerializer.Serialize(envelope);
         HashSet<string> planned = new(StringComparer.Ordinal);
-        DeliveryBatch batch = new(context, request, occurrenceId, payload, planned);
+        DeliveryBatch batch = new(context, request, occurrenceId, envelope, planned);
 
         if (request.Signal.DeliveryChannels.HasFlag(AlertDeliveryChannels.Mqtt))
         {
@@ -211,8 +225,12 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
         Dictionary<string, AspNetUserEntity> usersById = users.ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
         foreach (ContactSetting? contact in contactRows)
         {
-            if (!ShouldSendAtEventTime(eventTime, contact.StartTime, contact.EndTime) ||
-                !usersById.TryGetValue(contact.UserId.ToString("D"), out AspNetUserEntity? user))
+            // Quiet hours are no longer applied here. Planning used to drop a
+            // delivery whose window was closed at the alert's *event* time,
+            // which both silenced backfilled alerts that should have been sent
+            // and sent midnight SMS for a daytime breach. The window now rides
+            // with the row and the dispatcher defers against the send clock.
+            if (!usersById.TryGetValue(contact.UserId.ToString("D"), out AspNetUserEntity? user))
             {
                 continue;
             }
@@ -227,7 +245,9 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
                     new DeliveryTarget(
                         EmailKind,
                         destination,
-                        AlertDeliveryIdentity.CanonicalEmail(destination)));
+                        AlertDeliveryIdentity.CanonicalEmail(destination),
+                        contact.StartTime,
+                        contact.EndTime));
             }
 
             if (request.Signal.DeliveryChannels.HasFlag(AlertDeliveryChannels.Sms) &&
@@ -240,7 +260,9 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
                     new DeliveryTarget(
                         SmsKind,
                         destination,
-                        AlertDeliveryIdentity.CanonicalSms(destination)));
+                        AlertDeliveryIdentity.CanonicalSms(destination),
+                        contact.StartTime,
+                        contact.EndTime));
             }
         }
     }
@@ -258,6 +280,12 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             return;
         }
 
+        // The payload is per row because the send window is per recipient.
+        string payload = JsonSerializer.Serialize(batch.Envelope with
+        {
+            SendWindowStart = target.SendWindowStart,
+            SendWindowEnd = target.SendWindowEnd
+        });
         batch.Context.AlertDeliveryOutbox.Add(new AlertDeliveryOutboxEntity
         {
             Id = Guid.NewGuid(),
@@ -265,7 +293,7 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             DeliveryKey = deliveryKey,
             Kind = target.Kind,
             Destination = target.Destination,
-            Payload = batch.Payload,
+            Payload = payload,
             Status = PendingStatus,
             AttemptCount = 0,
             NextAttemptAt = batch.Request.CreatedAt,
@@ -335,22 +363,6 @@ public sealed class EfAlertCommitStore<TContext> : IAlertCommitStore
             AlertField = request.Signal.Field,
             AlertType = (int)request.Signal.AlertType
         };
-
-    private static bool ShouldSendAtEventTime(
-        DateTime eventTime,
-        TimeSpan? startTime,
-        TimeSpan? endTime)
-    {
-        if (startTime is null || endTime is null)
-        {
-            return true;
-        }
-
-        TimeSpan time = eventTime.TimeOfDay;
-        return startTime <= endTime
-            ? time >= startTime && time <= endTime
-            : time >= startTime || time <= endTime;
-    }
 
     private sealed record ContactSetting(
         Guid UserId,

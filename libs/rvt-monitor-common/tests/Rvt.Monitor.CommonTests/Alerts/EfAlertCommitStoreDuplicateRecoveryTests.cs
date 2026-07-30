@@ -53,8 +53,45 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
         Assert.AreEqual(cancellationSource.Token, thrown.CancellationToken);
     }
 
+    [TestMethod]
+    public async Task CommitAsync_PassThroughFailure_PreservesTheOriginalStackTrace()
+    {
+        EfAlertCommitStore<TestMonitorContext> store = CreateStore(
+            new PassThroughFailurePolicy());
+
+        TimeoutException thrown = await Assert.ThrowsExactlyAsync<TimeoutException>(
+            () => store.CommitAsync(CommitRequest(), TestContext.CancellationToken));
+
+        Assert.IsNotNull(thrown.StackTrace);
+        Assert.Contains(nameof(PassThroughFailurePolicy.Evaluate), thrown.StackTrace, StringComparison.Ordinal);
+    }
+
+    [TestMethod]
+    public async Task CommitAsync_Cancellation_IsRethrownBeforeClassification()
+    {
+        using CancellationTokenSource cancellationSource = new();
+
+        OperationCanceledException thrown = await Assert.ThrowsExactlyAsync<OperationCanceledException>(
+            () => CreateStore(new CancellingPolicy(cancellationSource.Token)).CommitAsync(
+                CommitRequest(),
+                cancellationSource.Token));
+
+        Assert.IsNotNull(thrown.StackTrace);
+        Assert.Contains(nameof(CancellingPolicy.Evaluate), thrown.StackTrace, StringComparison.Ordinal);
+    }
+
     private static EfAlertCommitStore<TestMonitorContext> CreateStore(
-        Exception duplicateRecoveryFailure)
+        Exception duplicateRecoveryFailure) =>
+        new(
+            new FailingDuplicateReadFactory(SeededContext(), duplicateRecoveryFailure),
+            new OccurrenceConflictPolicy());
+
+    private static EfAlertCommitStore<TestMonitorContext> CreateStore(IAlertAcceptancePolicy policy) =>
+        new(
+            new FailingDuplicateReadFactory(SeededContext(), new InvalidOperationException("unreachable")),
+            policy);
+
+    private static TestMonitorContext SeededContext()
     {
         MonitorDbOptions options = new(new Dictionary<string, string>());
         DbContextOptions<TestMonitorContext> contextOptions = new DbContextOptionsBuilder<TestMonitorContext>()
@@ -74,10 +111,7 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
             TypeOfMonitor = 2
         });
         context.SaveChanges();
-
-        return new EfAlertCommitStore<TestMonitorContext>(
-            new FailingDuplicateReadFactory(context, duplicateRecoveryFailure),
-            new OccurrenceConflictPolicy());
+        return context;
     }
 
     private static AlertCommitRequest CommitRequest()
@@ -157,6 +191,22 @@ public sealed class EfAlertCommitStoreDuplicateRecoveryTests
             AlertType incoming,
             IReadOnlyCollection<AlertType> recentAlertTypes) =>
             throw OccurrenceConflict();
+    }
+
+    private sealed class PassThroughFailurePolicy : IAlertAcceptancePolicy
+    {
+        public AlertOccurrenceOutcome Evaluate(
+            AlertType incoming,
+            IReadOnlyCollection<AlertType> recentAlertTypes) =>
+            throw new TimeoutException("Alert acceptance stalled.");
+    }
+
+    private sealed class CancellingPolicy(CancellationToken cancellationToken) : IAlertAcceptancePolicy
+    {
+        public AlertOccurrenceOutcome Evaluate(
+            AlertType incoming,
+            IReadOnlyCollection<AlertType> recentAlertTypes) =>
+            throw new OperationCanceledException(cancellationToken);
     }
 
     public TestContext TestContext { get; set; } = null!;

@@ -108,8 +108,10 @@ public sealed class DurableAlertBackgroundServiceTests
     }
 
     [TestMethod]
-    public async Task RunIterationAsync_WhenCleanupFails_DoesNotRetryUntilNextUtcDayAndLogsSafely()
+    public async Task RunIterationAsync_WhenCleanupFails_RetriesOnTheNextIterationAndLogsSafely()
     {
+        // The daily stamp used to be written before the attempt, so one
+        // transient failure skipped cleanup for a whole day.
         const string rawFailure = "database password=top-secret";
         Mock<IAlertOutboxStore> store = EmptyStore();
         store.SetupSequence(x => x.DeleteCompletedBeforeAsync(
@@ -126,14 +128,19 @@ public sealed class DurableAlertBackgroundServiceTests
 
         await worker.RunIterationAsync(UtcNow, CancellationToken.None);
         await worker.RunIterationAsync(UtcNow.AddMinutes(1), CancellationToken.None);
-        await worker.RunIterationAsync(UtcNow.AddDays(1), CancellationToken.None);
+        await worker.RunIterationAsync(UtcNow.AddMinutes(2), CancellationToken.None);
 
         store.Verify(x => x.DeleteCompletedBeforeAsync(
             UtcNow.AddDays(-90),
             It.IsAny<CancellationToken>()), Times.Once);
         store.Verify(x => x.DeleteCompletedBeforeAsync(
-            UtcNow.AddDays(1).AddDays(-90),
+            UtcNow.AddMinutes(1).AddDays(-90),
             It.IsAny<CancellationToken>()), Times.Once);
+        // The retry succeeded, so the day is now stamped and the third
+        // iteration must not clean up again.
+        store.Verify(x => x.DeleteCompletedBeforeAsync(
+            UtcNow.AddMinutes(2).AddDays(-90),
+            It.IsAny<CancellationToken>()), Times.Never);
         Assert.IsTrue(logger.Messages.Any(entry =>
             entry.Contains("InvalidOperationException", StringComparison.Ordinal) &&
             !entry.Contains(rawFailure, StringComparison.Ordinal) &&

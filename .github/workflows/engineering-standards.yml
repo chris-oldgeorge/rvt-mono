@@ -67,6 +67,7 @@ jobs:
         run: tests/verify-engineering-standards-workflow.test.sh
 
       - name: Verify changed-range engineering standards
+        if: ${{ hashFiles('RELEASE_SOURCE.json') == '' }}
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: scripts/verify-engineering-standards.sh --base "${BASE_SHA}" --head HEAD

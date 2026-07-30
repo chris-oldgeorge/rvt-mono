@@ -498,6 +498,75 @@ public sealed class MicrosoftGraphEmailAdapterTests
     }
 
     [TestMethod]
+    public async Task SendAsync_LargeAttachmentUploadFailure_DeletesTheDraftAndRethrowsTheOriginalFailure()
+    {
+        using SequenceHandler handler = new(
+            (HttpStatusCode.Created, "{\"id\":\"draft-id\"}"),
+            (HttpStatusCode.OK, "{\"uploadUrl\":\"https://upload.example/session-token\"}"),
+            (HttpStatusCode.TooManyRequests, string.Empty),
+            (HttpStatusCode.NoContent, string.Empty));
+        using HttpClient httpClient = new(handler);
+        MicrosoftGraphEmailAdapter adapter = new(
+            httpClient,
+            new RecordingTokenProvider("token"),
+            Options());
+
+        EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+            adapter.SendAsync(LargeRequest(), TestContext.CancellationToken));
+
+        Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
+        Assert.AreEqual("429", exception.Code);
+        LargeRecordedRequest delete = handler.Requests.Single(request => request.Method == HttpMethod.Delete);
+        Assert.AreEqual(
+            "https://graph.microsoft.com/v1.0/users/sender%40example.test/messages/draft-id",
+            delete.Uri.ToString());
+    }
+
+    [TestMethod]
+    public async Task SendAsync_LargeAttachmentSendFailure_DeletesTheDraftExactlyOnce()
+    {
+        using SequenceHandler handler = new(
+            (HttpStatusCode.Created, "{\"id\":\"draft-id\"}"),
+            (HttpStatusCode.OK, "{\"uploadUrl\":\"https://upload.example/session-token\"}"),
+            (HttpStatusCode.Created, string.Empty),
+            (HttpStatusCode.ServiceUnavailable, string.Empty),
+            (HttpStatusCode.NoContent, string.Empty));
+        using HttpClient httpClient = new(handler);
+        MicrosoftGraphEmailAdapter adapter = new(
+            httpClient,
+            new RecordingTokenProvider("token"),
+            Options());
+
+        EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+            adapter.SendAsync(LargeRequest(), TestContext.CancellationToken));
+
+        Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
+        Assert.HasCount(1, handler.Requests.Where(request => request.Method == HttpMethod.Delete).ToList());
+    }
+
+    [TestMethod]
+    public async Task SendAsync_DraftCleanupFailure_DoesNotReplaceTheOriginalFailure()
+    {
+        // The queue runs dry on the delete, so the cleanup request itself
+        // throws — the caller must still see the upload's 429.
+        using SequenceHandler handler = new(
+            (HttpStatusCode.Created, "{\"id\":\"draft-id\"}"),
+            (HttpStatusCode.OK, "{\"uploadUrl\":\"https://upload.example/session-token\"}"),
+            (HttpStatusCode.TooManyRequests, string.Empty));
+        using HttpClient httpClient = new(handler);
+        MicrosoftGraphEmailAdapter adapter = new(
+            httpClient,
+            new RecordingTokenProvider("token"),
+            Options());
+
+        EmailDeliveryException exception = await Assert.ThrowsExactlyAsync<EmailDeliveryException>(() =>
+            adapter.SendAsync(LargeRequest(), TestContext.CancellationToken));
+
+        Assert.AreEqual(DeliveryFailureKind.Transient, exception.FailureKind);
+        Assert.AreEqual("429", exception.Code);
+    }
+
+    [TestMethod]
     public void AttachmentSizeBoundaries_AllowExactlyOneHundredFiftyMiB()
     {
         Assert.IsTrue(MicrosoftGraphEmailAdapter.IsAttachmentSizeSupported(150L * 1024 * 1024));
@@ -573,6 +642,16 @@ public sealed class MicrosoftGraphEmailAdapterTests
 
     private static EmailDeliveryRequest Request() =>
         new("ops@example.test", "subject", "plain", "<p>html</p>", []);
+
+    private static EmailDeliveryRequest LargeRequest() => new(
+        "ops@example.test",
+        "subject",
+        "plain",
+        "<p>html</p>",
+        [new EmailAttachment(
+            "large.bin",
+            "application/octet-stream",
+            new byte[MicrosoftGraphEmailAdapter.SmallAttachmentLimit])]);
 
     private static MicrosoftGraphMailOptions Options() => new()
     {

@@ -3,26 +3,22 @@
 // - 2026-07-30 pending Renamed from DashboardRoutePanels.tsx to reflect the Map+Calendar content.
 // - 2026-07-08 pending Split map and calendar panels from the eager dashboard module to reduce the initial bundle.
 
-import { AlertTriangle, CalendarDays, ChevronLeft, MapPin, RefreshCcw } from 'lucide-react';
+import { AlertTriangle, CalendarDays, ChevronLeft, MapPin } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getCalendarDay, getCalendarMonth, getDashboardSummary, isAbortError, queryMapMarkers } from '../api/client';
 import { Notice } from '../components/FormControls';
 import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
-import { formatDate, formatDateTime, formatMonthYear, formatNumber } from '../format';
+import { formatDate, formatMonthYear, formatNumber } from '../format';
 import { parsePositiveInt } from '../gridQuery';
+import { DetailItem, LoadingInline, NotificationList } from './panelComponents';
+import type { ReadOnlyRouteProps } from './panelShared';
 import type {
   CalendarDayResponse,
   CalendarMonthDayItem,
   CalendarMonthResponse,
-  DashboardNotificationItem,
   MapMarkersResponse,
   OptionItem,
 } from '../dtos';
-
-type MapCalendarPanelProps = Readonly<{
-  locationPath: string;
-  onRequestError: (error: unknown) => void;
-}>;
 
 type MapExecution = Readonly<{
   siteId: string;
@@ -59,7 +55,7 @@ type CalendarDayResult = Readonly<{
 }>;
 
 // Function summary: Renders the MapPanel React component and wires its local UI behavior.
-export function MapPanel({ locationPath, onRequestError }: MapCalendarPanelProps) {
+export function MapPanel({ locationPath, onRequestError }: ReadOnlyRouteProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [siteId, setSiteId] = useState(initialParams.get('siteId') ?? '');
   const [sites, setSites] = useState<OptionItem[]>([]);
@@ -139,7 +135,7 @@ export function MapPanel({ locationPath, onRequestError }: MapCalendarPanelProps
 }
 
 // Function summary: Renders the CalendarPanel React component and wires its local UI behavior.
-export function CalendarPanel({ locationPath, onRequestError }: MapCalendarPanelProps) {
+export function CalendarPanel({ locationPath, onRequestError }: ReadOnlyRouteProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const initialDate = useMemo(() => initialCalendarDate(initialParams), [initialParams]);
   const [deployments, setDeployments] = useState<OptionItem[]>([]);
@@ -391,48 +387,6 @@ function CalendarDayButton({
   );
 }
 
-// Function summary: Renders the NotificationList React component and wires its local UI behavior.
-function NotificationList({ notifications }: Readonly<{ notifications: ReadonlyArray<DashboardNotificationItem> }>) {
-  if (notifications.length === 0) {
-    return <p className="muted-text">No open notifications in this view.</p>;
-  }
-
-  return (
-    <div className="notification-stack">
-      {notifications.map((notification) => (
-        <div className="notification-card" key={notification.id}>
-          <span className={`status-chip ${notificationTone(notification)}`}>{notification.alertType}</span>
-          <strong>{notification.fleetNumber || notification.serialId}</strong>
-          <span>
-            {notification.alertField} / {formatNumber(notification.level)}
-          </span>
-          <time>{formatDateTime(notification.notificationTime)}</time>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Function summary: Renders the DetailItem React component and wires its local UI behavior.
-function DetailItem({ label, value }: Readonly<{ label: string; value: string }>) {
-  return (
-    <div className="detail-item">
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-// Function summary: Renders an inline route-loading indicator without pulling in a heavier panel module.
-function LoadingInline({ label }: Readonly<{ label: string }>) {
-  return (
-    <div className="loading-inline">
-      <RefreshCcw size={16} aria-hidden="true" />
-      <span>{label}</span>
-    </div>
-  );
-}
-
 // Function summary: Maps query into the shape required by callers.
 function mapQuery(siteId: string) {
   if (!siteId) {
@@ -449,15 +403,6 @@ function mapMarkersRequest(siteId: string) {
   }
 
   return { siteId };
-}
-
-// Function summary: Handles the notification tone workflow for this module.
-function notificationTone(notification: DashboardNotificationItem) {
-  if (notification.alertType === 'Alert') {
-    return 'danger';
-  }
-
-  return 'neutral';
 }
 
 // Function summary: Handles the calendar day class name workflow for this module.

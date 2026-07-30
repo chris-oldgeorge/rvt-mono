@@ -406,6 +406,37 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(missingStatusSerialId, degraded.MonitorStatus.SerialId);
         }
 
+        // A measuring point that has not reported a sensor is legitimate - the
+        // DTO models it nullable and ReadMonitor uses FirstOrDefault - but the
+        // inner join here dropped it from the fleet list entirely, so it was
+        // catalogued and then never polled and never alerted on.
+        [TestMethod]
+        public void ReadMonitorList_MissingSensorRow_StillReturnsTheMeasuringPoint()
+        {
+            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(2, null, true);
+            _testObj!.WriteMonitorList(monitorsIn);
+            string sensorlessSerialId = monitorsIn[0].SerialId;
+
+            using (NpgsqlConnection connection = _database!.OpenConnection())
+            {
+                connection.Open();
+                using NpgsqlCommand command = new(
+                    "DELETE FROM omnidots_sensor WHERE serial_id = $1;",
+                    connection);
+                command.Parameters.AddWithValue(sensorlessSerialId);
+                Assert.AreEqual(1, command.ExecuteNonQuery());
+            }
+
+            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList();
+
+            Assert.HasCount(2, monitorsOut);
+            VibrationMonitorDto sensorless = monitorsOut.Single(monitor => monitor.SerialId == sensorlessSerialId);
+            Assert.IsNull(sensorless.Sensor);
+            Assert.IsNull(sensorless.LastSeen);
+            // ReadMonitor already tolerated the absence; the two reads now agree.
+            Assert.IsNull(_testObj.ReadMonitor(sensorlessSerialId).Sensor);
+        }
+
 
         private static int CountRows(string connectionString, string tableName)
         {
@@ -598,66 +629,11 @@ namespace OmnidotsAdapterTests
 
             InsertDeletedGlobalOfflineRule(connection);
 
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _testObj!.ReadRules(null);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _testObj!.ReadRules();
 
             Assert.HasCount(1, rules);
             Assert.IsFalse(rules[0].IsDeleted);
         }
-
-        [TestMethod]
-        public void TestReadAlertRules()
-        {
-            string connectionString = _database!.ConnectionString;
-            using NpgsqlConnection connection = new(connectionString);
-            connection.Open();
-
-            string serialId = "12345";
-            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(1);
-            _testObj!.WriteMonitorList(monitorsIn);
-            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList();
-            Assert.HasCount(1, monitorsOut);
-            Guid monitorId = monitorsOut[0].Id;
-
-            int NUM_RULES = 10;
-            TimeSpan startTime = new(9, 0, 0);
-            TimeSpan endTime = new(17, 0, 0);
-            for (int i = 0; i < NUM_RULES; i++)
-            {
-                InsertAlertRule(connection, i, serialId, monitorId);
-            }
-
-            // add rules that should NOT be read
-            for (int i = 0; i < 3; i++)
-            {
-                InsertAlertRule(connection, i, "99999", monitorId);
-            }
-
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
-            Assert.HasCount(NUM_RULES, rules);
-
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> orderedRules = [.. rules.OrderBy(o => o.Field)];
-
-            for (int i = 0; i < NUM_RULES; i++)
-            {
-                bool isEven = i % 2 == 0;
-                Rvt.Monitor.Common.Rules.RvtAlertRuleDto rule = orderedRules[i];
-                Assert.AreEqual(serialId, rule.SerialId);
-
-                Assert.AreEqual("Pm" + i, rule.Field);
-                Assert.AreEqual(1.111 * i, rule.LimitOn);
-                Assert.AreEqual(2.2222 * i, rule.LimitOff);
-                Assert.AreEqual(isEven ? AlertType.Alert : AlertType.Caution, rule.AlertType);
-                Assert.AreEqual(isEven, rule.IsActive);
-                Assert.AreEqual(5 + i, rule.AveragingPeriod);
-                Assert.AreEqual(isEven, rule.RuleActiveTime.Weekdays);
-                Assert.AreEqual(isEven, rule.RuleActiveTime.Saturdays);
-                Assert.AreEqual(isEven, rule.RuleActiveTime.Sundays);
-                Assert.AreEqual(isEven ? startTime : null, rule.RuleActiveTime.StartTime);
-                Assert.AreEqual(isEven ? endTime : null, rule.RuleActiveTime.EndTime);
-                Assert.AreNotEqual(default, rule.Created);
-            }
-        }
-
 
         [TestMethod]
         public void TestWriteExceptionUsesPostgreSqlErrorLog()

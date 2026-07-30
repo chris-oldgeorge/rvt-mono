@@ -9,6 +9,7 @@ using Moq;
 using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
+using Rvt.Monitor.Common.Notifications;
 namespace AirQMonitorTests
 {
     [TestClass]
@@ -283,7 +284,7 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IAlertIngressPort> messageClient);
 
-            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah", TestContext.CancellationToken));
@@ -317,7 +318,7 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IAlertIngressPort> messageClient);
 
-            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson(), TestContext.CancellationToken));
@@ -350,7 +351,7 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IAlertIngressPort> messageClient);
 
-            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
                     Throws(new IOException());
@@ -474,6 +475,71 @@ namespace AirQMonitorTests
             dbClient.VerifyNoOtherCalls();
 
 
+            mqttClient.VerifyNoOtherCalls();
+            messageClient.VerifyNoOtherCalls();
+        }
+
+        [TestMethod]
+        public async Task TestCheckForOfflineMonitors_OneFailingMonitorDoesNotAbortTheFleet()
+        {
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+                                                     out Mock<IDBClient> dbClient,
+                                                     out Mock<IMqttClient> mqttClient,
+                                                     out Mock<IAlertIngressPort> messageClient);
+
+            dbClient.Setup(c => c.ReadRules(null)).Returns(AirQFixture.OfflineRules());
+            List<NoiseMonitorDto> monitors = AirQFixture.MonitorDtos(DateTime.UtcNow.AddMinutes(-25 * 60), NoiseMonitorStatus.ACTIVE);
+            dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).Returns(monitors);
+
+            // Monitor 2 of 3 fails; monitor 3 must still be evaluated and marked.
+            messageClient.Setup(c => c.AcceptAsync(
+                    It.Is<AlertSignal>(signal => signal.SerialId == "Device2"),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new IOException());
+
+            AggregateException exception = await Assert.ThrowsAsync<AggregateException>(
+                () => testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken));
+            Assert.HasCount(1, exception.InnerExceptions);
+
+            foreach (string serialId in new[] { "Device1", "Device2", "Device3" })
+            {
+                messageClient.Verify(c => c.AcceptAsync(
+                    It.Is<AlertSignal>(signal => signal.SerialId == serialId && signal.AlertType == AlertType.Offline),
+                    It.IsAny<CancellationToken>()), Times.Exactly(1));
+            }
+
+            dbClient.Verify(c => c.SetMonitorOffline(monitors[0].Id, true), Times.Exactly(1));
+            dbClient.Verify(c => c.SetMonitorOffline(monitors[2].Id, true), Times.Exactly(1));
+            dbClient.Verify(c => c.SetMonitorOffline(monitors[1].Id, It.IsAny<bool>()), Times.Never);
+            dbClient.Verify(c => c.HandleException("CheckForOfflineMonitors SerialId=Device2",
+                                    It.Is<Exception>(e => e is IOException)), Times.Exactly(1));
+
+            httpClient.VerifyNoOtherCalls();
+            mqttClient.VerifyNoOtherCalls();
+        }
+
+        // An online monitor used to get SetMonitorOffline(id, false) rewritten
+        // on every run, three times an hour across the whole fleet, and the
+        // fleet was re-read once per offline rule.
+        [TestMethod]
+        public async Task TestCheckForOfflineMonitors_OnlineMonitorsCauseNoWritesAndOneFleetRead()
+        {
+            AirQApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+                                                     out Mock<IDBClient> dbClient,
+                                                     out Mock<IMqttClient> mqttClient,
+                                                     out Mock<IAlertIngressPort> messageClient);
+
+            // Two offline rules: the fleet must still be read once.
+            dbClient.Setup(c => c.ReadRules(null))
+                .Returns([.. AirQFixture.OfflineRules(), .. AirQFixture.OfflineRules()]);
+            dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>()))
+                .Returns(AirQFixture.MonitorDtos(DateTime.UtcNow.AddMinutes(-5), NoiseMonitorStatus.ACTIVE));
+
+            await testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken);
+
+            dbClient.Verify(c => c.ReadMonitorList(It.IsAny<DateTime?>()), Times.Exactly(1));
+            dbClient.Verify(c => c.SetMonitorOffline(It.IsAny<Guid>(), It.IsAny<bool>()), Times.Never);
+            httpClient.VerifyNoOtherCalls();
             mqttClient.VerifyNoOtherCalls();
             messageClient.VerifyNoOtherCalls();
         }

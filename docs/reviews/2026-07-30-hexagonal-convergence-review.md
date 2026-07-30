@@ -187,7 +187,7 @@ unifiable). The durable-alerts doc's claim that claim/lease fencing is
     the frontend B12 one-liners (sort default, dashboard refetch,
     forgot-password email out of the query string) rode along.**
 11. Guard pack: G2 + G3 + G4 + G5 (one afternoon, converts convention to enforcement).
-    **Done 2026-07-30, guard pack PR: G2 — `CommonPackageBoundaryTests` rejects
+    **Done 2026-07-30, PR #52: G2 — `CommonPackageBoundaryTests` rejects
     any monitor→monitor ProjectReference. G3 — AirQ's five guards generalized
     into `MonitorDependencyBoundaryContract` in `Rvt.Monitor.IntegrationTesting`
     and instantiated by all four vendor monitors (per-monitor allowlists pin

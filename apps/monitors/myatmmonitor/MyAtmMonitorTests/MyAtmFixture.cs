@@ -7,6 +7,7 @@ using MyAtm.Model.Json.DeviceInfo;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
+using Rvt.Monitor.IntegrationTesting;
 
 
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
@@ -19,12 +20,12 @@ namespace MyAtmMonitorTests
     {
         public static string DevicesResponseJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/devices.json");
+            return MonitorTestUtil.ReadTextFromFile("testdata/devices.json");
         }
 
         public static string DeviceInfoResponseJson(string serialNumber)
         {
-            string json = TestUtil.ReadTextFromFile("testdata/device_info.json");
+            string json = MonitorTestUtil.ReadTextFromFile("testdata/device_info.json");
             DustMonitorInfo? deviceInfo = JsonSerializer.Deserialize<DustMonitorInfo>(json);
             deviceInfo!.SerialNumber = serialNumber;
             return JsonSerializer.Serialize(deviceInfo);
@@ -32,7 +33,7 @@ namespace MyAtmMonitorTests
 
         public static string AccessoryResponseJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/accessory.json");
+            return MonitorTestUtil.ReadTextFromFile("testdata/accessory.json");
         }
 
         public static List<RvtContactDto> AlertContacts(TimeSpan? sendStartTime = null, TimeSpan? sendEndTime = null)
@@ -72,8 +73,8 @@ namespace MyAtmMonitorTests
 
             return period switch
             {
-                Period.Minutes1 => TestUtil.ReadTextFromFile("testdata/measurements.json"),
-                Period.Minutes15 or Period.Hours1 or Period.Hours8 or Period.Hours24 => TestUtil.ReadTextFromFile("testdata/measurements_avg.json"),
+                Period.Minutes1 => MonitorTestUtil.ReadTextFromFile("testdata/measurements.json"),
+                Period.Minutes15 or Period.Hours1 or Period.Hours8 or Period.Hours24 => MonitorTestUtil.ReadTextFromFile("testdata/measurements_avg.json"),
                 _ => throw AdapterException.Of("MeasurementsResponseJson Unknown Period " + period),
             };
             ;

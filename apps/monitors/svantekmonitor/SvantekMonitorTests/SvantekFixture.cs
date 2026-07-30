@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
+using Rvt.Monitor.IntegrationTesting;
 using Svantek.Model.Http;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 namespace SvantekMonitorTests
@@ -10,7 +11,7 @@ namespace SvantekMonitorTests
     {
         public static string SamplesResponseJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/latest_samples.json");
+            return MonitorTestUtil.ReadTextFromFile("testdata/latest_samples.json");
         }
 
         public static List<SampleResponse> SamplesResponseObjects(DateTime? sampleTimeUtc = null)

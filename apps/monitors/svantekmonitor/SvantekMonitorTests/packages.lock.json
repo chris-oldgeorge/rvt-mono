@@ -35,9 +35,9 @@
       },
       "Moq": {
         "type": "Direct",
-        "requested": "[4.20.69, )",
-        "resolved": "4.20.69",
-        "contentHash": "8P/oAUOL8ZVyXnzBBcgdhTsOD1kQbAWfOcMI7KDQO3HqQtzB/0WYLdnMa4Jefv8nu/MQYiiG0IuoJdvG0v0Nig==",
+        "requested": "[4.20.72, )",
+        "resolved": "4.20.72",
+        "contentHash": "EA55cjyNn8eTNWrgrdZJH5QLFp2L43oxl1tlkoYUKIE9pRwL784OWiTXeCV5ApS+AMYEAlt7Fo03A2XfouvHmQ==",
         "dependencies": {
           "Castle.Core": "5.1.1"
         }
@@ -431,8 +431,10 @@
       "rvt.monitor.integrationtesting": {
         "type": "Project",
         "dependencies": {
+          "Moq": "[4.20.72, )",
           "Npgsql": "[10.0.3, )",
-          "Rvt.Communication.Abstractions": "[1.0.0-rc.1, )"
+          "Rvt.Communication.Abstractions": "[1.0.0-rc.1, )",
+          "Rvt.Monitor.Common": "[1.0.0-rc.1, )"
         }
       },
       "rvt.storage.abstractions": {

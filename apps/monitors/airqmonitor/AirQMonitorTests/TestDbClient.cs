@@ -49,8 +49,8 @@ namespace AirQMonitorTests
         [ClassInitialize]
         public static async Task TestFixtureSetup(TestContext context)
         {
-            string setupSql = TestUtil.ReadTextFromFile("testdata/create.postgres.sql");
-            string resetSql = TestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
+            string setupSql = MonitorTestUtil.ReadTextFromFile("testdata/create.postgres.sql");
+            string resetSql = MonitorTestUtil.ReadTextFromFile("testdata/reset.postgres.sql");
             _database = await PostgreSqlIntegrationDatabase.CreateAsync(setupSql, resetSql, context.CancellationToken);
             _testObj = new DBClient(_database.ConnectionString);
         }
@@ -68,7 +68,7 @@ namespace AirQMonitorTests
         public async Task BeforeTest()
         {
             await _database!.ResetAsync(
-                TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
+                MonitorTestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
                 TestContext.CancellationToken);
         }
 

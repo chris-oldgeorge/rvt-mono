@@ -6,7 +6,6 @@ using MyAtm.Api.Http;
 using MyAtm.Delivery;
 using MyAtm.Model.Dto;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Rules;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
@@ -68,23 +67,6 @@ namespace MyAtmMonitorTests
             Assert.AreEqual(actual.Hour, expected.Hour);
             Assert.AreEqual(actual.Minute, expected.Minute);
             Assert.AreEqual(actual.Second, expected.Second);
-        }
-
-        public static string ReadTextFromFile(string fileName)
-        {
-            try
-            {
-                using StreamReader sr = new(fileName);
-                string txt = sr.ReadToEnd();
-                Console.WriteLine(txt);
-                return txt;
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("The file could not be read:");
-                Console.WriteLine(e.Message);
-                throw AdapterException.Of("Could not read file=" + fileName, e);
-            }
         }
 
         public static bool AreEqual(List<DustMonitorDto> expected, List<DustMonitorDto> actual)

@@ -12,9 +12,11 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all" />
+    <PackageReference Include="Moq" />
     <PackageReference Include="Npgsql" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Rvt.Communication.Abstractions/Rvt.Communication.Abstractions.csproj" />
+    <ProjectReference Include="../../src/Rvt.Monitor.Common/Rvt.Monitor.Common.csproj" />
   </ItemGroup>
 </Project>

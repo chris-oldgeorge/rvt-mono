@@ -3,6 +3,7 @@
 // - 2026-07-26 current Removed retired-provider mirror checks while retaining PostgreSQL deployment coverage.
 
 using System.Text.RegularExpressions;
+using RvtPortal.Spa.Tests.Support;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -31,7 +32,7 @@ public sealed class DatabaseBackendMirrorTests
     public void MonitorNaturalKeyDeploymentScript_ExistsForPostgres()
     {
         const string relativePath = "database/postgres/monitor_natural_key_changes_20260618.sql";
-        string path = Path.Combine(FindRepositoryRoot(), relativePath);
+        string path = Path.Combine(RepositoryLayout.Root, relativePath);
 
         Assert.True(File.Exists(path), $"Missing database deployment script: {relativePath}");
     }
@@ -99,7 +100,7 @@ public sealed class DatabaseBackendMirrorTests
 
     private static string ReadRepositoryFile(string relativePath)
     {
-        string path = Path.Combine(FindRepositoryRoot(), relativePath);
+        string path = Path.Combine(RepositoryLayout.Root, relativePath);
         Assert.True(File.Exists(path), $"Missing repository file: {relativePath}");
         return File.ReadAllText(path);
     }
@@ -107,22 +108,6 @@ public sealed class DatabaseBackendMirrorTests
     private static string NormalizeSql(string sql)
     {
         return Regex.Replace(sql, @"\s+", " ", RegexOptions.None, TimeSpan.FromSeconds(1)).Trim();
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "RvtPortal.Spa.sln")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find repository root from test output directory.");
     }
 
     private sealed record NaturalKeyIndex(string Table, string IndexName, string[] Columns);

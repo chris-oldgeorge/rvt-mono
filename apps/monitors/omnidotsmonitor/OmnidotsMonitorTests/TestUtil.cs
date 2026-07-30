@@ -1,6 +1,5 @@
 using System.Data;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Moq;
 using Omnidots.Api;
 using Omnidots.Api.Db;
@@ -12,10 +11,9 @@ using Omnidots.Model.Dto;
 using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Data;
-using Rvt.Monitor.Common.Data.EntityFramework;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Rules;
+using Rvt.Monitor.IntegrationTesting;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 namespace OmnidotsAdapterTests
 {
@@ -24,11 +22,12 @@ namespace OmnidotsAdapterTests
     {
         public static void UseTestMonitorContextFactory(IServiceCollection services)
         {
-            services.Replace(ServiceDescriptor.Singleton<IMonitorDbContextFactory<OmnidotsMonitorContext>>(
+            MonitorTestUtil.UseTestMonitorContextFactory(
+                services,
                 new OmnidotsMonitorContextFactory(
                     "Host=localhost;Database=omnidots-tests;Username=omnidots-tests;Password=omnidots-tests",
                     new MonitorDbOptions(
-                        new Dictionary<string, string>()))));
+                        new Dictionary<string, string>())));
         }
 
         public static OmnidotsApi CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
@@ -60,14 +59,7 @@ namespace OmnidotsAdapterTests
             importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             Mock<IOmnidotsTraceQueries> traceQueries = dbClient.As<IOmnidotsTraceQueries>();
             mqttClient = new Mock<IMqttClient>();
-            messageClient = new Mock<IAlertIngressPort>();
-            messageClient
-                .Setup(ingress => ingress.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new AlertIngressResult(
-                    Guid.NewGuid(),
-                    Guid.NewGuid(),
-                    AlertOccurrenceOutcome.Accepted,
-                    IsDuplicate: false));
+            messageClient = MonitorTestUtil.CreateAcceptingAlertIngress();
             return new OmnidotsApi(
                 httpClient.Object,
                 dbClient.Object,
@@ -96,23 +88,6 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(actual.Minute, expected.Minute);
             Assert.AreEqual(actual.Second, expected.Second);
 
-        }
-
-        public static string ReadTextFromFile(string fileName)
-        {
-            try
-            {
-                using StreamReader sr = new(fileName);
-                string txt = sr.ReadToEnd();
-                Console.WriteLine(txt);
-                return txt;
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("The file could not be read:");
-                Console.WriteLine(e.Message);
-                throw AdapterException.Of("Could not read file=" + fileName, e);
-            }
         }
 
         private static async Task<string> ReadContent(MultipartFormDataContent content)

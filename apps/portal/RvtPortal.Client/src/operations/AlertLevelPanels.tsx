@@ -28,6 +28,8 @@ import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
 import { useRequestLifecycle } from '../requestLifecycle';
 import { alertLevelColumnsForMonitorType } from './alertLevelColumns';
+import { pageSize } from './panelShared';
+import type { ListExecution, OperationsRouteProps } from './panelShared';
 import type {
   AlertLevelItem,
   AlertLevelMutationRequest,
@@ -37,22 +39,11 @@ import type {
   SortDirection,
 } from '../dtos';
 
-const pageSize = 10;
-type ListExecution<TQuery> = Readonly<{ query: TQuery }>;
-
-type OperationsPanelProps = Readonly<{
-  locationPath: string;
-  onNavigate: (path: string) => void;
-  onRequestError: (error: unknown) => void;
-}>;
-
-type AlertLevelsPanelProps = Readonly<{
-  monitorId: string;
-  locationPath: string;
-  onNavigate: (path: string) => void;
-  onRequestError: (error: unknown) => void;
-  canManage?: boolean;
-}>;
+type AlertLevelsPanelProps = OperationsRouteProps &
+  Readonly<{
+    monitorId: string;
+    canManage?: boolean;
+  }>;
 
 type AlertLevelRoute = { kind: 'list' } | { kind: 'new' } | { kind: 'edit'; levelId: string } | { kind: 'vibration' };
 
@@ -305,7 +296,7 @@ function AlertLevelForm({
   locationPath,
   onNavigate,
   onRequestError,
-}: OperationsPanelProps & Readonly<{ monitorId: string; levelId?: string }>) {
+}: OperationsRouteProps & Readonly<{ monitorId: string; levelId?: string }>) {
   const [options, setOptions] = useState<AlertLevelOptionsResponse | null>(null);
   const [form, setForm] = useState<AlertLevelMutationRequest>(() => emptyAlertLevelForm(monitorId));
   // The limits are edited as text so a partial entry ("5.", "-") survives keystrokes and a
@@ -523,7 +514,7 @@ function VibrationAlertLevelForm({
   locationPath,
   onNavigate,
   onRequestError,
-}: OperationsPanelProps & Readonly<{ monitorId: string }>) {
+}: OperationsRouteProps & Readonly<{ monitorId: string }>) {
   const [alertLevel, setAlertLevel] = useState('');
   const [cautionLevel, setCautionLevel] = useState('');
   const [alertLevelError, setAlertLevelError] = useState<string | null>(null);

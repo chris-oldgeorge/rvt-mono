@@ -10,7 +10,7 @@ import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn } from '../components/DataGrid';
 import { ConfirmDialog, FormField, Notice } from '../components/FormControls';
 import { returnToOr, withReturnTo } from '../navigation';
-import type { MonitorsPanelProps } from './monitorShared';
+import type { MonitorsPanelProps } from './panelShared';
 import type { MonitorAssignmentContextResponse, MonitorListItem } from '../dtos';
 
 // Function summary: Renders the MonitorAssignmentPanel React component and wires its local UI behavior.

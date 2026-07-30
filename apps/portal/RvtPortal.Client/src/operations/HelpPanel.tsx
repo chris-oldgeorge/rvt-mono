@@ -10,15 +10,10 @@ import { getHelpArticle, isAbortError, queryHelp } from '../api/client';
 import { Notice } from '../components/FormControls';
 import type { HelpArticleResponse, HelpOverviewResponse } from '../dtos';
 import { safeHref } from '../safeUrl';
-
-type HelpPanelProps = Readonly<{
-  locationPath: string;
-  onNavigate: (path: string) => void;
-  onRequestError: (error: unknown) => void;
-}>;
+import type { OperationsRouteProps } from './panelShared';
 
 // Function summary: Renders the HelpPanel React component and wires its local UI behavior.
-export function HelpPanel({ locationPath, onNavigate, onRequestError }: HelpPanelProps) {
+export function HelpPanel({ locationPath, onNavigate, onRequestError }: OperationsRouteProps) {
   const slug = useMemo(() => parseHelpSlug(locationPath), [locationPath]);
   return slug ? (
     <HelpArticlePanel slug={slug} onNavigate={onNavigate} onRequestError={onRequestError} />
@@ -28,7 +23,7 @@ export function HelpPanel({ locationPath, onNavigate, onRequestError }: HelpPane
 }
 
 // Function summary: Renders the Help CMS overview and search experience.
-function HelpOverviewPanel({ onNavigate, onRequestError }: Omit<HelpPanelProps, 'locationPath'>) {
+function HelpOverviewPanel({ onNavigate, onRequestError }: Omit<OperationsRouteProps, 'locationPath'>) {
   const [searchText, setSearchText] = useState('');
   const execution = useMemo(() => ({ searchText }), [searchText]);
   const [result, setResult] = useState<{
@@ -109,7 +104,7 @@ function HelpArticlePanel({
   slug,
   onNavigate,
   onRequestError,
-}: Omit<HelpPanelProps, 'locationPath'> & Readonly<{ slug: string }>) {
+}: Omit<OperationsRouteProps, 'locationPath'> & Readonly<{ slug: string }>) {
   const execution = useMemo(() => ({ slug }), [slug]);
   const [result, setResult] = useState<{
     execution: typeof execution;

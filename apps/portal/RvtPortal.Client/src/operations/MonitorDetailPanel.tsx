@@ -19,7 +19,8 @@ import { ConfirmDialog, Notice } from '../components/FormControls';
 import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
 import { formatDate, formatDateTime } from '../format';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
-import type { MonitorsPanelProps } from './monitorShared';
+import { DetailItem } from './panelComponents';
+import type { MonitorsPanelProps } from './panelShared';
 import type {
   InstallerMonitorStatusResponse,
   MapMonitorMarker,
@@ -304,16 +305,6 @@ export function MonitorDetailPanel({
         onConfirm={handleRemoveAssignment}
       />
     </section>
-  );
-}
-
-// Function summary: Renders the DetailItem React component and wires its local UI behavior.
-function DetailItem({ label, value }: Readonly<{ label: string; value?: string | null }>) {
-  return (
-    <div className="detail-item">
-      <span>{label}</span>
-      <strong>{value || 'None'}</strong>
-    </div>
   );
 }
 

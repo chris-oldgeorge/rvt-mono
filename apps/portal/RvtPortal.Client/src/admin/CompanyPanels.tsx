@@ -16,11 +16,11 @@ import {
   updateCompany,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
-import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
+import type { DataGridColumn } from '../components/DataGrid';
 import { ConfirmDialog, FormField, Notice, SubmitButton } from '../components/FormControls';
 import { ReadOnlyRow } from '../components/ReadOnlyRow';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
-import { normalizeSortDirection, parsePositiveInt } from '../gridQuery';
+import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
 import type { AdminPanelProps, LookupExecution, RequestExecution } from './adminShared';
 import type { CompanyDetailResponse, CompanyListItem, QueryCompaniesRequest, SortDirection } from '../dtos';
 
@@ -110,6 +110,7 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
   const isLoading = completedExecution !== execution;
   const suggestions = suggestionResult?.execution === suggestionExecution ? suggestionResult.results : [];
   const returnPath = currentRoutePath(locationPath);
+  const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -163,13 +164,6 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
     setSearchText(value);
-    setPage(1);
-  }
-
-  // Function summary: Handles the handle sort change workflow for this module.
-  function handleSortChange(key: string, direction: GridSortDirection) {
-    setSortKey(key);
-    setSortDir(direction);
     setPage(1);
   }
 

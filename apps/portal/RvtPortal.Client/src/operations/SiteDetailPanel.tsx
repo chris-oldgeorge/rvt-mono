@@ -43,8 +43,8 @@ import { formatDate, formatDateTime } from '../format';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { notificationSettingDraft, withoutNotificationDraft } from './notificationDrafts';
 import type { NotificationDraftOverrides } from './notificationDrafts';
-import { normalizeOperatingHours } from './contractSiteShared';
-import type { OperationsPanelCallbacks } from './contractSiteShared';
+import { normalizeOperatingHours } from './panelShared';
+import type { OperationsPanelCallbacks } from './panelShared';
 import type {
   MapMonitorMarker,
   SiteAssignmentResponse,

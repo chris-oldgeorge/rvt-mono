@@ -1,5 +1,6 @@
 ﻿// File summary: Renders React operational panels for day-to-day RVT monitoring workflows.
 // Major updates:
+// - 2026-07-30 pending Used the canonical routes.ts role names instead of a local copy missing RVTAdmin.
 // - 2026-07-08 pending Moved map and calendar route panels into a lazy-loaded module so dashboard stays in the initial bundle.
 // - 2026-06-26 pending Added cancellation for dashboard summary, search, map, and calendar requests.
 // - 2026-06-04 pending Replaced insecure route-parsing fallback URL literals with HTTPS.
@@ -16,29 +17,24 @@ import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
 import { Notice } from '../components/FormControls';
 import { localDateInputValue } from '../localDate';
+import { LoadingInline, NotificationList } from './panelComponents';
+import type { OperationsPanelCallbacks } from './panelShared';
+import { roleNames } from '../routes';
 import { formatDateTime, formatNumber } from '../format';
 import type {
   AuthStateResponse,
   BreachesAlertsItem,
   BreachesAlertsResponse,
-  DashboardNotificationItem,
   DashboardSummaryResponse,
   QuerySitesRequest,
   SiteListItem,
   SortDirection,
 } from '../dtos';
 
-const roleNames = {
-  masterAdmin: 'RVTMasterAdmin',
-  installer: 'RVTInstaller',
-  companyUser: 'CompanyUser',
-} as const;
-
-type DashboardPanelProps = Readonly<{
-  auth: AuthStateResponse;
-  onNavigate: (path: string) => void;
-  onRequestError: (error: unknown) => void;
-}>;
+type DashboardPanelProps = OperationsPanelCallbacks &
+  Readonly<{
+    auth: AuthStateResponse;
+  }>;
 
 type DashboardSummaryResult = Readonly<{
   requestKey: string;
@@ -370,28 +366,6 @@ function BreachesAlertsWidget({ onRequestError }: Readonly<{ onRequestError: (er
   );
 }
 
-// Function summary: Renders the NotificationList React component and wires its local UI behavior.
-function NotificationList({ notifications }: Readonly<{ notifications: ReadonlyArray<DashboardNotificationItem> }>) {
-  if (notifications.length === 0) {
-    return <p className="muted-text">No open notifications in this view.</p>;
-  }
-
-  return (
-    <div className="notification-stack">
-      {notifications.map((notification) => (
-        <div className="notification-card" key={notification.id}>
-          <span className={`status-chip ${notificationTone(notification)}`}>{notification.alertType}</span>
-          <strong>{notification.fleetNumber || notification.serialId}</strong>
-          <span>
-            {notification.alertField} / {formatNumber(notification.level)}
-          </span>
-          <time>{formatDateTime(notification.notificationTime)}</time>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // Function summary: Renders the DashboardMetric React component and wires its local UI behavior.
 function DashboardMetric({ label, value, tone }: Readonly<{ label: string; value: number; tone: string }>) {
   return (
@@ -425,25 +399,6 @@ function LoadingPanel({ label }: Readonly<{ label: string }>) {
   );
 }
 
-// Function summary: Renders the LoadingInline React component and wires its local UI behavior.
-function LoadingInline({ label }: Readonly<{ label: string }>) {
-  return (
-    <div className="loading-inline">
-      <RefreshCcw size={16} aria-hidden="true" />
-      <span>{label}</span>
-    </div>
-  );
-}
-
-// Function summary: Handles the notification tone workflow for this module.
-function notificationTone(notification: DashboardNotificationItem) {
-  if (notification.alertType === 'Alert') {
-    return 'danger';
-  }
-
-  return 'neutral';
-}
-
 // Function summary: Handles the dashboard audience workflow for this module.
 function dashboardAudience(role: string) {
   if (role === roleNames.masterAdmin) {
@@ -455,8 +410,11 @@ function dashboardAudience(role: string) {
   if (role === roleNames.companyUser) {
     return 'Company dashboard';
   }
+  if (role === roleNames.admin) {
+    return 'RVT admin dashboard';
+  }
 
-  return 'RVT admin dashboard';
+  return 'RVT dashboard';
 }
 
 // Function summary: Maps day input value into the shape required by callers.

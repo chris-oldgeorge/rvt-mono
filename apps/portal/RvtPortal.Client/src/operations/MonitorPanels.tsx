@@ -29,7 +29,7 @@ import {
   uploadMonitorPicture,
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
-import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
+import type { DataGridColumn } from '../components/DataGrid';
 import { FormField, Notice, SubmitButton } from '../components/FormControls';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { safeHref } from '../safeUrl';
@@ -37,9 +37,9 @@ import { AlertLevelsPanel } from './AlertLevelPanels';
 import { MonitorAssignmentPanel } from './MonitorAssignmentPanel';
 import { MonitorDetailPanel } from './MonitorDetailPanel';
 import { UnattachedMonitorRemovalPanel } from './MonitorRemovalPanel';
-import { normalizeSortDirection, parsePositiveInt } from '../gridQuery';
-import { pageSize, resetSearchPage } from './monitorShared';
-import type { ListExecution, MonitorsPanelProps } from './monitorShared';
+import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
+import { pageSize, resetSearchPage } from './panelShared';
+import type { ListExecution, MonitorsPanelProps } from './panelShared';
 import type {
   DefaultMonitorsResponse,
   MonitorDetailResponse,
@@ -168,6 +168,7 @@ function MonitorListPanel({
   const [notice, setNotice] = useState<string | null>(null);
   const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryMonitorsRequest> | null>(null);
   const [isAddingDefaults, setIsAddingDefaults] = useState(false);
+  const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
   const columns = useMemo<DataGridColumn<MonitorListItem>[]>(
     () => [
       {
@@ -257,13 +258,6 @@ function MonitorListPanel({
   // Function summary: Handles the handle search workflow for this module.
   function handleSearch(value: string) {
     resetSearchPage(value, setSearchText, setPage);
-  }
-
-  // Function summary: Handles the handle sort change workflow for this module.
-  function handleSortChange(key: string, direction: GridSortDirection) {
-    setSortKey(key);
-    setSortDir(direction);
-    setPage(1);
   }
 
   async function handleDefaultLevels() {

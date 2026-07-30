@@ -8,12 +8,13 @@ import { Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { isAbortError, queryUnattachedMonitors, removeUnattachedMonitor } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
-import type { DataGridColumn, GridSortDirection } from '../components/DataGrid';
+import type { DataGridColumn } from '../components/DataGrid';
 import { ConfirmDialog, FormField, Notice } from '../components/FormControls';
+import { useGridSortHandler } from '../gridQuery';
 import { returnToOr } from '../navigation';
 import { useRequestLifecycle } from '../requestLifecycle';
-import { pageSize, resetSearchPage } from './monitorShared';
-import type { ListExecution, MonitorsPanelProps } from './monitorShared';
+import { pageSize, resetSearchPage } from './panelShared';
+import type { ListExecution, MonitorsPanelProps } from './panelShared';
 import type { QueryMonitorsRequest, SortDirection, UnattachedMonitorListItem } from '../dtos';
 
 // Function summary: Renders the UnattachedMonitorRemovalPanel React component and wires its local UI behavior.
@@ -62,6 +63,7 @@ export function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequ
   const effectExecution = useMemo<ListExecution<QueryMonitorsRequest>>(() => ({ query }), [query]);
   const currentExecution = refreshExecution?.query === query ? refreshExecution : effectExecution;
   const isLoading = completedExecution !== currentExecution;
+  const handleSortChange = useGridSortHandler(setSortKey, setSortDir, setPage);
 
   // Function summary: Refreshes unattached monitor removal candidates after an event-owned mutation.
   const refreshMonitors = useCallback(async () => {
@@ -116,13 +118,6 @@ export function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequ
   // Function summary: Handles search text changes for unattached monitor removal candidates.
   function handleSearch(value: string) {
     resetSearchPage(value, setSearchText, setPage);
-  }
-
-  // Function summary: Handles sort changes for unattached monitor removal candidates.
-  function handleSortChange(key: string, direction: GridSortDirection) {
-    setSortKey(key);
-    setSortDir(direction);
-    setPage(1);
   }
 
   // Function summary: Dismisses the removal confirmation and drops the reason typed inside it.

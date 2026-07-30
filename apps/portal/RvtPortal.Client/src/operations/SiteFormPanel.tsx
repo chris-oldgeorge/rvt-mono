@@ -15,8 +15,8 @@ import {
 } from '../api/client';
 import { FormField, Notice, SubmitButton } from '../components/FormControls';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
-import { normalizeOperatingHours, siteOperatingDays } from './contractSiteShared';
-import type { OperationsRouteProps } from './contractSiteShared';
+import { normalizeOperatingHours, siteOperatingDays } from './panelShared';
+import type { OperationsRouteProps } from './panelShared';
 import type { SiteMutationRequest, SiteOperatingHours, SiteOptionsResponse } from '../dtos';
 
 type SiteFormState = {

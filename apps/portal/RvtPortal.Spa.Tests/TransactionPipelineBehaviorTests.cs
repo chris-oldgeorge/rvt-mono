@@ -4,7 +4,7 @@
 // - 2026-06-26 pending Added business-readable rollback scenario coverage for RC testability.
 
 using MediatR;
-using RvtPortal.Spa.Application.Common;
+using RvtPortal.Spa.UseCases.Common;
 
 namespace RvtPortal.Spa.Tests;
 

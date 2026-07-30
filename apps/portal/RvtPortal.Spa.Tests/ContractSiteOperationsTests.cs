@@ -19,7 +19,7 @@ using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.Contracts;
+using RvtPortal.Spa.UseCases.Contracts;
 using RvtPortal.Spa.Data;
 using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;

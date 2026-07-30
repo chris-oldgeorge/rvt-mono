@@ -2,7 +2,7 @@
 // Major updates:
 // - 2026-07-09 pending Added notification read-service mappers for controller cleanup.
 
-using RvtPortal.Spa.Application.Notifications;
+using RvtPortal.Spa.UseCases.Notifications;
 
 namespace RvtPortal.Spa.Api.Mappers;
 

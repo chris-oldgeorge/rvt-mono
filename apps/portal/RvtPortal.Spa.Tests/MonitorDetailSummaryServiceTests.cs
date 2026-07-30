@@ -5,7 +5,7 @@ using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 using MonitorEntity = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Tests;

@@ -3,7 +3,7 @@
 // - 2026-07-30 pending Added when CSV exports stopped being buffered into a string and its UTF-8 copy.
 
 using Microsoft.AspNetCore.Mvc;
-using RvtPortal.Spa.Application.Data;
+using RvtPortal.Spa.UseCases.Data;
 using Microsoft.Net.Http.Headers;
 
 namespace RvtPortal.Spa.Api;

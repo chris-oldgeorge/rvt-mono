@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RvtPortal.Application.Time;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 
 namespace RvtPortal.Spa.Api;
 

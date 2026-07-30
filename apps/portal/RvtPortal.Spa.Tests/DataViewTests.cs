@@ -24,7 +24,7 @@ using RVT.Entities;
 using RVT.Entities.Ports.Persistence;
 using RVT.Entities.Querying;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 using RvtPortal.Spa.Data;
 
 using RvtPortal.Spa.Tests.Support;

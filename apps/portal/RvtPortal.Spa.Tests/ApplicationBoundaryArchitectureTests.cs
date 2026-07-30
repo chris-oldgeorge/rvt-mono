@@ -1,4 +1,6 @@
 // File summary: Guards the standalone portal application project and its forbidden dependency set.
+// Major updates:
+// - 2026-07-30 pending Pinned "Application" to the standalone project after the host layer became UseCases.
 
 using System.Xml.Linq;
 using RvtPortal.Spa.Adapters.Help;
@@ -55,6 +57,47 @@ public sealed class ApplicationBoundaryArchitectureTests
             .Select(row => $"{Path.GetRelativePath(ApplicationRoot, row.path)}:{row.number}: {row.line.Trim()}")];
 
         Assert.Empty(violations);
+    }
+
+    [Fact]
+    /// <summary>
+    /// PB-4 (2026-07-30 review): "Application" names exactly one thing here - the standalone, BCL-only
+    /// <c>RvtPortal.Application</c> project the two tests above guard. The host's use-case layer carried the
+    /// same name under <c>RvtPortal.Spa/Application</c> while living by the opposite rule (it imports the HTTP
+    /// contracts, EF and MediatR by design), which is why boundary reviews kept re-finding "leaks" there. It is
+    /// <c>RvtPortal.Spa/UseCases</c> now, and nothing may put an "Application" directory back inside the host.
+    /// </summary>
+    public void OnlyTheStandaloneProjectIsCalledApplication()
+    {
+        string hostRoot = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa");
+
+        Assert.True(
+            Directory.Exists(Path.Combine(hostRoot, "UseCases")),
+            "The host use-case layer lives in RvtPortal.Spa/UseCases.");
+        Assert.False(
+            Directory.Exists(Path.Combine(hostRoot, "Application")),
+            "RvtPortal.Spa/Application is the name of the BCL-only project; the host layer is UseCases.");
+        Assert.Empty(Directory
+            .EnumerateFiles(hostRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadLines(path).Any(line =>
+                line.Contains("RvtPortal.Spa.Application", StringComparison.Ordinal))));
+    }
+
+    [Fact]
+    /// <summary>
+    /// The rename made the two layers distinguishable; it did not resolve the dependency underneath. The host
+    /// use cases still speak the HTTP contract types, so that count is frozen here as a follow-up marker:
+    /// extracting the transport is a large change, and until it happens the number may shrink but never grow.
+    /// </summary>
+    public void HostUseCases_KeepTheTransportDependencyBaselineFrozen()
+    {
+        string useCasesRoot = Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa", "UseCases");
+        string[] importers = [.. Directory
+            .EnumerateFiles(useCasesRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(path => File.ReadLines(path).Any(line =>
+                line.Contains("RvtPortal.Spa.Api", StringComparison.Ordinal)))];
+
+        Assert.InRange(importers.Length, 0, 27);
     }
 
     // G5 (2026-07-30 review): adapters implement application ports and must not
@@ -130,7 +173,7 @@ public sealed class ApplicationBoundaryArchitectureTests
         string oldHelpDirectory = Path.Combine(
             RepositoryLayout.Root,
             "RvtPortal.Spa",
-            "Application",
+            "UseCases",
             "Help");
         IEnumerable<string> remainingSources = Directory.Exists(oldHelpDirectory)
             ? Directory.EnumerateFiles(

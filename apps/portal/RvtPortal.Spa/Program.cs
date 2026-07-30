@@ -31,7 +31,7 @@ using RVT.DataAccess.Configuration;
 using RVT.DataAccess.Context;
 using RvtPortal.Spa;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.Auth;
+using RvtPortal.Spa.UseCases.Auth;
 using RvtPortal.Spa.Data;
 const string readinessTag = "ready";
 const string testingEnvironment = "Testing";

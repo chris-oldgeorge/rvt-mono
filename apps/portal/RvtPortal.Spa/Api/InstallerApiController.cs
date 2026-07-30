@@ -18,8 +18,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
-using RvtPortal.Spa.Application.Installers;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Installers;
+using RvtPortal.Spa.UseCases.Monitors;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Api;

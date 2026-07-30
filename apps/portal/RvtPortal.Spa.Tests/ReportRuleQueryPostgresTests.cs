@@ -7,7 +7,7 @@ using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Common;
 using RvtPortal.Application.Identity;
-using RvtPortal.Spa.Application.ReportRules;
+using RvtPortal.Spa.UseCases.ReportRules;
 using RvtPortal.Spa.Tests.Support;
 
 namespace RvtPortal.Spa.Tests;

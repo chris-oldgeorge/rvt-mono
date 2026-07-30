@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RvtPortal.Application.Common;
 using RvtPortal.Application.Time;
-using RvtPortal.Spa.Application.Dashboard;
+using RvtPortal.Spa.UseCases.Dashboard;
 using RvtPortal.Spa.Tests.Support;
 
 namespace RvtPortal.Spa.Tests;

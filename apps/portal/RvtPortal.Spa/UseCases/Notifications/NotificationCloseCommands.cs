@@ -1,0 +1,278 @@
+// File summary: Handles transactional CQRS commands for notification close workflows.
+// Major updates:
+// - 2026-06-26 pending Scoped notification close authorization to effective deployment/contract ownership windows.
+// - 2026-06-25 pending Moved notification close and batch-close mutations behind MediatR transactional commands.
+// - 2026-07-22 pending Enforced inclusive active assignment windows before notification reads and mutations.
+
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using RVT.DataAccess.Context;
+using RVT.Entities;
+using RvtPortal.Spa.Api;
+using RvtPortal.Spa.UseCases.Common;
+using RvtPortal.Spa.UseCases.Monitors;
+using RvtPortal.Spa.UseCases.Sites;
+
+namespace RvtPortal.Spa.UseCases.Notifications;
+
+public sealed record NotificationCloseActor(Guid? UserId, bool IsAdmin, bool IsCompanyUser);
+
+public sealed record CloseNotificationCommand(Guid NotificationId, string? Note, NotificationCloseActor Actor)
+    : IRequest<CloseNotificationResult>, ITransactionalRequest;
+
+public sealed class CloseNotificationResult : ITransactionOutcome
+{
+    public bool NotFound { get; set; }
+    public Notification? Notification { get; set; }
+    public Deployment? Deployment { get; set; }
+    public Dictionary<string, string[]> Errors { get; } = [];
+    public bool ShouldCommit => !NotFound && Errors.Count == 0;
+}
+
+public sealed class CloseNotificationCommandHandler
+    : IRequestHandler<CloseNotificationCommand, CloseNotificationResult>
+{
+    private readonly RVTDbContext domainContext;
+    private readonly TimeProvider timeProvider;
+
+    // Function summary: Initializes the transactional notification close command handler.
+    public CloseNotificationCommandHandler(RVTDbContext domainContext, TimeProvider timeProvider)
+    {
+        this.domainContext = domainContext;
+        this.timeProvider = timeProvider;
+    }
+
+    // Function summary: Validates visibility and closes a single alert notification.
+    public async Task<CloseNotificationResult> Handle(
+        CloseNotificationCommand request,
+        CancellationToken cancellationToken)
+    {
+        CloseNotificationResult result = new();
+        Notification? notification = await NotificationCloseWorkflow.LoadNotificationAsync(domainContext, request.NotificationId, cancellationToken);
+        if (notification == null)
+        {
+            result.NotFound = true;
+            return result;
+        }
+
+        Deployment? deployment = await NotificationCloseWorkflow.FindDeploymentForNotificationAsync(domainContext, notification, cancellationToken);
+        NotificationCloseAccess access = NotificationCloseWorkflow.BuildAccessInfo(notification, deployment);
+        HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(
+            domainContext,
+            request.Actor,
+            timeProvider,
+            cancellationToken);
+        if (!NotificationCloseWorkflow.CanReadNotification(access, request.Actor, visibleSiteIds))
+        {
+            result.NotFound = true;
+            return result;
+        }
+
+        result.Notification = notification;
+        result.Deployment = deployment;
+        if (!access.CanClose)
+        {
+            AddError(result.Errors, nameof(NotificationCloseRequest.Note), "Only alert notifications can be closed.");
+        }
+        if (request.Note?.Length > 255)
+        {
+            AddError(result.Errors, nameof(NotificationCloseRequest.Note), "Note must be 255 characters or fewer.");
+        }
+        if (result.Errors.Count > 0)
+        {
+            return result;
+        }
+
+        NotificationCloseWorkflow.Close(notification, request.Note, request.Actor);
+        return result;
+    }
+
+    // Function summary: Appends a validation error to a command result.
+    private static void AddError(Dictionary<string, string[]> errors, string key, string message)
+    {
+        errors[key] = errors.TryGetValue(key, out string[]? existing)
+            ? [.. existing, message]
+            : [message];
+    }
+}
+
+public sealed record BatchCloseNotificationsCommand(
+    IReadOnlyCollection<Guid> NotificationIds,
+    string? Note,
+    NotificationCloseActor Actor)
+    : IRequest<NotificationBatchCloseResponse>, ITransactionalRequest;
+
+public sealed class BatchCloseNotificationsCommandHandler
+    : IRequestHandler<BatchCloseNotificationsCommand, NotificationBatchCloseResponse>
+{
+    private readonly RVTDbContext domainContext;
+    private readonly TimeProvider timeProvider;
+
+    // Function summary: Initializes the transactional notification batch-close command handler.
+    public BatchCloseNotificationsCommandHandler(RVTDbContext domainContext, TimeProvider timeProvider)
+    {
+        this.domainContext = domainContext;
+        this.timeProvider = timeProvider;
+    }
+
+    // Function summary: Closes visible alert notifications and reports skipped notification ids.
+    public async Task<NotificationBatchCloseResponse> Handle(
+        BatchCloseNotificationsCommand request,
+        CancellationToken cancellationToken)
+    {
+        List<Guid> ids = [.. request.NotificationIds.Distinct()];
+        NotificationBatchCloseResponse response = new() { Requested = ids.Count };
+        if (ids.Count == 0)
+        {
+            return response;
+        }
+
+        List<Notification> notifications = await domainContext.Notifications
+            .Include(notification => notification.Monitor)
+            .Where(notification => ids.Contains(notification.Id))
+            .ToListAsync(cancellationToken);
+        Dictionary<Guid, Notification> byId = notifications.ToDictionary(notification => notification.Id);
+        Dictionary<Guid, Deployment?> deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(domainContext, notifications, cancellationToken);
+        HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(
+            domainContext,
+            request.Actor,
+            timeProvider,
+            cancellationToken);
+        string note = string.IsNullOrWhiteSpace(request.Note) ? "batch close" : request.Note;
+
+        foreach (Guid id in ids)
+        {
+            if (!byId.TryGetValue(id, out Notification? notification))
+            {
+                response.NotFoundIds.Add(id);
+                continue;
+            }
+
+            deploymentLookup.TryGetValue(notification.Id, out Deployment? deployment);
+            NotificationCloseAccess access = NotificationCloseWorkflow.BuildAccessInfo(notification, deployment);
+            if (!NotificationCloseWorkflow.CanReadNotification(access, request.Actor, visibleSiteIds))
+            {
+                response.ForbiddenIds.Add(id);
+                continue;
+            }
+            if (!access.CanClose)
+            {
+                response.InvalidIds.Add(id);
+                continue;
+            }
+
+            NotificationCloseWorkflow.Close(notification, note, request.Actor);
+            response.ClosedIds.Add(id);
+        }
+
+        return response;
+    }
+}
+
+internal static class NotificationCloseWorkflow
+{
+    // Function summary: Loads a notification with the monitor needed for close response mapping.
+    public static Task<Notification?> LoadNotificationAsync(RVTDbContext domainContext, Guid id, CancellationToken cancellationToken)
+    {
+        return domainContext.Notifications
+            .Include(notification => notification.Monitor)
+            .SingleOrDefaultAsync(notification => notification.Id == id, cancellationToken);
+    }
+
+    // Function summary: Builds deployment lookup data for a notification batch close.
+    public static async Task<Dictionary<Guid, Deployment?>> BuildDeploymentLookupAsync(
+        RVTDbContext domainContext,
+        IReadOnlyCollection<Notification> notifications,
+        CancellationToken cancellationToken)
+    {
+        List<Guid> monitorIds = [.. notifications.Select(notification => notification.MonitorId).Distinct()];
+        List<Deployment> deployments = new();
+        if (monitorIds.Count > 0)
+        {
+            deployments = await domainContext.Deployments
+                .AsNoTracking()
+                .Include(deployment => deployment.Contract)
+                .ThenInclude(contract => contract.Company)
+                .Include(deployment => deployment.Contract)
+                .ThenInclude(contract => contract.Site)
+                .Include(deployment => deployment.Monitor)
+                .Where(deployment => monitorIds.Contains(deployment.MonitorId))
+                .ToListAsync(cancellationToken);
+        }
+
+        return notifications.ToDictionary(
+            notification => notification.Id,
+            notification => MatchDeployment(notification, deployments));
+    }
+
+    // Function summary: Finds the deployment most relevant to a notification close decision.
+    public static async Task<Deployment?> FindDeploymentForNotificationAsync(
+        RVTDbContext domainContext,
+        Notification notification,
+        CancellationToken cancellationToken)
+    {
+        List<Deployment> deployments = await domainContext.Deployments
+            .AsNoTracking()
+            .Include(deployment => deployment.Contract)
+            .ThenInclude(contract => contract.Company)
+            .Include(deployment => deployment.Contract)
+            .ThenInclude(contract => contract.Site)
+            .Include(deployment => deployment.Monitor)
+            .Where(deployment => deployment.MonitorId == notification.MonitorId)
+            .ToListAsync(cancellationToken);
+        return MatchDeployment(notification, deployments);
+    }
+
+    // Function summary: Reads site visibility for the current company-user actor.
+    public static async Task<HashSet<Guid>> VisibleSiteIdsAsync(
+        RVTDbContext domainContext,
+        NotificationCloseActor actor,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        if (!actor.IsCompanyUser || !actor.UserId.HasValue)
+        {
+            return [];
+        }
+
+        return await domainContext.SiteUsers
+            .AsNoTracking()
+            .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, timeProvider.GetUtcNow().UtcDateTime))
+            .Select(siteUser => siteUser.SiteId)
+            .ToHashSetAsync(cancellationToken);
+    }
+
+    // Function summary: Builds the close-access facts required by notification command handlers.
+    public static NotificationCloseAccess BuildAccessInfo(Notification notification, Deployment? deployment)
+    {
+        return new NotificationCloseAccess(deployment?.Contract?.SiteiD, notification.AlertType == AlertTypeEnum.Alert);
+    }
+
+    // Function summary: Evaluates whether the actor can read and close-skip a notification row.
+    public static bool CanReadNotification(
+        NotificationCloseAccess access,
+        NotificationCloseActor actor,
+        IReadOnlySet<Guid> visibleSiteIds)
+    {
+        return actor.IsAdmin || (actor.IsCompanyUser && access.SiteId.HasValue && visibleSiteIds.Contains(access.SiteId.Value));
+    }
+
+    // Function summary: Applies the close state to a tracked notification entity.
+    public static void Close(Notification notification, string? note, NotificationCloseActor actor)
+    {
+        notification.ClosedNote = note ?? "";
+        notification.ClosedTime = DateTime.UtcNow;
+        notification.ClosedByUser = actor.UserId;
+    }
+
+    // Function summary: Selects the deployment active at notification time, falling back to current/latest deployment.
+    private static Deployment? MatchDeployment(Notification notification, IEnumerable<Deployment> deployments)
+    {
+        return MonitorOwnershipWindowResolver.MatchDeploymentAt(
+            notification.MonitorId,
+            notification.NotificationTime,
+            deployments);
+    }
+}
+
+public sealed record NotificationCloseAccess(Guid? SiteId, bool CanClose);

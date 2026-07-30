@@ -28,7 +28,7 @@ using Microsoft.AspNetCore.Mvc;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Adapters.Storage;
 using RvtPortal.Spa.Api.Mappers;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Api;

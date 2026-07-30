@@ -3,7 +3,7 @@
 // - 2026-07-09 pending Added user detail, options, and site-assignment mappers for controller cleanup.
 // - 2026-07-08 pending Added user list mapper for controller-to-application-service cleanup.
 
-using RvtPortal.Spa.Application.Users;
+using RvtPortal.Spa.UseCases.Users;
 
 namespace RvtPortal.Spa.Api.Mappers;
 

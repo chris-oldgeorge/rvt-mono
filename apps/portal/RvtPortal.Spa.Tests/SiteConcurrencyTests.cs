@@ -12,7 +12,7 @@ using RvtPortal.Application.Identity;
 using RvtPortal.Application.Sites;
 using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Adapters.Sites;
-using RvtPortal.Spa.Application.Common;
+using RvtPortal.Spa.UseCases.Common;
 using RvtPortal.Spa.Data;
 
 using RvtPortal.Spa.Tests.Support;

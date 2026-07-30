@@ -11,7 +11,7 @@ using Npgsql;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Adapters.Archive;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 
 using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;

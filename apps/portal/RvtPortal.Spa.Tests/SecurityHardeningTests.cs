@@ -40,7 +40,7 @@ using RVT.Entities;
 using RvtPortal.Application.Notifications;
 using RvtPortal.Application.Ports.Notifications;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.Users;
+using RvtPortal.Spa.UseCases.Users;
 using RvtPortal.Spa.Data;
 
 using RvtPortal.Spa.Tests.Support;

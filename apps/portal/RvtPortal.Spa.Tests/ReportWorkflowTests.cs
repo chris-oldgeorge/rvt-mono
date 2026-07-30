@@ -241,9 +241,9 @@ public class ReportWorkflowTests
     // Function summary: Verifies reporting list endpoints keep filtering and paging in EF queries.
     public void ReportQueries_PageBeforeMaterializingRows()
     {
-        string reportApplicationService = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/Application/Reports/ReportApplicationService.cs"));
-        string reportRuleService = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/Application/ReportRules/ReportRuleApplicationService.cs"));
-        string reportRuleRecipientReader = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/Application/ReportRules/ReportRuleRecipientReader.cs"));
+        string reportApplicationService = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/UseCases/Reports/ReportApplicationService.cs"));
+        string reportRuleService = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/UseCases/ReportRules/ReportRuleApplicationService.cs"));
+        string reportRuleRecipientReader = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/UseCases/ReportRules/ReportRuleRecipientReader.cs"));
 
         AssertQueryCountsBeforeMaterializing(reportApplicationService, "public async Task<ReportQueryResult> QueryAsync");
         AssertQueryCountsBeforeMaterializing(reportRuleService, "public async Task<UseCaseResult<PagedResult<ReportRuleListModel>>> QueryAsync");

@@ -9,7 +9,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RvtPortal.Spa.Application.Contracts;
+using RvtPortal.Spa.UseCases.Contracts;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Api;

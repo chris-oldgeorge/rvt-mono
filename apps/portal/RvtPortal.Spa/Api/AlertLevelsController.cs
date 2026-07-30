@@ -12,7 +12,7 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RvtPortal.Application.Identity;
-using RvtPortal.Spa.Application.AlertLevels;
+using RvtPortal.Spa.UseCases.AlertLevels;
 using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Api;

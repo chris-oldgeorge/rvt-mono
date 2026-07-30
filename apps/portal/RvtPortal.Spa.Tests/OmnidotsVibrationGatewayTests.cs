@@ -12,7 +12,7 @@ using RVT.Entities;
 using RvtPortal.Application.Ports.Vendors;
 using RvtPortal.Spa.Adapters.Vendors;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.AlertLevels;
+using RvtPortal.Spa.UseCases.AlertLevels;
 using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 

@@ -10,8 +10,8 @@ This repository contains three RVT modules:
 
 This reviewable build advances the client release from monorepo source commit
 `a9b1bd2` (the source recorded by the previous `RVT-monitors`
-`release-candidate`) through `a3562559`. The range contains 88 commits and
-changes 443 files.
+`release-candidate`) through `62794d3b`. The range contains 90 commits and
+changes 444 files.
 
 ### Monitor correctness, resilience, and security
 
@@ -86,9 +86,9 @@ changes 443 files.
 - Expanded regression coverage across monitor delivery, persistence, response
   limits, Portal API contracts, PostgreSQL behavior, and frontend request
   ownership.
-- Recorded the product rulings, hexagonal-convergence review, remediation
-  decisions, and completed P1/P2/P3 close-out evidence in the repository
-  documentation.
+- Recorded the product rulings, hexagonal-convergence and post-remediation
+  reviews, remediation decisions, and completed P1/P2/P3 close-out evidence in
+  the repository documentation.
 
 The reporting workload lives in `apps/monitors/reportingmonitor`. The former
 standalone `services/reporting` copy was a duplicate of that code and was

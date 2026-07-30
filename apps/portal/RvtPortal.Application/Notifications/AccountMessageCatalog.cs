@@ -1,11 +1,4 @@
-// File summary: Holds the account-lifecycle email templates (subject + HTML body) sent by the portal.
-// Major updates:
-// - 2026-07-15 pending Extracted the password-set/reset templates from the retired MessageService into a pure,
-//   infrastructure-free catalog. The former monitor alert/caution/SMS templates were not carried over: the
-//   portal never sent them (no caller), and monitor-alert notification is the monitor-worker domain's concern.
-// - 2026-07-22 pending Added the pending profile email-change confirmation template.
-
-namespace RVT.BusinessLogic.Notifications;
+namespace RvtPortal.Application.Notifications;
 
 public enum AccountMessageKind
 {

@@ -6,7 +6,7 @@
 // - 2026-06-25 pending Added image magic-byte validation so non-image payloads cannot be stored as logos.
 // - 2026-07-08 pending Made logo replacement write-through-temp so failed copies preserve the previous logo.
 
-using RVT.BusinessLogic.Ports.Storage;
+using RvtPortal.Application.Ports.Storage;
 
 namespace RvtPortal.Spa.Adapters.Storage;
 

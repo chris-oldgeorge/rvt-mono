@@ -37,10 +37,10 @@ using System.Reflection;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
-using RVT.BusinessLogic;
-using RVT.BusinessLogic.Ports.Storage;
+using RvtPortal.Application.Ports.Storage;
 using RvtPortal.Application.Sites;
 using RvtPortal.Application.Sites.Ports;
+using RvtPortal.Application.Time;
 using RvtPortal.Spa.Adapters.Archive;
 using RvtPortal.Spa.Adapters.Reporting;
 using RvtPortal.Spa.Adapters.Storage;
@@ -221,7 +221,7 @@ public class CqrsArchitectureTests
         Assert.DoesNotContain(typeof(ICompanyService), constructorParameters);
         Assert.DoesNotContain(typeof(ILookupService), constructorParameters);
         Assert.DoesNotContain(typeof(IConfiguration), constructorParameters);
-        Assert.DoesNotContain(typeof(RVT.BusinessLogic.Notifications.IAccountMessenger), constructorParameters);
+        Assert.DoesNotContain(typeof(RvtPortal.Application.Notifications.IAccountMessenger), constructorParameters);
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public class CqrsArchitectureTests
         Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
         Assert.DoesNotContain(typeof(ICompanyService), constructorParameters);
         Assert.DoesNotContain(typeof(IConfiguration), constructorParameters);
-        Assert.DoesNotContain(typeof(RVT.BusinessLogic.Notifications.IAccountMessenger), constructorParameters);
+        Assert.DoesNotContain(typeof(RvtPortal.Application.Notifications.IAccountMessenger), constructorParameters);
     }
 
     [Fact]
@@ -396,9 +396,9 @@ public class CqrsArchitectureTests
     // Function summary: Verifies storage abstractions are business-layer ports while concrete storage remains a host adapter.
     public void StoragePorts_LiveOutsideApiAdapters()
     {
-        Assert.Equal("RVT.BusinessLogic.Ports.Storage", typeof(ICustomerLogoStorage).Namespace);
-        Assert.Equal("RVT.BusinessLogic.Ports.Storage", typeof(IMonitorPictureStorage).Namespace);
-        Assert.Equal("RVT.BusinessLogic.Ports.Storage", typeof(IUploadedContent).Namespace);
+        Assert.Equal("RvtPortal.Application.Ports.Storage", typeof(ICustomerLogoStorage).Namespace);
+        Assert.Equal("RvtPortal.Application.Ports.Storage", typeof(IMonitorPictureStorage).Namespace);
+        Assert.Equal("RvtPortal.Application.Ports.Storage", typeof(IUploadedContent).Namespace);
         Assert.Equal("RvtPortal.Spa.Adapters.Storage", typeof(CustomerLogoStorage).Namespace);
         Assert.Equal("RvtPortal.Spa.Adapters.Storage", typeof(MonitorPictureStorage).Namespace);
     }
@@ -421,8 +421,8 @@ public class CqrsArchitectureTests
     }
 
     [Fact]
-    // Function summary: Verifies the business-logic core does not reference the data-access adapter assembly.
-    public void BusinessLogicCore_DoesNotReferenceDataAccessAdapter()
+    // Function summary: Verifies the application core does not reference the data-access adapter assembly.
+    public void ApplicationCore_DoesNotReferenceDataAccessAdapter()
     {
         string?[] referenced = [.. typeof(IRvtDateTimeProvider).Assembly
             .GetReferencedAssemblies()
@@ -456,9 +456,9 @@ public class CqrsArchitectureTests
 
     [Fact]
     // Function summary: Verifies the business layer owns no direct HTTP-client infrastructure; outbound vendor calls must cross an adapter port.
-    public void BusinessLogicTypes_DoNotDependOnHttpClientFactory()
+    public void ApplicationCoreTypes_DoNotDependOnHttpClientFactory()
     {
-        string?[] violations = [.. BusinessLogicTypes()
+        string?[] violations = [.. ApplicationCoreTypes()
             .Where(type => ConstructorParameters(type).Contains(typeof(IHttpClientFactory)))
             .Select(type => type.FullName)
             .Order(StringComparer.Ordinal)];
@@ -468,7 +468,7 @@ public class CqrsArchitectureTests
 
     [Fact]
     // Function summary: Verifies the email vendor SDK stays in the host adapters; the business layer must not reference SendGrid.
-    public void BusinessLogicAssembly_DoesNotReferenceSendGrid()
+    public void ApplicationCoreAssembly_DoesNotReferenceSendGrid()
     {
         string?[] offenders = [.. new[] { typeof(IRvtDateTimeProvider).Assembly }
         .Where(assembly => assembly.GetReferencedAssemblies()
@@ -479,8 +479,8 @@ public class CqrsArchitectureTests
         Assert.Empty(offenders);
     }
 
-    // Function summary: Enumerates concrete types compiled into the RVT.BusinessLogic assembly.
-    private static IEnumerable<Type> BusinessLogicTypes()
+    // Function summary: Enumerates concrete types compiled into the RvtPortal.Application assembly.
+    private static IEnumerable<Type> ApplicationCoreTypes()
     {
         return typeof(IRvtDateTimeProvider).Assembly
             .GetTypes()

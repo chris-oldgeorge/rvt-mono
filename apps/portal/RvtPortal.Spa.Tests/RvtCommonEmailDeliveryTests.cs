@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Rvt.Communication.Abstractions;
-using RVT.BusinessLogic.Ports.Notifications;
+using RvtPortal.Application.Ports.Notifications;
 using RvtPortal.Spa.Adapters.Notifications;
 
 namespace RvtPortal.Spa.Tests;

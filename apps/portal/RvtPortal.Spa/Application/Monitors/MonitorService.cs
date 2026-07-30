@@ -13,13 +13,13 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic;
 using RVT.DataAccess;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Ports.Persistence;
 using RVT.Entities.Querying;
+using RvtPortal.Application.Time;
 using Monitor = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Application.Monitors;

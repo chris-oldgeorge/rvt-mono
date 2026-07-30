@@ -18,7 +18,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RVT.BusinessLogic.Application.Paging;
+using RvtPortal.Application.Common;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Application.Users;
 using RvtPortal.Spa.Data;
@@ -112,6 +112,7 @@ public class UsersController : ControllerBase
         {
             return ValidationProblem(ModelState);
         }
+
         if (result.NotFound || result.Detail == null || string.IsNullOrWhiteSpace(result.UserId))
         {
             return UserNotFound(result.UserId ?? request.Email);
@@ -204,10 +205,12 @@ public class UsersController : ControllerBase
         {
             return UserNotFound(id);
         }
+
         if (result.Forbidden)
         {
             return ForbiddenForTarget();
         }
+
         if (AddModelErrorsAndHasAny(result.Errors))
         {
             return ValidationProblem(ModelState);
@@ -296,14 +299,17 @@ public class UsersController : ControllerBase
         {
             return UserNotFound(id);
         }
+
         if (result.Forbidden)
         {
             return ForbiddenForTarget();
         }
+
         if (AddModelErrorsAndHasAny(result.Errors))
         {
             return ValidationProblem(ModelState);
         }
+
         if (result.Detail == null)
         {
             return UserNotFound(id);
@@ -325,10 +331,12 @@ public class UsersController : ControllerBase
         {
             return UserNotFound(userId.ToString());
         }
+
         if (result.SiteNotFound || result.Assignment == null)
         {
             return SiteNotFound(siteId);
         }
+
         if (AddModelErrorsAndHasAny(result.Errors))
         {
             return ValidationProblem(ModelState);
@@ -417,5 +425,4 @@ public class UsersController : ControllerBase
             "Permission required",
             "Your role does not have permission to manage this user."));
     }
-
 }

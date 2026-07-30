@@ -9,10 +9,10 @@
 
 using System.Globalization;
 using AForge.Math;
-using RVT.BusinessLogic;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Querying;
+using RvtPortal.Application.Time;
 
 
 namespace RvtPortal.Spa.Application.Monitors;
@@ -92,6 +92,7 @@ public class MonitorData
                     break;
             }
         }
+
         return fleetNr ?? "";
     }
     // Function summary: Retrieves monitor name data for callers.
@@ -146,6 +147,7 @@ public class MonitorData
                 fourierData.EndDate = vibrationLevel.SampleTime;
                 break;
             }
+
             SetFourierSample(fourierData, index, vibrationLevel);
             index++;
             lastTime = vibrationLevel.SampleTime;
@@ -488,5 +490,4 @@ public class MonitorData
 
         return frequencyMagnitudes;
     }
-
 }

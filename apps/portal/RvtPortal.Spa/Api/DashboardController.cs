@@ -12,7 +12,7 @@
 using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RVT.BusinessLogic.Application.Paging;
+using RvtPortal.Application.Common;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Application.Dashboard;
@@ -105,6 +105,7 @@ public class DashboardController : ControllerBase
             ModelState.AddModelError(nameof(CalendarMonthRequest.DeploymentId), "Deployment is required.");
             return ValidationProblem(ModelState);
         }
+
         if (!TrySelectCalendarMonth(request.Year, request.Month, out DateTime selectedMonth))
         {
             return ValidationProblem(ModelState);
@@ -136,10 +137,12 @@ public class DashboardController : ControllerBase
         {
             ModelState.AddModelError(nameof(CalendarDayRequest.MonitorId), "Monitor is required.");
         }
+
         if (!TryCreateDate(request.Year, request.Month, request.Day, out DateTime displayDay))
         {
             ModelState.AddModelError(nameof(CalendarDayRequest.Day), "A valid calendar day is required.");
         }
+
         if (!ModelState.IsValid)
         {
             return ValidationProblem(ModelState);
@@ -178,10 +181,12 @@ public class DashboardController : ControllerBase
         {
             ModelState.AddModelError(nameof(CalendarMonthRequest.Year), "A valid year is required.");
         }
+
         if (month is < 1 or > 12)
         {
             ModelState.AddModelError(nameof(CalendarMonthRequest.Month), "A valid month is required.");
         }
+
         if (!ModelState.IsValid)
         {
             selectedMonth = MonthStart(now);

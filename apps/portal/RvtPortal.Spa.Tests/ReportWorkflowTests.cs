@@ -241,7 +241,7 @@ public class ReportWorkflowTests
         string reportRuleRecipientReader = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "../../../../RvtPortal.Spa/Application/ReportRules/ReportRuleRecipientReader.cs"));
 
         AssertQueryCountsBeforeMaterializing(reportApplicationService, "public async Task<ReportQueryResult> QueryAsync");
-        AssertQueryCountsBeforeMaterializing(reportRuleService, "public async Task<ApplicationResult<PagedResult<ReportRuleListModel>>> QueryAsync");
+        AssertQueryCountsBeforeMaterializing(reportRuleService, "public async Task<UseCaseResult<PagedResult<ReportRuleListModel>>> QueryAsync");
         AssertQueryCountsBeforeMaterializing(reportRuleRecipientReader, "public async Task<QueryReportUsersResponse?> QueryAssignmentUsersAsync");
         AssertMethodDoesNotContain(
             reportRuleRecipientReader,

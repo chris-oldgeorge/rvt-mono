@@ -1,13 +1,15 @@
-// File summary: Defines transport-neutral report-rule application models used by the business layer.
+// File summary: Defines transport-neutral report-rule application models used by the report-rule workflows.
 // Major updates:
+// - 2026-07-30 pending Moved from RVT.BusinessLogic; stays in the host application layer because the models
+//   carry the RVT.Entities ReportFrequencyType, which the BCL-only RvtPortal.Application project cannot reference.
 // - 2026-07-08 pending Added disabled option state needed when archived current sites are shown by edit workflows.
 // - 2026-07-05 pending Added report-rule application models for controller-to-business refactoring.
 // - 2026-07-05 pending Added report recipient assignment and manual-generation models.
 
-using RVT.BusinessLogic.Application.Paging;
 using RVT.Entities;
+using RvtPortal.Application.Common;
 
-namespace RVT.BusinessLogic.Reports;
+namespace RvtPortal.Spa.Application.ReportRules;
 
 public sealed record ReportRuleQuery(
     Guid? SiteId,

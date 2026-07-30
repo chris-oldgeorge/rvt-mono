@@ -7,13 +7,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
-using RVT.BusinessLogic.Ports.Vendors;
 using RVT.DataAccess.Context;
 using RVT.Entities;
+using RvtPortal.Application.Ports.Vendors;
 using RvtPortal.Spa.Adapters.Vendors;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.AlertLevels;
-
 using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 

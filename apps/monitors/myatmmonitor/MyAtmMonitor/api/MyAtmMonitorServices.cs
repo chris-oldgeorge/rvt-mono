@@ -86,6 +86,7 @@ public static class MyAtmMonitorServices
         services.AddTransmitSms(configuration);
         services.AddSingleton<IMonitorDeliveryFailureSink, MyAtmDeliveryFailureSink>();
         services.AddSingleton<MonitorDeliveryDispatcher>();
+        services.AddSingleton<MonitorDeliveryCleanupService>();
         services.AddSingleton(provider => new MyAtmHttpGateway(
             provider.GetRequiredService<IHttpClient>(),
             provider.GetRequiredService<MyAtmMonitorOptions>().DevicePageSize,
@@ -146,6 +147,7 @@ public static class MyAtmMonitorServices
                     provider.GetRequiredService<ClearOlderErrorMessagesHandler>(),
                     provider.GetRequiredService<StoreAccessoryInfoHandler>(),
                     provider.GetRequiredService<MonitorDeliveryDispatcher>(),
+                    provider.GetRequiredService<MonitorDeliveryCleanupService>(),
                     provider.GetRequiredService<MyAtmMonitorOptions>());
             }
             catch (Exception e)

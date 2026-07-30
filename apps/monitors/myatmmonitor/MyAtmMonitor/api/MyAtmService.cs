@@ -19,6 +19,7 @@ namespace MyAtm.Api
         private readonly ClearOlderErrorMessagesHandler _clearOlderErrorMessages;
         private readonly StoreAccessoryInfoHandler _storeAccessoryInfo;
         private readonly MonitorDeliveryDispatcher _outboxDispatcher;
+        private readonly MonitorDeliveryCleanupService _outboxCleanup;
         private readonly int _customerId;
 
         public MyAtmService(
@@ -29,6 +30,7 @@ namespace MyAtm.Api
             ClearOlderErrorMessagesHandler clearOlderErrorMessages,
             StoreAccessoryInfoHandler storeAccessoryInfo,
             MonitorDeliveryDispatcher outboxDispatcher,
+            MonitorDeliveryCleanupService outboxCleanup,
             MyAtmMonitorOptions options)
         {
             _storeMonitors = storeMonitors;
@@ -38,6 +40,7 @@ namespace MyAtm.Api
             _clearOlderErrorMessages = clearOlderErrorMessages;
             _storeAccessoryInfo = storeAccessoryInfo;
             _outboxDispatcher = outboxDispatcher;
+            _outboxCleanup = outboxCleanup;
             _customerId = options.CustomerId;
         }
 
@@ -97,5 +100,10 @@ namespace MyAtm.Api
 
         public Task DispatchOutboxAsync(CancellationToken cancellationToken = default) =>
             _outboxDispatcher.DispatchDueAsync(cancellationToken);
+
+        // Completed delivery rows are purged daily, matching the CleanupAlerts
+        // job the other three monitors run against the shared alert outbox.
+        public Task CleanupOutboxAsync(CancellationToken cancellationToken = default) =>
+            _outboxCleanup.CleanupAsync(cancellationToken);
     }
 }

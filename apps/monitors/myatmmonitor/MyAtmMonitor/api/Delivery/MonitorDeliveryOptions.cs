@@ -14,6 +14,13 @@ public sealed record MonitorDeliveryOptions
     public TimeSpan RetryCap { get; init; } = TimeSpan.FromMinutes(30);
     public int MaxAttempts { get; init; } = 8;
 
+    /// <summary>
+    /// How long a completed delivery row is kept before <c>CleanupOutbox</c>
+    /// purges it. Matches the shared durable-alert stack's
+    /// <c>DurableAlertOptions.CompletedRetentionDays</c>.
+    /// </summary>
+    public int CompletedRetentionDays { get; init; } = 90;
+
     public void Validate()
     {
         List<string> failures = [];
@@ -71,6 +78,11 @@ public sealed record MonitorDeliveryOptions
         if (MaxAttempts <= 0)
         {
             failures.Add("MaxAttempts must be positive.");
+        }
+
+        if (CompletedRetentionDays <= 0)
+        {
+            failures.Add("CompletedRetentionDays must be positive.");
         }
 
         if (!IsAbsoluteHttpUrl(PortalBaseUrl))

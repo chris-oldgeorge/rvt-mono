@@ -564,6 +564,51 @@ namespace MyAtmMonitorTests
             Assert.IsEmpty(ReadOutboxLeaseIds(connection));
         }
 
+        // MyAtm's outbox had no delete anywhere in production code, so completed
+        // rows accumulated forever while ClaimNextDueAsync ordered over the
+        // growing table every minute. Retention matches the shared alert stack.
+        [TestMethod]
+        public async Task DeleteCompletedBeforeAsync_RemovesOnlyOldCompletedRowsForThisProducer()
+        {
+            using NpgsqlConnection connection = _database!.OpenConnection();
+            connection.Open();
+            DateTime cutoff = new(2026, 4, 30, 0, 0, 0, DateTimeKind.Utc);
+            Guid oldCompleted = Guid.NewGuid();
+            Guid recentCompleted = Guid.NewGuid();
+            Guid oldDeadLettered = Guid.NewGuid();
+            Guid oldPending = Guid.NewGuid();
+            Guid otherProducer = Guid.NewGuid();
+            InsertOutboxMessage(connection, oldCompleted, "Pending", cutoff, 0, null, null);
+            InsertOutboxMessage(connection, recentCompleted, "Pending", cutoff, 0, null, null);
+            InsertOutboxMessage(connection, oldDeadLettered, "Pending", cutoff, 0, null, null);
+            InsertOutboxMessage(connection, oldPending, "Pending", cutoff, 0, null, null);
+            InsertOutboxMessage(
+                connection,
+                otherProducer,
+                "Pending",
+                cutoff,
+                0,
+                null,
+                null,
+                "OtherProducer");
+            MarkOutboxTerminal(connection, oldCompleted, "Completed", cutoff.AddDays(-1));
+            MarkOutboxTerminal(connection, recentCompleted, "Completed", cutoff.AddDays(1));
+            MarkOutboxTerminal(connection, oldDeadLettered, "DeadLetter", cutoff.AddDays(-1));
+            MarkOutboxTerminal(connection, otherProducer, "Completed", cutoff.AddDays(-1));
+
+            int deleted = await ((IMonitorDeliveryOutboxCommands)_testObj!).DeleteCompletedBeforeAsync(
+                MonitorDeliveryProducers.MyAtm,
+                cutoff,
+                TestContext.CancellationToken);
+
+            Assert.AreEqual(1, deleted);
+            Assert.AreEqual(0, ReadScalarInt(connection, $"SELECT COUNT(*) FROM monitor_delivery_outbox WHERE id = '{oldCompleted}';"));
+            Assert.AreEqual(1, ReadScalarInt(connection, $"SELECT COUNT(*) FROM monitor_delivery_outbox WHERE id = '{recentCompleted}';"));
+            Assert.AreEqual(1, ReadScalarInt(connection, $"SELECT COUNT(*) FROM monitor_delivery_outbox WHERE id = '{oldDeadLettered}';"));
+            Assert.AreEqual(1, ReadScalarInt(connection, $"SELECT COUNT(*) FROM monitor_delivery_outbox WHERE id = '{oldPending}';"));
+            Assert.AreEqual(1, ReadScalarInt(connection, $"SELECT COUNT(*) FROM monitor_delivery_outbox WHERE id = '{otherProducer}';"));
+        }
+
         [TestMethod]
         public async Task CommitAlertAsync_ExpectedOfflineConflictCreatesNoOccurrenceNotificationOrDelivery()
         {
@@ -1369,6 +1414,25 @@ namespace MyAtmMonitorTests
             command.Parameters.AddWithValue("@LeaseUntil", (object?)leaseUntil ?? DBNull.Value);
             command.Parameters.AddWithValue("@CreatedAt", nextAttemptAt.AddMinutes(-1));
             command.ExecuteNonQuery();
+        }
+
+        private static void MarkOutboxTerminal(
+            NpgsqlConnection connection,
+            Guid id,
+            string status,
+            DateTime terminalAt)
+        {
+            using NpgsqlCommand command = new(
+                @"UPDATE monitor_delivery_outbox
+                     SET status = @Status,
+                         completed_at = CASE WHEN @Status = 'Completed' THEN @TerminalAt ELSE NULL END,
+                         dead_lettered_at = CASE WHEN @Status = 'Completed' THEN NULL ELSE @TerminalAt END
+                   WHERE id = @Id;",
+                connection);
+            command.Parameters.AddWithValue("@Id", id);
+            command.Parameters.AddWithValue("@Status", status);
+            command.Parameters.AddWithValue("@TerminalAt", terminalAt);
+            Assert.AreEqual(1, command.ExecuteNonQuery());
         }
 
         private static void InsertNotificationRow(

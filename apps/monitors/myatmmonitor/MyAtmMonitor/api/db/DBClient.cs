@@ -558,6 +558,28 @@ namespace MyAtm.Api.Db
             return true;
         }
 
+        public async Task<int> DeleteCompletedBeforeAsync(
+            string producer,
+            DateTime cutoff,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!MonitorDeliveryProducers.IsKnown(producer))
+            {
+                throw new ArgumentException("Unknown monitor delivery producer.", nameof(producer));
+            }
+
+            DateTime normalizedCutoff = DateTimeUtil.AsUtc(cutoff);
+            await using MyAtmMonitorContext context = CreateContext();
+            return await context.DeliveryOutbox
+                .Where(row =>
+                    row.Producer == producer &&
+                    row.Status == "Completed" &&
+                    row.CompletedAt != null &&
+                    row.CompletedAt < normalizedCutoff)
+                .ExecuteDeleteAsync(cancellationToken);
+        }
+
         public async Task InsertAccessoryPageAsync(
             IReadOnlyList<AccessoryInfoDto> page,
             CancellationToken cancellationToken = default)

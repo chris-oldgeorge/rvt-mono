@@ -36,7 +36,58 @@ public sealed class MyAtmOperationalConfigurationTests
 
         CollectionAssert.Contains(supportedJobs, "StoreAccessoryInfo");
         CollectionAssert.Contains(supportedJobs, "DispatchOutbox");
+        CollectionAssert.Contains(supportedJobs, "CleanupOutbox");
     }
+
+    // The other three monitors purge their alert outbox daily at 0 15 3; MyAtm's
+    // delivery outbox had no purge at all, so completed rows accumulated forever.
+    [TestMethod]
+    public void AppSettings_SchedulesTheOutboxPurgeAtTheSiblingCadence()
+    {
+        string appSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+        using JsonDocument document = JsonDocument.Parse(File.ReadAllText(appSettingsPath));
+
+        JsonElement cleanupJob = document.RootElement
+            .GetProperty("MonitorScheduler")
+            .GetProperty("Jobs")
+            .EnumerateArray()
+            .Single(job => job.GetProperty("Name").GetString() == "CleanupOutbox");
+
+        Assert.IsTrue(cleanupJob.GetProperty("Enabled").GetBoolean());
+        Assert.AreEqual("0 15 3 * * ?", cleanupJob.GetProperty("Cron").GetString());
+    }
+
+    [TestMethod]
+    public async Task CleanupService_PurgesCompletedRowsOlderThanTheRetentionWindow()
+    {
+        Mock<IMonitorDeliveryOutboxCommands> commands = new();
+        commands.Setup(outbox => outbox.DeleteCompletedBeforeAsync(
+                It.IsAny<string>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(3);
+        MonitorDeliveryOptions options = new()
+        {
+            Producer = MonitorDeliveryProducers.MyAtm,
+            InsertTopic = "insert",
+            AlertTopic = "alert",
+            PortalBaseUrl = "https://portal.example/"
+        };
+        // The shared DurableAlertOptions default, which the other three run on.
+        Assert.AreEqual(90, options.CompletedRetentionDays);
+        DateTime utcNow = new(2026, 7, 30, 3, 15, 0, DateTimeKind.Utc);
+        MonitorDeliveryCleanupService subject = new(commands.Object, options, TimeProvider.System);
+
+        int deleted = await subject.CleanupAsync(utcNow, TestContext.CancellationToken);
+
+        Assert.AreEqual(3, deleted);
+        commands.Verify(outbox => outbox.DeleteCompletedBeforeAsync(
+            MonitorDeliveryProducers.MyAtm,
+            utcNow.AddDays(-90),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    public TestContext TestContext { get; set; } = null!;
 
     [TestMethod]
     public void AppSettings_DefinesApprovedDustAndDispatchSchedules()

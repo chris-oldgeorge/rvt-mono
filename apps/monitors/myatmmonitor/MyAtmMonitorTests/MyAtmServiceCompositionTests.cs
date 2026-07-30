@@ -30,6 +30,7 @@ public sealed class MyAtmServiceCompositionTests
                 typeof(ClearOlderErrorMessagesHandler),
                 typeof(StoreAccessoryInfoHandler),
                 typeof(MonitorDeliveryDispatcher),
+                typeof(MonitorDeliveryCleanupService),
                 typeof(MyAtmMonitorOptions)
             },
             parameterTypes);
@@ -58,6 +59,7 @@ public sealed class MyAtmServiceCompositionTests
         Assert.Contains("_clearOlderErrorMessages.Run()", source);
         Assert.Contains("_storeAccessoryInfo.RunAsync(_customerId, cancellationToken)", source);
         Assert.Contains("_outboxDispatcher.DispatchDueAsync(cancellationToken)", source);
+        Assert.Contains("_outboxCleanup.CleanupAsync(cancellationToken)", source);
     }
 
 }

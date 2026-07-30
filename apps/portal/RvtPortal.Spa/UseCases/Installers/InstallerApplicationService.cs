@@ -141,6 +141,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
     private readonly IConfiguration _configuration;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMediator _mediator;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes installer workflows with monitor read services and the domain context.
     public InstallerApplicationService(
@@ -149,7 +150,8 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         IMonitorDetailReader detailReader,
         IConfiguration configuration,
         IHttpClientFactory httpClientFactory,
-        IMediator mediator)
+        IMediator mediator,
+        TimeProvider timeProvider)
     {
         _domainContext = domainContext;
         _monitors = monitors;
@@ -157,6 +159,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
         _mediator = mediator;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Returns the paged installer monitor list.
@@ -363,9 +366,9 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
     }
 
     // Function summary: Evaluates whether a monitor is offline for installer status labels.
-    private static bool IsOffline(DateTime? lastDataTime)
+    private bool IsOffline(DateTime? lastDataTime)
     {
-        return !lastDataTime.HasValue || lastDataTime.Value < DateTime.UtcNow.AddHours(-1);
+        return !lastDataTime.HasValue || lastDataTime.Value < _timeProvider.GetUtcNow().UtcDateTime.AddHours(-1);
     }
 
     // Function summary: Evaluates whether the actor is an installer without admin privileges.

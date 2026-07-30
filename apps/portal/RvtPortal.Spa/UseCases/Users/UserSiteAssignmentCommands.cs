@@ -40,12 +40,17 @@ public sealed class AddUserToSiteCommandHandler
 {
     private readonly RVTDbContext _domainContext;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the transactional user site-assignment command handler.
-    public AddUserToSiteCommandHandler(RVTDbContext domainContext, UserManager<ApplicationUser> userManager)
+    public AddUserToSiteCommandHandler(
+        RVTDbContext domainContext,
+        UserManager<ApplicationUser> userManager,
+        TimeProvider timeProvider)
     {
         _domainContext = domainContext;
         _userManager = userManager;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Adds a user to a site and creates the default notification settings atomically.
@@ -74,7 +79,7 @@ public sealed class AddUserToSiteCommandHandler
         SiteUsers siteUser = new()
         {
             Id = Guid.NewGuid(),
-            StartDate = DateTime.UtcNow,
+            StartDate = _timeProvider.GetUtcNow().UtcDateTime,
             SiteId = request.SiteId,
             UserId = request.UserId,
             SiteContact = false

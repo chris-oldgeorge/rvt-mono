@@ -227,12 +227,14 @@ public sealed class DataApplicationService : IDataApplicationService
 
     private readonly RVTDbContext _domainContext;
     private readonly IMonitorDataSource _dataSource;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes data workflows with the domain context and monitor time-series source.
-    public DataApplicationService(RVTDbContext domainContext, IMonitorDataSource dataSource)
+    public DataApplicationService(RVTDbContext domainContext, IMonitorDataSource dataSource, TimeProvider timeProvider)
     {
         _domainContext = domainContext;
         _dataSource = dataSource;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Builds paged grid data for a visible deployment.
@@ -505,7 +507,7 @@ public sealed class DataApplicationService : IDataApplicationService
             return null;
         }
 
-        DateTime now = DateTime.UtcNow;
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
         bool canRead = await _domainContext.SiteUsers
             .AsNoTracking()
             .AnyAsync(siteUser =>
@@ -630,11 +632,11 @@ public sealed class DataApplicationService : IDataApplicationService
     }
 
     // Function summary: Clamps requested monitor-bound data ranges to the effective deployment/contract ownership window.
-    private static (DateTime From, DateTime To)? ClampRequestToOwnershipWindow(Deployment deployment, DateTime? fromDate, DateTime? toDate)
+    private (DateTime From, DateTime To)? ClampRequestToOwnershipWindow(Deployment deployment, DateTime? fromDate, DateTime? toDate)
     {
         MonitorOwnershipWindow ownershipWindow = MonitorOwnershipWindowResolver.ForDeployment(deployment);
         DateTime requestedFrom = fromDate ?? ownershipWindow.Start;
-        DateTime requestedTo = toDate ?? ownershipWindow.End ?? DateTime.UtcNow.AddDays(1);
+        DateTime requestedTo = toDate ?? ownershipWindow.End ?? _timeProvider.GetUtcNow().UtcDateTime.AddDays(1);
         if (requestedTo <= requestedFrom || !ownershipWindow.Intersects(requestedFrom, requestedTo))
         {
             return null;
@@ -645,10 +647,10 @@ public sealed class DataApplicationService : IDataApplicationService
     }
 
     // Function summary: Builds an empty monitor data response for requests outside the ownership window.
-    private static MonitorData BuildEmptyMonitorData(Deployment deployment, DateTime? fromDate, DateTime? toDate, string? filterOption)
+    private MonitorData BuildEmptyMonitorData(Deployment deployment, DateTime? fromDate, DateTime? toDate, string? filterOption)
     {
         MonitorOwnershipWindow ownershipWindow = MonitorOwnershipWindowResolver.ForDeployment(deployment);
-        DateTime fallbackTo = ownershipWindow.End ?? DateTime.UtcNow.AddDays(1);
+        DateTime fallbackTo = ownershipWindow.End ?? _timeProvider.GetUtcNow().UtcDateTime.AddDays(1);
         return new MonitorData
         {
             Monitor = deployment.Monitor,

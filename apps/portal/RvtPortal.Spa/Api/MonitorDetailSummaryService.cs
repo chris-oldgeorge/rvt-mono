@@ -47,16 +47,19 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
     private readonly RVTSearchContext searchContext;
     private readonly IMonitorDataSource dataSource;
     private readonly ILogger<MonitorDetailSummaryService> _logger;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes this type with search and measurement data sources.
     public MonitorDetailSummaryService(
         RVTSearchContext searchContext,
         IMonitorDataSource dataSource,
-        ILogger<MonitorDetailSummaryService> logger)
+        ILogger<MonitorDetailSummaryService> logger,
+        TimeProvider timeProvider)
     {
         this.searchContext = searchContext;
         this.dataSource = dataSource;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task<MonitorMetricSummary?> BuildLatestReadingAsync(
@@ -154,7 +157,7 @@ public sealed class MonitorDetailSummaryService : IMonitorDetailSummaryService
                 TraceId: null,
                 FilterOption: filter(monitorType),
                 FromDate: ownershipWindow.Start,
-                ToDate: ownershipWindow.End ?? DateTime.UtcNow.AddDays(1),
+                ToDate: ownershipWindow.End ?? _timeProvider.GetUtcNow().UtcDateTime.AddDays(1),
                 GraphData: false,
                 Page: 1,
                 PageSize: 1,

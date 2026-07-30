@@ -28,16 +28,19 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
     private readonly RVTDbContext _domainContext;
     private readonly IMonitorDetailSummaryService _summaryService;
     private readonly IMonitorPictureStorage _pictureStorage;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the shared monitor detail read model builder.
     public MonitorDetailReader(
         RVTDbContext domainContext,
         IMonitorDetailSummaryService summaryService,
-        IMonitorPictureStorage pictureStorage)
+        IMonitorPictureStorage pictureStorage,
+        TimeProvider timeProvider)
     {
         _domainContext = domainContext;
         _summaryService = summaryService;
         _pictureStorage = pictureStorage;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Builds a complete monitor detail response for controller and CQRS read paths.
@@ -118,7 +121,7 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
     }
 
     // Function summary: Builds the monitor list fields embedded inside monitor detail responses.
-    private static MonitorListItem BuildListItem(MonitorEntity monitor, Deployment? deployment, List<Notification> notifications, ClaimsPrincipal user)
+    private MonitorListItem BuildListItem(MonitorEntity monitor, Deployment? deployment, List<Notification> notifications, ClaimsPrincipal user)
     {
         DateTime? lastDataTime = LastDataTime(monitor);
         Contract? contract = deployment?.Contract;
@@ -214,10 +217,10 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
             .Max();
     }
 
-    // Function summary: Evaluates whether a monitor should be considered offline.
-    private static bool IsOffline(DateTime? lastDataTime)
+    // Function summary: Evaluates whether a monitor should be considered offline against the injected clock.
+    private bool IsOffline(DateTime? lastDataTime)
     {
-        return !lastDataTime.HasValue || lastDataTime.Value < DateTime.UtcNow.AddHours(-1);
+        return !lastDataTime.HasValue || lastDataTime.Value < _timeProvider.GetUtcNow().UtcDateTime.AddHours(-1);
     }
 
     // Function summary: Formats optional time values for API clients.

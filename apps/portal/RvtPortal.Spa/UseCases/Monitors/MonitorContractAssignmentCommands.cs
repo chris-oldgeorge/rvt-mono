@@ -28,11 +28,13 @@ public sealed class AssignMonitorToContractCommandHandler
     : IRequestHandler<AssignMonitorToContractCommand, AssignMonitorToContractResult>
 {
     private readonly RVTDbContext _domainContext;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the transactional monitor assignment command handler.
-    public AssignMonitorToContractCommandHandler(RVTDbContext domainContext)
+    public AssignMonitorToContractCommandHandler(RVTDbContext domainContext, TimeProvider timeProvider)
     {
         _domainContext = domainContext;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Validates and creates the current deployment for a monitor contract assignment.
@@ -82,7 +84,7 @@ public sealed class AssignMonitorToContractCommandHandler
             Id = Guid.NewGuid(),
             ContractId = request.ContractId,
             MonitorId = request.MonitorId,
-            StartDate = DateTime.UtcNow
+            StartDate = _timeProvider.GetUtcNow().UtcDateTime
         };
         _domainContext.Deployments.Add(deployment);
         result.DeploymentId = deployment.Id;

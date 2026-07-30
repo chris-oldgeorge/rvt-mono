@@ -17,11 +17,13 @@ namespace RvtPortal.Spa.Api;
 public class HealthController : ControllerBase
 {
     private readonly IHostEnvironment environment;
+    private readonly TimeProvider _timeProvider;
 
-    // Function summary: Initializes health endpoints with the current host environment.
-    public HealthController(IHostEnvironment environment)
+    // Function summary: Initializes health endpoints with the current host environment and clock.
+    public HealthController(IHostEnvironment environment, TimeProvider timeProvider)
     {
         this.environment = environment;
+        _timeProvider = timeProvider;
     }
 
     [HttpGet]
@@ -31,7 +33,7 @@ public class HealthController : ControllerBase
     {
         return new GetHealthResponse
         {
-            ServerTimeUtc = DateTime.UtcNow
+            ServerTimeUtc = _timeProvider.GetUtcNow().UtcDateTime
         };
     }
 

@@ -85,7 +85,7 @@ public sealed class CloseNotificationCommandHandler
             return result;
         }
 
-        NotificationCloseWorkflow.Close(notification, request.Note, request.Actor);
+        NotificationCloseWorkflow.Close(notification, request.Note, request.Actor, _timeProvider.GetUtcNow().UtcDateTime);
         return result;
     }
 
@@ -164,7 +164,7 @@ public sealed class BatchCloseNotificationsCommandHandler
                 continue;
             }
 
-            NotificationCloseWorkflow.Close(notification, note, request.Actor);
+            NotificationCloseWorkflow.Close(notification, note, request.Actor, _timeProvider.GetUtcNow().UtcDateTime);
             response.ClosedIds.Add(id);
         }
 
@@ -261,10 +261,10 @@ internal static class NotificationCloseWorkflow
     }
 
     // Function summary: Applies the close state to a tracked notification entity.
-    public static void Close(Notification notification, string? note, NotificationCloseActor actor)
+    public static void Close(Notification notification, string? note, NotificationCloseActor actor, DateTime nowUtc)
     {
         notification.ClosedNote = note ?? "";
-        notification.ClosedTime = DateTime.UtcNow;
+        notification.ClosedTime = nowUtc;
         notification.ClosedByUser = actor.UserId;
     }
 

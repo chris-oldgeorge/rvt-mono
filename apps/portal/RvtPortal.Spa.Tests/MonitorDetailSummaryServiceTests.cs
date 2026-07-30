@@ -25,7 +25,8 @@ public sealed class MonitorDetailSummaryServiceTests
             searchContext,
             new ThrowingMonitorDataSource(
                 new OperationCanceledException(cancellation.Token)),
-            new RecordingLogger<MonitorDetailSummaryService>());
+            new RecordingLogger<MonitorDetailSummaryService>(),
+            TimeProvider.System);
         Deployment deployment = new()
         {
             Id = Guid.NewGuid(),
@@ -52,7 +53,8 @@ public sealed class MonitorDetailSummaryServiceTests
         MonitorDetailSummaryService subject = new(
             searchContext,
             new ThrowingMonitorDataSource(failure),
-            logger);
+            logger,
+            TimeProvider.System);
         Guid deploymentId = Guid.NewGuid();
         Deployment deployment = new()
         {
@@ -96,7 +98,8 @@ public sealed class MonitorDetailSummaryServiceTests
         MonitorDetailSummaryService subject = new(
             searchContext,
             dataSource,
-            new RecordingLogger<MonitorDetailSummaryService>());
+            new RecordingLogger<MonitorDetailSummaryService>(),
+            TimeProvider.System);
         Deployment deployment = new()
         {
             Id = Guid.NewGuid(),

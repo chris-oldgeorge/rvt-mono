@@ -26,14 +26,17 @@ public sealed class RemoveUnattachedMonitorCommandHandler
 {
     private readonly RVTDbContext _domainContext;
     private readonly IMonitorRemovalImpactReader _impactReader;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the transactional unattached monitor removal command handler.
     public RemoveUnattachedMonitorCommandHandler(
         RVTDbContext domainContext,
-        IMonitorRemovalImpactReader impactReader)
+        IMonitorRemovalImpactReader impactReader,
+        TimeProvider timeProvider)
     {
         _domainContext = domainContext;
         _impactReader = impactReader;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Archives monitors with historical data and deletes monitors without related data.
@@ -64,7 +67,7 @@ public sealed class RemoveUnattachedMonitorCommandHandler
         if (impact.HasRelatedData)
         {
             monitor.Archived = true;
-            monitor.ArchivedAt = DateTime.UtcNow;
+            monitor.ArchivedAt = _timeProvider.GetUtcNow().UtcDateTime;
             monitor.ArchivedBy = request.ArchivedBy;
             monitor.ArchiveReason = EmptyToNull(request.Reason);
             result.Response = new MonitorRemovalResponse

@@ -281,7 +281,7 @@ public sealed class SearchTimestampPostgresTests
             searchContext,
             null!);
         PostgresDustDataSource dataSource = new(monitorService, monitor);
-        DataApplicationService application = new(domainContext, dataSource);
+        DataApplicationService application = new(domainContext, dataSource, TimeProvider.System);
 
         DataWorkflowResult<MonitorDataGridResponse> result = await application.GetGridAsync(
             deployment.Id,
@@ -359,7 +359,7 @@ public sealed class SearchTimestampPostgresTests
         await using RVTDbContext domainContext = CreateDomainContext(deployment);
         MonitorDataSource realDataSource = new(null!, searchContext, null!);
         PostgresTraceDataSource dataSource = new(realDataSource, monitor);
-        DataApplicationService application = new(domainContext, dataSource);
+        DataApplicationService application = new(domainContext, dataSource, TimeProvider.System);
         DataViewActor actor = new(null, IsAdmin: true, IsCompanyUser: false);
 
         DataWorkflowResult<TraceListResponse> list = await application.GetTracesAsync(

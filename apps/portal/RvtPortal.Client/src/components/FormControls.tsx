@@ -73,6 +73,8 @@ type ConfirmDialogProps = Readonly<{
   confirmLabel: string;
   cancelLabel?: string;
   isBusy?: boolean;
+  // Extra controls rendered inside the modal, for confirmations that also capture input.
+  children?: ReactNode;
   onCancel: () => void;
   onConfirm: () => void;
 }>;
@@ -85,6 +87,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel = 'Cancel',
   isBusy = false,
+  children,
   onCancel,
   onConfirm,
 }: ConfirmDialogProps) {
@@ -168,6 +171,7 @@ export function ConfirmDialog({
     >
       <h2 id="confirm-dialog-title">{title}</h2>
       <p>{message}</p>
+      {children}
       <div className="dialog-actions">
         <button className="secondary-button" type="button" onClick={onCancel} disabled={isBusy}>
           {cancelLabel}

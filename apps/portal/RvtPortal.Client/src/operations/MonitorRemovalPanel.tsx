@@ -1,5 +1,6 @@
 // File summary: Renders the admin unattached-monitor removal panel with archive/delete confirmation.
 // Major updates:
+// - 2026-07-30 pending Moved the removal reason inside the confirmation so it can actually be typed.
 // - 2026-07-30 pending Extracted from MonitorPanels.tsx during the monitor panel split.
 
 import { Search, Trash2 } from 'lucide-react';
@@ -123,6 +124,12 @@ export function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequ
     setPage(1);
   }
 
+  // Function summary: Dismisses the removal confirmation and drops the reason typed inside it.
+  function handleCancelRemoval() {
+    setSelectedMonitor(null);
+    setReason('');
+  }
+
   // Function summary: Removes or archives the selected unattached monitor.
   async function handleRemove() {
     if (!selectedMonitor) {
@@ -171,16 +178,6 @@ export function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequ
       </label>
       {notice && <Notice tone="success" message={notice} />}
       {error && <Notice tone="error" message={error} />}
-      {selectedMonitor && (
-        <FormField label="Removal reason">
-          <input
-            value={reason}
-            maxLength={512}
-            onChange={(event) => setReason(event.target.value)}
-            placeholder="Reason recorded for audit history"
-          />
-        </FormField>
-      )}
       <DataGrid
         columns={columns}
         rows={monitors}
@@ -214,9 +211,19 @@ export function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequ
         }
         confirmLabel={selectedMonitor?.willArchiveOnRemoval ? 'Archive' : 'Delete'}
         isBusy={isRemoving}
-        onCancel={() => setSelectedMonitor(null)}
+        onCancel={handleCancelRemoval}
         onConfirm={handleRemove}
-      />
+      >
+        <FormField label="Removal reason">
+          <input
+            value={reason}
+            maxLength={512}
+            disabled={isRemoving}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Reason recorded for audit history"
+          />
+        </FormField>
+      </ConfirmDialog>
     </section>
   );
 }

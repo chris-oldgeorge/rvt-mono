@@ -2,7 +2,7 @@
 // Major updates:
 // - 2026-07-08 pending Added form-file upload adapter for the hexagonal-at-the-edges refactor.
 
-using RVT.BusinessLogic.Ports.Storage;
+using RvtPortal.Application.Ports.Storage;
 
 namespace RvtPortal.Spa.Adapters.Storage;
 

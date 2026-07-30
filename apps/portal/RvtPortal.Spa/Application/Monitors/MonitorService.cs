@@ -13,13 +13,13 @@
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic;
 using RVT.DataAccess;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Ports.Persistence;
 using RVT.Entities.Querying;
+using RvtPortal.Application.Time;
 using Monitor = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Application.Monitors;
@@ -30,10 +30,10 @@ public interface IMonitorService
 
 
 
-    Task<Monitor?> ReadOneAsync(Guid id);
+    Task<Monitor?> ReadOneAsync(Guid id, CancellationToken cancellationToken = default);
 
     //Deployments
-    Task<Deployment?> DeploymentReadOneAsync(Guid deploymentId);
+    Task<Deployment?> DeploymentReadOneAsync(Guid deploymentId, CancellationToken cancellationToken = default);
 
     //Dust data
     [SuppressMessage("Maintainability", "S107:Methods should not have too many parameters", Justification = "The interface preserves the established monitor search contract used by portal workflows.")]
@@ -54,9 +54,9 @@ public interface IMonitorService
     //Vibration data
     [SuppressMessage("Maintainability", "S107:Methods should not have too many parameters", Justification = "The interface preserves the established monitor search contract used by portal workflows.")]
     Task<SearchQueryResult<OmnidotsPeakLevel>> GetOmnidotsPeakLevels(string serialId, DateTime fromDate, DateTime toDate, int? page = null, int? pageSize = null, string? sort = null, OrderByDirectionEnum? sortdir = null, CancellationToken cancellationToken = default);
-    Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string serialId);
+    Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string serialId, CancellationToken cancellationToken = default);
     Task<SearchQueryResult<OmnidotsTrace>> GetVibrationTraces(Guid traceId, CancellationToken cancellationToken = default);
-    Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid id);
+    Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid id, CancellationToken cancellationToken = default);
 }
 
 public class MonitorService : IMonitorService
@@ -84,18 +84,18 @@ public class MonitorService : IMonitorService
     }
 
     // Function summary: Retrieves one data for callers.
-    public Task<Monitor?> ReadOneAsync(Guid id)
+    public Task<Monitor?> ReadOneAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return _monitorRepository.GetByIdAsync(id);
+        return _monitorRepository.GetByIdAsync(id, cancellationToken);
     }
 
 
     #region Deployment
     //Returns current  Deployment if any
     // Function summary: Handles the deployment read one workflow for this module.
-    public Task<Deployment?> DeploymentReadOneAsync(Guid deploymentId)
+    public Task<Deployment?> DeploymentReadOneAsync(Guid deploymentId, CancellationToken cancellationToken = default)
     {
-        return _deploymentRepository.GetByIdAsync(deploymentId);
+        return _deploymentRepository.GetByIdAsync(deploymentId, cancellationToken);
     }
     #endregion
 
@@ -341,11 +341,11 @@ public class MonitorService : IMonitorService
     }
 
     // Function summary: Retrieves vibration monitor status data for callers.
-    public Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string serialId)
+    public Task<OmnidotsMonitorStatus?> GetVibrationMonitorStatusAsync(string serialId, CancellationToken cancellationToken = default)
     {
         return _searchContext.Set<OmnidotsMonitorStatus>()
             .Where(status => status.SerialId == serialId)
-            .FirstOrDefaultAsync();
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     // Function summary: Retrieves vibration traces data for callers.
@@ -362,9 +362,9 @@ public class MonitorService : IMonitorService
     }
 
     // Function summary: Handles the traces index read one workflow for this module.
-    public async Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid id)
+    public async Task<OmnidotsTracesIndex?> TracesIndexReadOne(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _searchContext.Set<OmnidotsTracesIndex>().FindAsync(id);
+        return await _searchContext.Set<OmnidotsTracesIndex>().FindAsync([id], cancellationToken);
     }
 
     #endregion

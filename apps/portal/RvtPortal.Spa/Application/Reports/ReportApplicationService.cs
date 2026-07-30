@@ -15,9 +15,6 @@ public interface IReportApplicationService
 {
     // Function summary: Returns a paged report list while keeping filtering, count, sort, and paging in EF.
     Task<ReportQueryResult> QueryAsync(ReportQuery request, CancellationToken cancellationToken);
-
-    // Function summary: Returns one report item by id, or null when absent.
-    Task<ReportListItem?> GetAsync(Guid reportId, CancellationToken cancellationToken);
 }
 
 public sealed record ReportQuery(
@@ -99,15 +96,6 @@ public sealed class ReportApplicationService : IReportApplicationService
                 SortDir = request.SortDir
             }
         };
-    }
-
-    // Function summary: Returns one report item by id, or null when absent.
-    public async Task<ReportListItem?> GetAsync(Guid reportId, CancellationToken cancellationToken)
-    {
-        ReportSearch? report = await searchContext.ReportSearches
-            .AsNoTracking()
-            .SingleOrDefaultAsync(item => item.Id == reportId && !item.Deleted, cancellationToken);
-        return report == null ? null : BuildReportItem(report);
     }
 
     // Function summary: Maps a search-row report to the existing API contract.

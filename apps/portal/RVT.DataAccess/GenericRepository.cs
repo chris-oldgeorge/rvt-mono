@@ -47,9 +47,9 @@ public class GenericRepository<TEntity> where TEntity : class
 
     #region Async Members
     // Function summary: Retrieves by ID data for callers.
-    public virtual async Task<TEntity?> GetByIdAsync(Guid id)
+    public virtual async Task<TEntity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await DbSet.FindAsync(id);
+        return await DbSet.FindAsync([id], cancellationToken);
     }
     #endregion
 

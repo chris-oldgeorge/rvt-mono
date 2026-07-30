@@ -119,7 +119,8 @@ public sealed class MonitorDetailSummaryServiceTests
         : IMonitorDataSource
     {
         public Task<MonitorData> GetDeploymentDataAsync(
-            DeploymentDataQuery request) =>
+            DeploymentDataQuery request,
+            CancellationToken cancellationToken = default) =>
             Task.FromException<MonitorData>(exception);
 
         public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
@@ -137,7 +138,8 @@ public sealed class MonitorDetailSummaryServiceTests
         public int CallCount { get; private set; }
 
         public Task<MonitorData> GetDeploymentDataAsync(
-            DeploymentDataQuery request)
+            DeploymentDataQuery request,
+            CancellationToken cancellationToken = default)
         {
             CallCount++;
             return Task.FromResult(new MonitorData());

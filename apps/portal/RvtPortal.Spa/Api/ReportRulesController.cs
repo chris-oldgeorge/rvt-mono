@@ -11,9 +11,7 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RVT.BusinessLogic.Application;
-using RVT.BusinessLogic.Application.Paging;
-using RVT.BusinessLogic.Reports;
+using RvtPortal.Application.Common;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
 using RvtPortal.Spa.Application.ReportRules;
@@ -55,7 +53,7 @@ public class ReportRulesController : ControllerBase
             return InvalidSort(requestedSort, ReportRuleApplicationService.SortFields);
         }
 
-        ApplicationResult<PagedResult<ReportRuleListModel>> result = await reportRules.QueryAsync(
+        UseCaseResult<PagedResult<ReportRuleListModel>> result = await reportRules.QueryAsync(
             new ReportRuleQuery(request.SiteId, BuildPageRequest(request, requestedSort)),
             HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ReportRuleApiMapper.ToQueryResponse);
@@ -66,7 +64,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Returns report-rule edit options from the business-layer use case.
     public async Task<ActionResult<ReportRuleOptionsResponse>> Options()
     {
-        ApplicationResult<ReportRuleOptionsModel> result = await reportRules.OptionsAsync(HttpContext.RequestAborted);
+        UseCaseResult<ReportRuleOptionsModel> result = await reportRules.OptionsAsync(HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ReportRuleApiMapper.ToOptionsResponse);
     }
 
@@ -76,7 +74,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Retrieves report-rule detail through the business-layer use case.
     public async Task<ActionResult<EntityResponse<ReportRuleDetailResponse>>> Get(Guid id)
     {
-        ApplicationResult<ReportRuleDetailModel> result = await reportRules.GetAsync(id, HttpContext.RequestAborted);
+        UseCaseResult<ReportRuleDetailModel> result = await reportRules.GetAsync(id, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ToDetailEntity);
     }
 
@@ -87,11 +85,11 @@ public class ReportRulesController : ControllerBase
     public async Task<ActionResult<EntityResponse<ReportRuleDetailResponse>>> Create(ReportRuleMutationRequest request)
     {
         PortalUserContext user = await currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
-        ApplicationResult<ReportRuleDetailModel> result = await reportRules.CreateAsync(
+        UseCaseResult<ReportRuleDetailModel> result = await reportRules.CreateAsync(
             user,
             ReportRuleApiMapper.ToMutation(request),
             HttpContext.RequestAborted);
-        if (result.Kind == ApplicationResultKind.Success && result.Value != null)
+        if (result.Kind == UseCaseResultKind.Success && result.Value != null)
         {
             EntityResponse<ReportRuleDetailResponse> response = ToDetailEntity(result.Value);
             return CreatedAtAction(nameof(Get), new { id = result.Value.Id }, response);
@@ -108,7 +106,7 @@ public class ReportRulesController : ControllerBase
     public async Task<ActionResult<EntityResponse<ReportRuleDetailResponse>>> Update(Guid id, ReportRuleMutationRequest request)
     {
         PortalUserContext user = await currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
-        ApplicationResult<ReportRuleDetailModel> result = await reportRules.UpdateAsync(
+        UseCaseResult<ReportRuleDetailModel> result = await reportRules.UpdateAsync(
             user,
             id,
             ReportRuleApiMapper.ToMutation(request),
@@ -122,7 +120,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Deletes a report rule through the business-layer use case.
     public async Task<ActionResult<MutationResponse>> Delete(Guid id)
     {
-        ApplicationResult<Guid> result = await reportRules.DeleteAsync(id, HttpContext.RequestAborted);
+        UseCaseResult<Guid> result = await reportRules.DeleteAsync(id, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, deletedId => new MutationResponse
         {
             Id = deletedId,
@@ -136,7 +134,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Retrieves the report-rule assignment summary used by legacy-compatible clients.
     public async Task<ActionResult<EntityResponse<ReportUserAssignmentResponse>>> Users(Guid id)
     {
-        ApplicationResult<ReportUserAssignmentModel> result = await reportRules.GetUsersAsync(id, HttpContext.RequestAborted);
+        UseCaseResult<ReportUserAssignmentModel> result = await reportRules.GetUsersAsync(id, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ToAssignmentEntity);
     }
 
@@ -146,7 +144,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Retrieves paged users eligible to receive a report rule.
     public async Task<ActionResult<QueryReportUsersResponse>> AvailableUsers(Guid id, [FromQuery] QueryReportUsersRequest request)
     {
-        ApplicationResult<ReportUserQueryResult> result = await reportRules.QueryUsersAsync(
+        UseCaseResult<ReportUserQueryResult> result = await reportRules.QueryUsersAsync(
             id,
             BuildPageRequest(request, string.IsNullOrWhiteSpace(request.Sort) ? "name" : request.Sort.Trim()),
             assigned: false,
@@ -160,7 +158,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Retrieves paged users currently assigned to receive a report rule.
     public async Task<ActionResult<QueryReportUsersResponse>> AssignedUsers(Guid id, [FromQuery] QueryReportUsersRequest request)
     {
-        ApplicationResult<ReportUserQueryResult> result = await reportRules.QueryUsersAsync(
+        UseCaseResult<ReportUserQueryResult> result = await reportRules.QueryUsersAsync(
             id,
             BuildPageRequest(request, string.IsNullOrWhiteSpace(request.Sort) ? "name" : request.Sort.Trim()),
             assigned: true,
@@ -175,7 +173,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Assigns one user to a report rule through the business-layer use case.
     public async Task<ActionResult<EntityResponse<ReportUserAssignmentResponse>>> AddUser(Guid id, ReportUserMutationRequest request)
     {
-        ApplicationResult<ReportUserAssignmentModel> result = await reportRules.AddUserAsync(id, request.UserId, HttpContext.RequestAborted);
+        UseCaseResult<ReportUserAssignmentModel> result = await reportRules.AddUserAsync(id, request.UserId, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ToAssignmentEntity);
     }
 
@@ -185,7 +183,7 @@ public class ReportRulesController : ControllerBase
     // Function summary: Removes one user from a report rule through the business-layer use case.
     public async Task<ActionResult<EntityResponse<ReportUserAssignmentResponse>>> RemoveUser(Guid id, Guid userId)
     {
-        ApplicationResult<ReportUserAssignmentModel> result = await reportRules.RemoveUserAsync(id, userId, HttpContext.RequestAborted);
+        UseCaseResult<ReportUserAssignmentModel> result = await reportRules.RemoveUserAsync(id, userId, HttpContext.RequestAborted);
         return resultMapper.ToActionResult(this, result, ToAssignmentEntity);
     }
 
@@ -200,21 +198,21 @@ public class ReportRulesController : ControllerBase
         ReportGenerationRequest? request,
         CancellationToken cancellationToken)
     {
-        ApplicationResult<ReportGenerationResponseModel> result = await reportRules.RequestGenerationAsync(
+        UseCaseResult<ReportGenerationResponseModel> result = await reportRules.RequestGenerationAsync(
             id,
             ReportRuleApiMapper.ToGenerationRequest(request),
             cancellationToken);
-        if (result.Kind == ApplicationResultKind.Success && result.Value != null)
+        if (result.Kind == UseCaseResultKind.Success && result.Value != null)
         {
             return Accepted(ReportRuleApiMapper.ToGenerationResponse(result.Value));
         }
 
-        if (result.Kind == ApplicationResultKind.NotFound)
+        if (result.Kind == UseCaseResultKind.NotFound)
         {
             return RuleNotFound(id);
         }
 
-        if (result.Kind == ApplicationResultKind.ExternalServiceUnavailable)
+        if (result.Kind == UseCaseResultKind.ExternalServiceUnavailable)
         {
             int statusCode = result.StatusCode ?? StatusCodes.Status503ServiceUnavailable;
             return StatusCode(statusCode, ApiProblems.Create(

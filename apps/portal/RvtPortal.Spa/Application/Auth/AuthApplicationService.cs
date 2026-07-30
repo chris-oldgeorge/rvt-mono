@@ -12,8 +12,8 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Options;
-using RVT.BusinessLogic.Notifications;
-using RVT.BusinessLogic.Ports.Notifications;
+using RvtPortal.Application.Notifications;
+using RvtPortal.Application.Ports.Notifications;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Companies;
 using RvtPortal.Spa.Data;
@@ -198,10 +198,12 @@ public sealed class AuthApplicationService : IAuthApplicationService
         {
             return AuthWorkflowResult<AuthStateResponse>.Success(await BuildAuthStateAsync(user));
         }
+
         if (result.IsLockedOut)
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.LockedOut);
         }
+
         if (result.RequiresTwoFactor || result.IsNotAllowed)
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.SignInNotAllowed);
@@ -294,6 +296,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
         {
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
         }
+
         if (!TryDecodeConfirmationCode(code, out string? decodedCode))
         {
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MalformedConfirmationCode);
@@ -456,10 +459,12 @@ public sealed class AuthApplicationService : IAuthApplicationService
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.InitialPasswordUserNotFound);
         }
+
         if (!user.EmailConfirmed)
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.EmailNotConfirmed);
         }
+
         if (!TryDecodeConfirmationCode(request.Code, out string? decodedCode))
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.MalformedConfirmationCode);
@@ -474,6 +479,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.ConfirmationCouldNotBeVerified);
         }
+
         if (await userManager.HasPasswordAsync(user))
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.PasswordAlreadySet);

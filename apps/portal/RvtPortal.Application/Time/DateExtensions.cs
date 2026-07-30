@@ -1,10 +1,4 @@
-// File summary: Provides pure date helpers and provider-backed UTC/local conversion extension methods.
-// Major updates:
-// - 2026-07-09 pending Removed static appsettings reads; UTC/local conversion now uses an injected date-time provider.
-// - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
-// - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
-
-namespace RVT.BusinessLogic;
+namespace RvtPortal.Application.Time;
 
 public static class DateExtensions
 {

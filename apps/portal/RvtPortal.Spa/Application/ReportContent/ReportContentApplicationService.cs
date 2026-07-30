@@ -5,8 +5,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic.Ports.Storage;
 using RVT.DataAccess.Context;
+using RvtPortal.Application.Ports.Storage;
 
 namespace RvtPortal.Spa.Application.ReportContent;
 

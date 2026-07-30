@@ -550,7 +550,7 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
     public DeploymentDataQuery? LastDeploymentRequest { get; private set; }
 
     // Function summary: Retrieves deployment data data for callers.
-    public Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request)
+    public Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request, CancellationToken cancellationToken = default)
     {
         LastDeploymentRequest = request;
         LastGridSort = request.Sort;

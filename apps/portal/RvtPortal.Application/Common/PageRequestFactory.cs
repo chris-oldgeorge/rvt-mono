@@ -1,23 +1,4 @@
-// File summary: Normalizes transport paging and sorting inputs before they reach business-layer queries.
-// Major updates:
-// - 2026-07-05 pending Added shared request normalization for controller-to-business refactoring.
-
-namespace RVT.BusinessLogic.Application.Paging;
-
-public static class PageSortDirections
-{
-    public const string Ascending = "Ascending";
-    public const string Descending = "Descending";
-
-    // Function summary: Normalizes caller-supplied sort direction values to the API-compatible constants.
-    public static string Normalize(string? value)
-    {
-        return string.Equals(value, Descending, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(value, "desc", StringComparison.OrdinalIgnoreCase)
-                ? Descending
-                : Ascending;
-    }
-}
+namespace RvtPortal.Application.Common;
 
 public static class PageRequestFactory
 {

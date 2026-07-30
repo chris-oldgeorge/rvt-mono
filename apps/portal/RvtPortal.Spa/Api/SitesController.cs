@@ -14,7 +14,6 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RVT.BusinessLogic.Application.Paging;
 using RvtPortal.Application.Common;
 using RvtPortal.Application.Identity;
 using RvtPortal.Application.Sites;
@@ -48,14 +47,14 @@ public class SitesController : ControllerBase
     // Function summary: Queries visible sites through the business-layer site use case.
     public async Task<ActionResult<QuerySitesResponse>> Query([FromQuery] QuerySitesRequest request)
     {
-        RVT.BusinessLogic.Application.Paging.PageRequest page = BuildSitePageRequest(request);
+        PageRequest page = BuildSitePageRequest(request);
         if (PageRequestFactory.IsInvalidSort(page))
         {
             return InvalidSort(page.Sort, SiteApplicationService.SortFields);
         }
 
         PortalUserContext user = await _currentUserContextFactory.CreateAsync(User, HttpContext.RequestAborted);
-        UseCaseResult<RvtPortal.Application.Common.PagedResult<SiteListModel>> result = await _sites.QueryAsync(
+        UseCaseResult<PagedResult<SiteListModel>> result = await _sites.QueryAsync(
             user,
             new SiteQuery(
                 request.CompanyId,
@@ -90,7 +89,7 @@ public class SitesController : ControllerBase
     }
     [HttpPost("{id:guid}/customer-logo")]
     [Authorize(Roles = RoleAuthorization.AdminRoles)]
-    [RequestSizeLimit(2 * 1024 * 1024 + 32 * 1024)]
+    [RequestSizeLimit((2 * 1024 * 1024) + (32 * 1024))]
     [ProducesResponseType(typeof(EntityResponse<SiteDetailResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -223,8 +222,8 @@ public class SitesController : ControllerBase
     // Function summary: Returns the paged monitor panel for one authorized site.
     public async Task<ActionResult<QuerySiteMonitorsResponse>> Monitors(Guid id, [FromQuery] PagedQueryRequest request)
     {
-        RvtPortal.Application.Common.PageRequest page = BuildFixedSortPageRequest(request, SiteApplicationService.MonitorSort);
-        UseCaseResult<RvtPortal.Application.Common.PagedResult<SiteMonitorModel>> result = await _sites.QueryMonitorsAsync(await CreateUserContextAsync(), id, page, HttpContext.RequestAborted);
+        PageRequest page = BuildFixedSortPageRequest(request, SiteApplicationService.MonitorSort);
+        UseCaseResult<PagedResult<SiteMonitorModel>> result = await _sites.QueryMonitorsAsync(await CreateUserContextAsync(), id, page, HttpContext.RequestAborted);
         return _resultMapper.ToActionResult(this, result, SiteApiMapper.ToMonitorQueryResponse);
     }
     [HttpGet("{id:guid}/notifications/open")]
@@ -233,8 +232,8 @@ public class SitesController : ControllerBase
     // Function summary: Returns the paged open-notification panel for one authorized site.
     public async Task<ActionResult<QuerySiteNotificationsResponse>> OpenNotifications(Guid id, [FromQuery] PagedQueryRequest request)
     {
-        RvtPortal.Application.Common.PageRequest page = BuildFixedSortPageRequest(request, SiteApplicationService.NotificationSort);
-        UseCaseResult<RvtPortal.Application.Common.PagedResult<SiteNotificationModel>> result = await _sites.QueryOpenNotificationsAsync(await CreateUserContextAsync(), id, page, HttpContext.RequestAborted);
+        PageRequest page = BuildFixedSortPageRequest(request, SiteApplicationService.NotificationSort);
+        UseCaseResult<PagedResult<SiteNotificationModel>> result = await _sites.QueryOpenNotificationsAsync(await CreateUserContextAsync(), id, page, HttpContext.RequestAborted);
         return _resultMapper.ToActionResult(this, result, SiteApiMapper.ToNotificationQueryResponse);
     }
     [HttpGet("{id:guid}/notification-settings")]
@@ -269,7 +268,7 @@ public class SitesController : ControllerBase
             });
     }
     // Function summary: Normalizes site list query paging and sorting for the business-layer use case.
-    private static RVT.BusinessLogic.Application.Paging.PageRequest BuildSitePageRequest(QuerySitesRequest request)
+    private static PageRequest BuildSitePageRequest(QuerySitesRequest request)
     {
         return PageRequestFactory.Create(
             request.SearchText,
@@ -282,9 +281,9 @@ public class SitesController : ControllerBase
     }
 
     // Function summary: Normalizes fixed-sort site panel paging while preserving legacy sort-field behavior.
-    private static RvtPortal.Application.Common.PageRequest BuildFixedSortPageRequest(PagedQueryRequest request, string sort)
+    private static PageRequest BuildFixedSortPageRequest(PagedQueryRequest request, string sort)
     {
-        return new RvtPortal.Application.Common.PageRequest(
+        return new PageRequest(
             request.SearchText,
             request.GetNormalizedPage(),
             request.GetNormalizedPageSize(),

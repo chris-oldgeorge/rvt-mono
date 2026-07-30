@@ -6,5 +6,5 @@ namespace RVT.Entities.Ports.Persistence;
 
 public interface IDeploymentRepository
 {
-    Task<Deployment?> GetByIdAsync(Guid id);
+    Task<Deployment?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 }

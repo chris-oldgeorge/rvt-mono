@@ -12,7 +12,7 @@ public static class SiteApiMapper
 {
     // Function summary: Copies the host-normalized legacy page request into the application-owned paging contract.
     public static PageRequest ToApplicationPage(
-        RVT.BusinessLogic.Application.Paging.PageRequest page) =>
+        PageRequest page) =>
         new(
             page.SearchText,
             page.Page,

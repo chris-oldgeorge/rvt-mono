@@ -6,9 +6,9 @@
 using System.Globalization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using RVT.BusinessLogic.Ports.Vendors;
 using RVT.DataAccess.Context;
 using RVT.Entities;
+using RvtPortal.Application.Ports.Vendors;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Application.Common;
 using MonitorEntity = RVT.Entities.Monitor;
@@ -191,14 +191,17 @@ public sealed class UpdateVibrationAlertLevelsCommandHandler
         {
             AlertLevelCommandWorkflow.AddError(result.Errors, nameof(request.MonitorId), "The selected monitor is not a vibration monitor.");
         }
+
         if (request.Request.AlertLevel <= 0 || request.Request.CautionLevel <= 0)
         {
             AlertLevelCommandWorkflow.AddError(result.Errors, nameof(VibrationAlertLevelMutationRequest.AlertLevel), "Alert and caution levels must be greater than zero.");
         }
+
         if (request.Request.AlertLevel <= request.Request.CautionLevel)
         {
             AlertLevelCommandWorkflow.AddError(result.Errors, nameof(VibrationAlertLevelMutationRequest.AlertLevel), "Alert Level needs to be greater than Caution Level.");
         }
+
         if (result.Errors.Count > 0)
         {
             return result;

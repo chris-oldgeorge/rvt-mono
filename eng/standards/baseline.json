@@ -4,12 +4,6 @@
   "entries": [
     {
       "tool": "dotnet-format-style",
-      "ruleId": "IDE0032",
-      "path": "apps/portal/RVT.BusinessLogic/RvtDateTimeProvider.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
       "ruleId": "IDE0047",
       "path": "apps/portal/RvtPortal.Spa/Adapters/Sites/EfSiteReadAdapter.cs",
       "count": 1
@@ -174,18 +168,6 @@
       "tool": "dotnet-format-style",
       "ruleId": "IDE1006",
       "path": "apps/monitors/svantekmonitor/SvantekMonitorTests/SvantekJobCancellationTests.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "apps/portal/RVT.BusinessLogic/Notifications/AccountMessenger.cs",
-      "count": 1
-    },
-    {
-      "tool": "dotnet-format-style",
-      "ruleId": "IDE1006",
-      "path": "apps/portal/RVT.BusinessLogic/RvtDateTimeProvider.cs",
       "count": 1
     },
     {

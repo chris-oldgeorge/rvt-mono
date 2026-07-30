@@ -30,17 +30,6 @@ public static class MonitorApiMapper
         };
     }
 
-    // Function summary: Maps monitor option application models to the existing API response contract.
-    public static MonitorOptionsResponse ToOptionsResponse(MonitorOptionsModel model)
-    {
-        return new MonitorOptionsResponse
-        {
-            MonitorTypes = [.. model.MonitorTypes.Select(ToOptionItem)],
-            Contracts = [.. model.Contracts.Select(ToOptionItem)],
-            Sites = [.. model.Sites.Select(ToOptionItem)]
-        };
-    }
-
     // Function summary: Maps monitor assignment application models to the existing API response contract.
     public static MonitorAssignmentContextResponse ToAssignmentResponse(MonitorAssignmentContextModel model)
     {

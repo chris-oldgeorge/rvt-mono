@@ -4,8 +4,8 @@
 // - 2026-07-05 pending Added report-rule API mapper for controller-to-business refactoring.
 // - 2026-07-05 pending Added report-recipient and manual-generation mapping.
 
-using RVT.BusinessLogic.Application.Paging;
-using RVT.BusinessLogic.Reports;
+using RvtPortal.Application.Common;
+using RvtPortal.Spa.Application.ReportRules;
 
 namespace RvtPortal.Spa.Api.Mappers;
 

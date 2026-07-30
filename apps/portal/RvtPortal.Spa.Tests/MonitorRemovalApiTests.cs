@@ -14,7 +14,6 @@ public sealed class MonitorRemovalApiTests
             .ToHashSet(StringComparer.Ordinal);
 
         Assert.Contains("QueryUnattached", methods);
-        Assert.Contains("GetRemovalImpact", methods);
         Assert.Contains("RemoveUnattached", methods);
     }
 }

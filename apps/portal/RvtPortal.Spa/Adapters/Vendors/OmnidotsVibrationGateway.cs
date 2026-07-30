@@ -8,7 +8,7 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using RVT.BusinessLogic.Ports.Vendors;
+using RvtPortal.Application.Ports.Vendors;
 
 namespace RvtPortal.Spa.Adapters.Vendors;
 

@@ -3,7 +3,6 @@
 #pragma warning disable IDE0130
 using System.Text.Json;
 using Rvt.Monitor.Common.Delivery;
-using Rvt.Monitor.Common.Notifications;
 
 namespace Rvt.Monitor.CommonTests.Delivery;
 

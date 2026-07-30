@@ -10,7 +10,7 @@ namespace Rvt.Reporting.Storage.PortalContent;
 /// </summary>
 public sealed class SpaCustomerLogoClient(HttpClient httpClient, IOptions<SpaCustomerLogoClientOptions> options) : ICustomerLogoProvider
 {
-    private const long MaximumLogoBytes = 2 * 1024 * 1024;
+    private const int _maximumLogoBytes = 2 * 1024 * 1024;
     private const string InternalKeyHeader = "X-RVT-Internal-Key";
     private readonly HttpClient _httpClient = httpClient;
     private readonly SpaCustomerLogoClientOptions _options = options.Value;
@@ -42,8 +42,8 @@ public sealed class SpaCustomerLogoClient(HttpClient httpClient, IOptions<SpaCus
                 return null;
             }
 
-            byte[] content = await response.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
-            return content.LongLength is 0 or > MaximumLogoBytes
+            byte[]? content = await ReadBoundedLogoAsync(response.Content, cancellationToken).ConfigureAwait(false);
+            return content is null
                 ? null
                 : new CustomerLogo(content, response.Content.Headers.ContentType?.MediaType ?? "image/png");
         }
@@ -55,6 +55,46 @@ public sealed class SpaCustomerLogoClient(HttpClient httpClient, IOptions<SpaCus
         {
             return null;
         }
+    }
+
+    private static async Task<byte[]?> ReadBoundedLogoAsync(
+        HttpContent content,
+        CancellationToken cancellationToken)
+    {
+        long? contentLength = content.Headers.ContentLength;
+        if (contentLength is 0 or > _maximumLogoBytes)
+        {
+            return null;
+        }
+
+        await using Stream source = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        using MemoryStream destination = contentLength is > 0
+            ? new MemoryStream((int)contentLength.Value)
+            : new MemoryStream();
+        byte[] buffer = new byte[81920];
+        while (true)
+        {
+            int remainingWithSentinel = (int)(_maximumLogoBytes - destination.Length + 1);
+            int requestedBytes = Math.Min(buffer.Length, remainingWithSentinel);
+            int read = await source.ReadAsync(
+                buffer.AsMemory(0, requestedBytes),
+                cancellationToken).ConfigureAwait(false);
+            if (read == 0)
+            {
+                break;
+            }
+
+            if (destination.Length + read > _maximumLogoBytes)
+            {
+                return null;
+            }
+
+            await destination.WriteAsync(
+                buffer.AsMemory(0, read),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        return destination.Length == 0 ? null : destination.ToArray();
     }
 
     private bool TryBuildLogoUri(Guid siteId, out Uri logoUri)

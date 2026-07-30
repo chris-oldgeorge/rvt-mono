@@ -7,6 +7,8 @@ namespace AirQ.Api.Http
 
     public class HttpWebClient : IHttpClient
     {
+        private const int _maximumResponseBytes = 4 * 1024 * 1024;
+
         /// <summary>
         /// Bounds every vendor call. Without an explicit value the 100 second
         /// default applies, so an unresponsive endpoint stalled the whole
@@ -26,7 +28,9 @@ namespace AirQ.Api.Http
             httpClient.BaseAddress = new Uri(baseUrl);
             httpClient.DefaultRequestHeaders.Add("accept", "application/json");
             httpClient.Timeout = RequestTimeout;
-            _transport = new VendorHttpTransport(httpClient);
+            _transport = new VendorHttpTransport(
+                httpClient,
+                maxResponseBytes: _maximumResponseBytes);
         }
 
         public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)

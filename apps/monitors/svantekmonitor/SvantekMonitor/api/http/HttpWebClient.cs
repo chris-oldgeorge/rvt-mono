@@ -7,6 +7,9 @@ namespace Svantek.Api.Http
 
     public class HttpWebClient : IHttpClient
     {
+        private const int _maximumJsonResponseBytes = 4 * 1024 * 1024;
+        private const int _maximumRecordingBytes = 64 * 1024 * 1024;
+
         /// <summary>
         /// Bounds every vendor call. Without an explicit value the 100 second
         /// default applies, so an unresponsive endpoint stalled the whole
@@ -14,6 +17,7 @@ namespace Svantek.Api.Http
         /// </summary>
         internal static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
+        private readonly VendorHttpTransport _downloadTransport;
         private readonly VendorHttpTransport _transport;
 
         public HttpWebClient(string baseUrl)
@@ -29,7 +33,12 @@ namespace Svantek.Api.Http
                 httpClient.DefaultRequestHeaders.Add("accept", "application/json");
             }
             httpClient.Timeout = RequestTimeout;
-            _transport = new VendorHttpTransport(httpClient);
+            _transport = new VendorHttpTransport(
+                httpClient,
+                maxResponseBytes: _maximumJsonResponseBytes);
+            _downloadTransport = new VendorHttpTransport(
+                httpClient,
+                maxResponseBytes: _maximumRecordingBytes);
         }
 
         public async Task<string> GetAsync(string path, CancellationToken cancellationToken = default)
@@ -77,7 +86,11 @@ namespace Svantek.Api.Http
             MultipartFormDataContent content,
             CancellationToken cancellationToken = default)
         {
-            using VendorHttpResponse response = await _transport.SendAsync(HttpMethod.Post, path, content, cancellationToken);
+            using VendorHttpResponse response = await _downloadTransport.SendAsync(
+                HttpMethod.Post,
+                path,
+                content,
+                cancellationToken);
             if (!response.IsOk)
             {
                 RvtLogger.Logger.LogError("File request failed with error={Value1}", response.StatusCode);

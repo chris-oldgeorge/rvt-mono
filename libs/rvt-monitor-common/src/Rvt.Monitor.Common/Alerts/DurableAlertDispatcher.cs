@@ -35,17 +35,44 @@ public sealed class DurableAlertDispatcher
         this.logger = logger;
     }
 
-    public async Task DispatchAsync(CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Drains up to one batch of due deliveries and reports what happened.
+    /// </summary>
+    /// <remarks>
+    /// Dead-lettering is the designed terminal outcome of the retry policy, so
+    /// it is reported, not thrown: this used to raise an
+    /// <see cref="AggregateException"/> and fail the whole minute's dispatch
+    /// job over deliveries that had already been recorded correctly. A claim
+    /// failure likewise arrives in the result rather than unwinding the loop
+    /// and discarding everything the batch already accounted for.
+    /// </remarks>
+    public async Task<AlertDispatchResult> DispatchAsync(CancellationToken cancellationToken = default)
     {
         List<Guid> deadLetteredIds = [];
+        int delivered = 0;
+        int deferred = 0;
+        int retryScheduled = 0;
         for (int index = 0; index < options.BatchSize; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
             DateTime claimTime = timeProvider.GetUtcNow().UtcDateTime;
-            ClaimedAlertDelivery? message = await store.ClaimNextDueAsync(
-                claimTime,
-                TimeSpan.FromSeconds(options.LeaseSeconds),
-                cancellationToken);
+            ClaimedAlertDelivery? message;
+            try
+            {
+                message = await store.ClaimNextDueAsync(
+                    claimTime,
+                    TimeSpan.FromSeconds(options.LeaseSeconds),
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                return new AlertDispatchResult(delivered, deferred, retryScheduled, deadLetteredIds, exception);
+            }
+
             if (message is null)
             {
                 break;
@@ -55,6 +82,7 @@ public sealed class DurableAlertDispatcher
             {
                 if (await TryDeferOutsideSendWindowAsync(message, claimTime, cancellationToken))
                 {
+                    deferred++;
                     continue;
                 }
 
@@ -77,7 +105,11 @@ public sealed class DurableAlertDispatcher
                     outcomeTime,
                     audit,
                     cancellationToken);
-                if (!completed)
+                if (completed)
+                {
+                    delivered++;
+                }
+                else
                 {
                     LogOwnershipLoss(message.Id);
                 }
@@ -115,15 +147,14 @@ public sealed class DurableAlertDispatcher
                 {
                     deadLetteredIds.Add(message.Id);
                 }
+                else
+                {
+                    retryScheduled++;
+                }
             }
         }
 
-        if (deadLetteredIds.Count > 0)
-        {
-            IEnumerable<InvalidOperationException> failures = deadLetteredIds
-                .Select(id => new InvalidOperationException($"Alert delivery {id} was dead-lettered."));
-            throw new AggregateException("One or more alert deliveries were dead-lettered.", failures);
-        }
+        return new AlertDispatchResult(delivered, deferred, retryScheduled, deadLetteredIds, ClaimFailure: null);
     }
 
     /// <summary>

@@ -8,7 +8,7 @@ used to be (40+ dated sections) is archived at
 Add new detail here by *replacing* stale statements, not appending; move
 superseded narratives to the archive.
 
-## Current state — 2026-07-30
+## Current state — 2026-07-31
 
 ### Full code-review checkpoint
 
@@ -89,7 +89,7 @@ superseded narratives to the archive.
 
 - Current client delivery:
   [RVT-Group-LTD/rvt-monitors#1](https://github.com/RVT-Group-LTD/rvt-monitors/pull/1),
-  intentionally left as a draft for client review.
+  merged into `release-candidate` on 2026-07-31.
 - Source release commit:
   `1ba4e9d0e2c255e0b62a9c6661aff99a1fa4bbe5`.
 - Source validation portability PR:
@@ -102,13 +102,16 @@ superseded narratives to the archive.
   `docs/superpowers/plans/2026-07-29-full-monorepo-client-release.md`.
 - Client remote:
   `https://github.com/RVT-Group-LTD/rvt-monitors.git`.
-- Client base branch: `release-candidate`, held at the previous release
-  `7d7d8b1f74ba7c0acd77a738b29e149259f0df0f`.
-- Client review branch: `agent/reviewable-build-17e2515` at
-  `3b3b1f439a75129c618d3097d7c3f98c58f2fd2f`.
-- Review commit tree:
-  `c1716b4b41ca960aca40a3226be941a2ec19fa95`; its sole parent is the client
-  base commit above.
+- Client base branch: `release-candidate` at merge commit
+  `8e3fc1eb0d3d6a6a31d1d07febfeb2c167652f01`.
+- The reviewed payload commit is
+  `3b3b1f439a75129c618d3097d7c3f98c58f2fd2f`; the merged review branch
+  `agent/reviewable-build-17e2515` was deleted.
+- Merge commit tree:
+  `c1716b4b41ca960aca40a3226be941a2ec19fa95`, exactly matching the reviewed
+  payload. Its parents are the previous client release
+  `7d7d8b1f74ba7c0acd77a738b29e149259f0df0f` and the reviewed payload commit
+  above.
 - Prepared payload: 1,473 manifested files plus `RELEASE_MANIFEST.txt`.
 - The payload is the complete committed monorepo, preserving `.github`,
   `apps`, `libs`, `eng`, `scripts`, `tests`, operational/client-facing `docs`,
@@ -146,6 +149,9 @@ superseded narratives to the archive.
   change-detection jobs. The prepared payload and an independent clone both
   verified the source metadata, exact parent/tree relationship, manifest,
   required monorepo paths, internal-file exclusions, and saved-secret boundary.
+- Post-merge verification independently cloned `release-candidate`, confirmed
+  the merge commit and both parents above, confirmed its tree still equals the
+  reviewed payload tree, and passed `scripts/verify-client-release.sh`.
 - In curated payloads marked by `RELEASE_SOURCE.json`, repository guards skip
   only the intentionally excluded internal documentation layout and shell
   contract fixtures. Engineering standards retain the model, configuration,

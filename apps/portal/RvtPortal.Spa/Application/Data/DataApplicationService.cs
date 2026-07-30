@@ -134,14 +134,28 @@ public sealed record DataWorkflowResult<T>(T? Value, DataWorkflowFailure? Failur
     }
 }
 
-public sealed record DataDownloadModel(string Content, string ContentType, string FileName, bool Truncated = false);
+/// <summary>
+/// One CSV download, described by the callback that writes it rather than by its finished text. A full-range
+/// export is bounded only by the reader's row cap (a million rows), and holding that as a string *and* as its
+/// UTF-8 copy cost roughly 100 MB twice per concurrent download; the transport writes the rows straight to the
+/// response body instead.
+/// </summary>
+public sealed record DataDownloadModel(
+    Func<Stream, CancellationToken, Task> WriteAsync,
+    string ContentType,
+    string FileName,
+    bool Truncated = false);
 
 public sealed record DataDownloadWorkflowResult(DataDownloadModel? Download, DataWorkflowFailure? Failure)
 {
     // Function summary: Wraps a successful download payload.
-    public static DataDownloadWorkflowResult Success(string content, string contentType, string fileName, bool truncated = false)
+    public static DataDownloadWorkflowResult Success(
+        Func<Stream, CancellationToken, Task> writeAsync,
+        string contentType,
+        string fileName,
+        bool truncated = false)
     {
-        return new DataDownloadWorkflowResult(new DataDownloadModel(content, contentType, fileName, truncated), null);
+        return new DataDownloadWorkflowResult(new DataDownloadModel(writeAsync, contentType, fileName, truncated), null);
     }
 
     // Function summary: Wraps a download workflow failure.
@@ -306,12 +320,15 @@ public sealed class DataApplicationService : IDataApplicationService
             return DataDownloadWorkflowResult.Failed(DataWorkflowFailure.NoDataToDownload());
         }
 
-        string csv = BuildDataCsv(response);
         string fileName = $"{response.MonitorName} ({FilterLabel(response.FilterOption)}).csv";
 
         // A CSV body cannot carry a flag, so the controller surfaces this as a response header. An export that
         // stopped at the row bound must not look like a complete one.
-        return DataDownloadWorkflowResult.Success(csv, CsvContentType, fileName, response.Truncated);
+        return DataDownloadWorkflowResult.Success(
+            (stream, streamCancellationToken) => WriteDataCsvAsync(response, stream, streamCancellationToken),
+            CsvContentType,
+            fileName,
+            response.Truncated);
     }
 
     // Function summary: Builds graph data and alert thresholds for a visible deployment.
@@ -454,8 +471,10 @@ public sealed class DataApplicationService : IDataApplicationService
             return DataDownloadWorkflowResult.Failed(DataWorkflowFailure.NoTraceDataToDownload());
         }
 
-        string csv = BuildTraceCsv(response);
-        return DataDownloadWorkflowResult.Success(csv, CsvContentType, $"{response.MonitorName} ({response.TraceId}).csv");
+        return DataDownloadWorkflowResult.Success(
+            (stream, streamCancellationToken) => WriteTraceCsvAsync(response, stream, streamCancellationToken),
+            CsvContentType,
+            $"{response.MonitorName} ({response.TraceId}).csv");
     }
 
     // Function summary: Returns a deployment only when it is visible to the current actor.
@@ -844,37 +863,55 @@ public sealed class DataApplicationService : IDataApplicationService
     }
 
     // Function summary: Builds monitor grid CSV content.
-    private static string BuildDataCsv(MonitorDataGridResponse response)
+    private static async Task WriteDataCsvAsync(
+        MonitorDataGridResponse response,
+        Stream stream,
+        CancellationToken cancellationToken)
     {
-        StringBuilder builder = new();
-        builder.AppendLine(string.Join(",", response.Columns.Select(column => CsvCell(CsvHeaderLabel(column.Key, column.Label)))));
+        await using StreamWriter writer = CreateCsvWriter(stream);
+        await writer.WriteLineAsync(
+            string.Join(",", response.Columns.Select(column => CsvCell(CsvHeaderLabel(column.Key, column.Label)))).AsMemory(),
+            cancellationToken);
         foreach (MonitorDataRow row in response.Rows)
         {
             List<string> cells = new() { CsvCell(FormatCsvDate(row.SampleTime, response.FilterOption)) };
             cells.AddRange(response.Columns.Skip(1).Select(column => CsvCell(FormatNumber(row.Values.GetValueOrDefault(column.Key), response.MonitorType))));
-            builder.AppendLine(string.Join(",", cells));
+            await writer.WriteLineAsync(string.Join(",", cells).AsMemory(), cancellationToken);
         }
-
-        return builder.ToString();
     }
 
-    // Function summary: Builds vibration trace CSV content.
-    private static string BuildTraceCsv(TraceDetailResponse response)
+    // Function summary: Writes vibration trace CSV content to the caller's stream.
+    private static async Task WriteTraceCsvAsync(
+        TraceDetailResponse response,
+        Stream stream,
+        CancellationToken cancellationToken)
     {
-        StringBuilder builder = new();
-        builder.AppendLine("Index,X,Y,Z");
+        await using StreamWriter writer = CreateCsvWriter(stream);
+        await writer.WriteLineAsync("Index,X,Y,Z".AsMemory(), cancellationToken);
         foreach (TraceSampleItem sample in response.Samples)
         {
-            builder.Append(sample.Index.ToString(CultureInfo.InvariantCulture));
-            builder.Append(',');
-            builder.Append(FormatNumber(sample.X, VibrationMonitorType));
-            builder.Append(',');
-            builder.Append(FormatNumber(sample.Y, VibrationMonitorType));
-            builder.Append(',');
-            builder.AppendLine(FormatNumber(sample.Z, VibrationMonitorType));
+            string line = string.Join(
+                ',',
+                sample.Index.ToString(CultureInfo.InvariantCulture),
+                FormatNumber(sample.X, VibrationMonitorType),
+                FormatNumber(sample.Y, VibrationMonitorType),
+                FormatNumber(sample.Z, VibrationMonitorType));
+            await writer.WriteLineAsync(line.AsMemory(), cancellationToken);
         }
+    }
 
-        return builder.ToString();
+    /// <summary>
+    /// The writer the streamed exports share. UTF-8 without a byte-order mark and the platform newline keep the
+    /// bytes identical to the <c>StringBuilder.AppendLine</c> plus <c>Encoding.UTF8.GetBytes</c> pair this
+    /// replaced; <c>leaveOpen</c> because the stream is the response body and the host owns it.
+    /// </summary>
+    private static StreamWriter CreateCsvWriter(Stream stream)
+    {
+        return new StreamWriter(
+            stream,
+            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false),
+            bufferSize: 16 * 1024,
+            leaveOpen: true);
     }
 
     // Function summary: Returns CSV-specific labels for data-grid columns.

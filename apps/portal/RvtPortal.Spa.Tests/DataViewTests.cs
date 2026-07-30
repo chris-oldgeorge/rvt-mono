@@ -1,5 +1,6 @@
 // File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
+// - 2026-07-30 pending Pinned the streamed CSV bytes and the trace reads' cancellation and row bound.
 // - 2026-06-26 pending Added moved-monitor trace ownership-window regressions.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
@@ -9,6 +10,7 @@ using System.Data.Common;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Data.Sqlite;
@@ -69,6 +71,48 @@ public class DataViewTests
         Assert.StartsWith("Date,Pm1,Pm2.5,Pm10,PmTotal", csv);
         Assert.Contains(FakeMonitorDataSource.PeakDustPm10.ToString("0.00", CultureInfo.InvariantCulture), csv);
         Assert.Equal(4, csv.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
+    }
+
+    [RequiresPostgresFact]
+    /// <summary>
+    /// The CSV export used to be built as one string and then copied into an equal-sized UTF-8 array before a
+    /// byte reached the client - roughly 100 MB twice for a full-range export. It streams to the response body
+    /// now, so this pins the bytes, the media type and the Content-Disposition the buffered path produced
+    /// against the same fixed scenario: nothing about the response may change but its allocation profile.
+    /// </summary>
+    public async Task CsvDownload_StreamsExactlyWhatTheBufferedPathProduced()
+    {
+        FakeMonitorDataSource dataSource = new();
+        using SpaTestApplicationFactory factory = new();
+        using WebApplicationFactory<Program> clientFactory = CreateClientFactory(factory, dataSource);
+        DataViewScenarioIds ids = await SeedDataViewScenarioAsync(factory, dataSource);
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        HttpClient client = CreateClient(clientFactory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        HttpResponseMessage download = await client.GetAsync(
+            $"/api/data/deployments/{ids.DustDeploymentId}/download?filterOption=60&fromDate={ids.Today:yyyy-MM-ddTHH:mm:ss}Z&toDate={ids.Today.AddHours(3):yyyy-MM-ddTHH:mm:ss}Z");
+        byte[] body = await download.Content.ReadAsByteArrayAsync();
+
+        // Captured from the buffered implementation before it was replaced. The newline is the platform's,
+        // because StringBuilder.AppendLine used Environment.NewLine and the StreamWriter still does.
+        string expected = string.Join(
+            Environment.NewLine,
+            "Date,Pm1,Pm2.5,Pm10,PmTotal",
+            "24/05/2026 08:30:00,4.10,10.20,24.50,31.20",
+            "24/05/2026 08:15:00,3.10,9.20,21.20,28.80",
+            "24/05/2026 08:00:00,2.10,8.20,20.20,27.80",
+            "");
+
+        Assert.Multiple(
+            () => Assert.Equal(expected, Encoding.UTF8.GetString(body)),
+            // No byte-order mark: Encoding.UTF8.GetBytes never wrote one either.
+            () => Assert.Equal(Encoding.UTF8.GetBytes(expected), body),
+            () => Assert.Equal("text/csv", download.Content.Headers.ContentType?.MediaType),
+            () => Assert.Equal(
+                "attachment; filename=\"Air Quality Levels at Dust Monitor DATA-DUST (All Readings).csv\"; "
+                    + "filename*=UTF-8''Air%20Quality%20Levels%20at%20Dust%20Monitor%20DATA-DUST%20%28All%20Readings%29.csv",
+                download.Content.Headers.ContentDisposition?.ToString()));
     }
 
     [RequiresPostgresFact]

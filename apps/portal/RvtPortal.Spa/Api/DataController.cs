@@ -1,5 +1,6 @@
 // File summary: Exposes API endpoints used by the React portal for monitor data view workflows.
 // Major updates:
+// - 2026-07-30 pending Streamed CSV downloads to the response body instead of buffering the whole export twice.
 // - 2026-07-30 pending Converged invalid-sort responses on the shared ApiProblems.InvalidSort payload.
 // - 2026-07-09 pending Routed data grid, graph, trace, and CSV workflows through an application service.
 // - 2026-06-26 pending Scoped monitor data and traces to effective deployment/contract ownership windows.
@@ -8,7 +9,6 @@
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
 using System.Security.Claims;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RvtPortal.Spa.Application.Data;
@@ -138,7 +138,7 @@ public class DataController : ControllerBase
                 Response.Headers[TruncatedHeader] = "true";
             }
 
-            return File(Encoding.UTF8.GetBytes(result.Download.Content), result.Download.ContentType, result.Download.FileName);
+            return new CsvDownloadResult(result.Download);
         }
 
         return ToProblemResult(result.Failure!);

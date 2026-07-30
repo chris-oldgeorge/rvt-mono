@@ -34,6 +34,10 @@ symlink_message='symlink'
 unexpected_path_message='unexpected path'
 ide0055_line_one='1:IDE0055'
 ide0055_line_five='5:IDE0055'
+ide0055_disabled_line='dotnet_diagnostic.IDE0055.severity = none'
+policy_input_escalation_message='Analysis policy inputs changed'
+rebaseline_required_message='re-baseline required'
+eslint_flat_config='export default [];'
 empty_baseline_json='{"version":1,"entries":[]}'
 clock_baseline_one_json='{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":1}]}'
 clock_baseline_two_json='{"version":1,"entries":[{"tool":"dotnet-format-style","ruleId":"IDE0055","path":"src/Clock.cs","count":2}]}'
@@ -609,6 +613,68 @@ assert_status 0
 assert_output "decrease"
 assert_output "baseline=2"
 assert_output "observed=1"
+
+# A change to an analysis policy input cannot be graded against the changed
+# surface: the input decides which diagnostics exist at all, so the verifier
+# re-measures the whole inventory and treats any shortfall as a stale baseline.
+create_repo policy-input-silences-baseline
+write_json "$last_repo/baseline.json" "$clock_baseline_one_json"
+printf 'root = true\n' > "$last_repo/.editorconfig"
+git -C "$last_repo" add baseline.json .editorconfig
+git -C "$last_repo" commit -q -m "$approved_baseline_message"
+printf '%s\n' "$ide0055_disabled_line" >> "$last_repo/.editorconfig"
+run_verify --working-tree
+assert_status 1
+assert_output "$policy_input_escalation_message"
+assert_output "$rebaseline_required_message"
+assert_output "baseline=1"
+assert_output "observed=0"
+assert_log_contains "$clock_log_argument"
+
+# The same silencing attempt fails identically for a committed range, which is
+# the form the automatic workflow grades.
+create_repo policy-input-silences-baseline-range
+write_json "$last_repo/baseline.json" "$clock_baseline_one_json"
+printf 'root = true\n' > "$last_repo/.editorconfig"
+git -C "$last_repo" add baseline.json .editorconfig
+git -C "$last_repo" commit -q -m "$approved_baseline_message"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf '%s\n' "$ide0055_disabled_line" >> "$last_repo/.editorconfig"
+git -C "$last_repo" add .editorconfig
+git -C "$last_repo" commit -q -m "silence the ratchet"
+run_verify --base "$base_revision" --head HEAD
+assert_status 1
+assert_output "$rebaseline_required_message"
+assert_output "baseline=1"
+assert_output "observed=0"
+
+# A policy-input change whose inventory still matches the baseline passes: the
+# escalation grades reality, it does not forbid touching the inputs.
+create_repo policy-input-consistent-baseline
+write_json "$last_repo/baseline.json" "$clock_baseline_one_json"
+printf 'root = true\n' > "$last_repo/.editorconfig"
+git -C "$last_repo" add baseline.json .editorconfig
+git -C "$last_repo" commit -q -m "$approved_baseline_message"
+printf 'indent_style = space\n' >> "$last_repo/.editorconfig"
+write_dotnet_report "$last_repo/dotnet.json" "$clock_source_path" "$ide0055_line_five"
+RVT_FAKE_DOTNET_REPORT="$last_repo/dotnet.json" \
+RVT_FAKE_DOTNET_FAIL_PHASE=style RVT_FAKE_DOTNET_STATUS=1 run_verify --working-tree
+assert_status 0
+assert_output "$policy_input_escalation_message"
+assert_output_absent "$rebaseline_required_message"
+
+# Portal analysis inputs escalate on the same terms as the .NET ones.
+create_repo portal-policy-input-silences-baseline
+write_json "$last_repo/baseline.json" "$clock_baseline_one_json"
+printf '%s\n' "$eslint_flat_config" \
+  > "$last_repo/apps/portal/RvtPortal.Client/eslint.config.js"
+git -C "$last_repo" add baseline.json apps/portal/RvtPortal.Client/eslint.config.js
+git -C "$last_repo" commit -q -m "$approved_baseline_message"
+printf '%s\n' '// silence everything' \
+  >> "$last_repo/apps/portal/RvtPortal.Client/eslint.config.js"
+run_verify --working-tree
+assert_status 1
+assert_output "$rebaseline_required_message"
 
 # Invalid or expired policy documents fail closed before any source tool runs.
 create_repo expired-exception

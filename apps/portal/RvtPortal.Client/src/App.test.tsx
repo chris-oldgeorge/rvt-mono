@@ -1235,6 +1235,22 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: /PM10 > 50/i })).toBeInTheDocument();
   });
 
+  it('surfaces a failed installer status check instead of a healthy fallback', async () => {
+    globalThis.history.replaceState(null, '', '/monitors/monitor-id');
+    stubFetch({
+      auth: { isAuthenticated: true, user: adminUser },
+      routeOverride: (url) =>
+        url.pathname === '/api/installer/monitors/monitor-id/status'
+          ? jsonResponse({ title: 'Upstream failure', detail: 'Vendor API unavailable' }, 502)
+          : undefined,
+    });
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: /^MON-ONLINE$/i })).toBeInTheDocument();
+    expect(await screen.findByText('Status check failed')).toBeInTheDocument();
+  });
+
   it('hides the Average column for vibration alert levels', async () => {
     globalThis.history.replaceState(null, '', '/monitors/monitor-id/alert-levels');
     stubFetch({ auth: { isAuthenticated: true, user: adminUser } });

@@ -665,8 +665,8 @@ export function updateInstallerDeployment(deploymentId: string, request: Install
   );
 }
 // Function summary: Retrieves installer monitor status data for callers.
-export function getInstallerMonitorStatus(id: string) {
-  return getJson<InstallerMonitorStatusResponse>(`/api/installer/monitors/${encodeURIComponent(id)}/status`);
+export function getInstallerMonitorStatus(id: string, options: ApiRequestOptions = {}) {
+  return getJson<InstallerMonitorStatusResponse>(`/api/installer/monitors/${encodeURIComponent(id)}/status`, options);
 }
 // Function summary: Handles the convert what3 words workflow for this module.
 export function convertWhat3Words(what3words: string) {

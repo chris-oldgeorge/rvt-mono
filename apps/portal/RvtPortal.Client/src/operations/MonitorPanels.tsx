@@ -32,6 +32,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { SyntheticEvent } from 'react';
 import {
+  ApiError,
   addDefaultMonitorAlertLevels,
   addMonitorToContract,
   convertWhat3Words,
@@ -421,6 +422,7 @@ function MonitorDetailPanel({
 }: MonitorsPanelProps & Readonly<{ monitorId: string }>) {
   const [monitor, setMonitor] = useState<MonitorDetailResponse | null>(null);
   const [status, setStatus] = useState<InstallerMonitorStatusResponse | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
   const backPath = returnToOr(locationPath, '/monitors');
@@ -438,9 +440,22 @@ function MonitorDetailPanel({
     if (!canUseInstallerTools) {
       return;
     }
-    getInstallerMonitorStatus(monitorId)
-      .then(setStatus)
-      .catch(() => setStatus(null));
+    const controller = new AbortController();
+    getInstallerMonitorStatus(monitorId, { signal: controller.signal })
+      .then((response) => {
+        setStatus(response);
+        setStatusError(null);
+      })
+      .catch((err: Error) => {
+        if (controller.signal.aborted || isAbortError(err)) {
+          return;
+        }
+        setStatus(null);
+        // A 404 is the API's "no status recorded" answer; anything else is a
+        // failed check and must not silently render as a healthy fallback.
+        setStatusError(err instanceof ApiError && err.status === 404 ? null : err.message);
+      });
+    return () => controller.abort();
   }, [canUseInstallerTools, monitorId]);
 
   async function handleRemoveAssignment() {
@@ -557,7 +572,11 @@ function MonitorDetailPanel({
             <DetailItem label="Last Data" value={formatDateTime(monitor.lastDataTime) || 'No data'} />
             <DetailItem
               label="Status"
-              value={status?.status || monitor.statusLabel || (monitor.isOffline ? 'Offline' : 'Online')}
+              value={
+                statusError
+                  ? 'Status check failed'
+                  : status?.status || monitor.statusLabel || (monitor.isOffline ? 'Offline' : 'Online')
+              }
             />
             <DetailItem label="Location" value={monitor.location || 'Not recorded'} />
             <DetailItem label="What3words" value={monitor.what3words || 'Not recorded'} />

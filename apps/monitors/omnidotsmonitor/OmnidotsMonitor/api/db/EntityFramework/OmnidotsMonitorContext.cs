@@ -161,7 +161,10 @@ public sealed class OmnidotsMonitorContext : MonitorDbContextBase
                 .WithMany()
                 .HasForeignKey(row => row.TraceId)
                 .OnDelete(DeleteBehavior.Cascade);
-            entity.Property(row => row.TraceId).HasColumnName("trace_id");
+            // The portal owns this table's canonical naming (see
+            // docs/database/omnidots-trace-ownership.md). Its cutover named the trace-index
+            // foreign key omnidots_trace_index_id; the monitor conforms to that name.
+            entity.Property(row => row.TraceId).HasColumnName("omnidots_trace_index_id");
             entity.Property(row => row.SampleIndex)
                 .HasColumnName("sample_index")
                 .HasColumnType("integer");

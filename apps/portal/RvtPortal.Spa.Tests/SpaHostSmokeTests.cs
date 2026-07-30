@@ -12,6 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using RvtPortal.Spa.Adapters.Reporting;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
@@ -45,7 +47,7 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Contains("RVTmonitoring SPA API", body);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies liveness and readiness expose their distinct probe contracts.
     public async Task HealthEndpoints_ExposeLivenessAndReadiness()
     {
@@ -61,11 +63,14 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Contains("checks", await readiness.Content.ReadAsStringAsync());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies an unavailable dependency only fails readiness, never process liveness.
     public async Task HealthEndpoints_UnhealthyReadyDependencyFailsReadinessOnly()
     {
-        using WebApplicationFactory<Program> unhealthyFactory = new SpaTestApplicationFactory().WithWebHostBuilder(builder =>
+        // Dispose the SpaTestApplicationFactory itself, not just the derived factory: only the parent's
+        // disposal drops the throwaway PostgreSQL schema.
+        using SpaTestApplicationFactory parentFactory = new();
+        using WebApplicationFactory<Program> unhealthyFactory = parentFactory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services => services.AddHealthChecks().AddCheck(
                 "forced readiness failure",
@@ -95,7 +100,7 @@ public class SpaHostSmokeTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.IsType<ReportingServiceReportGenerationClient>(client);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies production startup rejects a missing configured public SPA origin before serving requests.
     public void ProductionHost_WithoutPublicBaseUrl_FailsConfigurationValidation()
     {

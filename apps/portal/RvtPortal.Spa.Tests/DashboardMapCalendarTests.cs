@@ -15,6 +15,8 @@ using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public class DashboardMapCalendarTests
@@ -31,7 +33,7 @@ public class DashboardMapCalendarTests
     private const double DustAlertLevel = 61;
     private const double VibrationAlertLevel = 5.5;
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the dashboard summary returns role scoped counts and notifications workflow for this module.
     public async Task DashboardSummary_ReturnsRoleScopedCountsAndNotifications()
     {
@@ -65,7 +67,7 @@ public class DashboardMapCalendarTests
         Assert.Equal(ids.DeploymentId.ToString(), companySummary.CalendarDeployments[0].Value);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Maps markers are scoped by visible sites into the shape required by callers.
     public async Task MapMarkers_AreScopedByVisibleSites()
     {
@@ -91,7 +93,7 @@ public class DashboardMapCalendarTests
         Assert.Equal(HttpStatusCode.NotFound, hidden.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies dashboard visibility rejects future assignments and accepts the exact inclusive assignment boundary.
     public async Task DashboardSummary_RequiresActiveAssignmentWindow()
     {
@@ -109,7 +111,7 @@ public class DashboardMapCalendarTests
             RoleNames.CompanyUser,
             companyId: ids.CompanyId);
         await factory.SeedDomainEntitiesAsync(
-            Assignment(ids.SiteId, futureUser.Id, nowUtc.UtcDateTime.AddTicks(1)),
+            Assignment(ids.SiteId, futureUser.Id, nowUtc.UtcDateTime.AddMicroseconds(1)),
             Assignment(ids.SiteId, boundaryUser.Id, nowUtc.UtcDateTime, nowUtc.UtcDateTime));
 
         using WebApplicationFactory<Program> fixedTimeFactory = WithTimeProvider(factory, nowUtc);
@@ -127,7 +129,7 @@ public class DashboardMapCalendarTests
         Assert.Equal(ids.SiteId.ToString(), Assert.Single(boundarySummary.Sites).Value);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the calendar month and day return notifications and alert levels workflow for this module.
     public async Task CalendarMonthAndDay_ReturnNotificationsAndAlertLevels()
     {
@@ -155,7 +157,7 @@ public class DashboardMapCalendarTests
         Assert.Equal(ids.AlertNotificationId, day.Notifications[0].Id);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies the calendar month default and open-deployment end date come from the injected UTC clock.
     public async Task CalendarMonth_DefaultsToInjectedUtcClock()
     {
@@ -185,7 +187,7 @@ public class DashboardMapCalendarTests
         Assert.Equal(new DateTime(2026, 6, 10), month.EndDate.Date);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the master admin breaches alerts returns vibration rows for the requested day workflow for this module.
     public async Task MasterAdminBreachesAlerts_ReturnsVibrationRowsForTheRequestedDay()
     {
@@ -205,7 +207,7 @@ public class DashboardMapCalendarTests
         Assert.Null(response.Results[0].Yvtop);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies dashboard current rows ignore monitor notifications outside the active ownership window.
     public async Task DashboardCurrentRows_IgnoreMovedMonitorGapNotifications()
     {
@@ -246,7 +248,7 @@ public class DashboardMapCalendarTests
         Guid otherDeploymentId = Guid.NewGuid();
         Guid vibrationDeploymentId = Guid.NewGuid();
         Guid alertNotificationId = Guid.NewGuid();
-        DateTime today = new(2026, 5, 24);
+        DateTime today = new(2026, 5, 24, 0, 0, 0, DateTimeKind.Utc);
 
         await factory.SeedDomainEntitiesAsync(
             new Company { Id = companyId, CompanyName = "Dashboard Company", Contracts = [] },

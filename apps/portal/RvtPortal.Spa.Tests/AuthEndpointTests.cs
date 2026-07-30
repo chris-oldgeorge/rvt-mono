@@ -16,6 +16,8 @@ using Microsoft.Extensions.DependencyInjection;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public class AuthEndpointTests
@@ -26,7 +28,7 @@ public class AuthEndpointTests
     private const string Password = "P8sSw0rd9$";
     private const string NewPassword = "N3wP8sSw0rd9$";
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the me returns anonymous state when user is not signed in workflow for this module.
     public async Task Me_ReturnsAnonymousState_WhenUserIsNotSignedIn()
     {
@@ -40,7 +42,7 @@ public class AuthEndpointTests
         Assert.Null(auth.User);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the login returns auth state and cookie for valid user workflow for this module.
     public async Task Login_ReturnsAuthStateAndCookie_ForValidUser()
     {
@@ -61,7 +63,7 @@ public class AuthEndpointTests
         Assert.Equal(AdminEmail, me?.User?.Email);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the login does not redirect to https in development API proxy path workflow for this module.
     public async Task Login_DoesNotRedirectToHttps_InDevelopmentApiProxyPath()
     {
@@ -77,7 +79,7 @@ public class AuthEndpointTests
         Assert.Equal("dev.proxy@rvt.test", me?.User?.Email);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the login returns generic unauthorized message for invalid credentials workflow for this module.
     public async Task Login_ReturnsGenericUnauthorizedMessage_ForInvalidCredentials()
     {
@@ -92,7 +94,7 @@ public class AuthEndpointTests
         Assert.Equal("We could not find a user with that username and password.", problem?.Detail);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies login accepts registered email only and does not fall back to a legacy username.
     public async Task Login_ReturnsUnauthorized_ForLegacyUsernameOnlyMatch()
     {
@@ -108,7 +110,7 @@ public class AuthEndpointTests
         Assert.Equal("We could not find a user with that username and password.", problem?.Detail);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the login returns forbidden for disabled user workflow for this module.
     public async Task Login_ReturnsForbidden_ForDisabledUser()
     {
@@ -123,7 +125,7 @@ public class AuthEndpointTests
         Assert.Equal("Your account has been disabled.", problem?.Detail);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the logout clears signed in session workflow for this module.
     public async Task Logout_ClearsSignedInSession()
     {
@@ -139,7 +141,7 @@ public class AuthEndpointTests
         Assert.False(me?.IsAuthenticated);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the forgot password returns same message for known and unknown email workflow for this module.
     public async Task ForgotPassword_ReturnsSameMessage_ForKnownAndUnknownEmail()
     {
@@ -157,7 +159,7 @@ public class AuthEndpointTests
         Assert.Equal(knownMessage?.Message, unknownMessage?.Message);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the reset password changes password with valid token workflow for this module.
     public async Task ResetPassword_ChangesPassword_WithValidToken()
     {
@@ -179,7 +181,7 @@ public class AuthEndpointTests
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the reset password invalid token returns generic success not enumerable workflow for this module.
     public async Task ResetPassword_WithInvalidToken_ReturnsGenericSuccess_NotEnumerable()
     {
@@ -200,7 +202,7 @@ public class AuthEndpointTests
         Assert.Equal(HttpStatusCode.OK, reset.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the confirm email unknown user returns same response as used link workflow for this module.
     public async Task ConfirmEmail_UnknownUser_ReturnsSameNotFoundAsUsedLink()
     {
@@ -215,7 +217,7 @@ public class AuthEndpointTests
         Assert.Equal("Confirmation failed", document.RootElement.GetProperty("title").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the confirm email confirms user and set initial password signs in workflow for this module.
     public async Task ConfirmEmail_ConfirmsUserAndSetInitialPasswordSignsIn()
     {
@@ -243,7 +245,7 @@ public class AuthEndpointTests
         Assert.Equal(user.Email, me?.User?.Email);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the confirm email requires original code to set initial password workflow for this module.
     public async Task ConfirmEmail_RequiresOriginalCodeToSetInitialPassword()
     {
@@ -266,7 +268,7 @@ public class AuthEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, setPassword.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the confirm email returns not found when link is reused workflow for this module.
     public async Task ConfirmEmail_ReturnsNotFound_WhenLinkIsReused()
     {
@@ -284,7 +286,7 @@ public class AuthEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, second.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the profile and password endpoints update signed in user workflow for this module.
     public async Task ProfileAndPasswordEndpoints_UpdateSignedInUser()
     {
@@ -315,7 +317,7 @@ public class AuthEndpointTests
         Assert.Equal(HttpStatusCode.OK, password.StatusCode);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the protected endpoints return401 for anonymous and403 for wrong role workflow for this module.
     public async Task ProtectedEndpoints_Return401ForAnonymous_And403ForWrongRole()
     {

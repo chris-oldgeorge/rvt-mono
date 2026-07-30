@@ -3,18 +3,23 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Rvt.Communication.SendGridMail;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public sealed class SendGridConfigurationTests
 {
-    [Theory]
+    [RequiresPostgresTheory]
     [InlineData(null, true)]
     [InlineData("false", false)]
     public void SendGridRegistration_UsesRvtEmailEnabledConfiguration(
         string? emailEnabled,
         bool expectedEnabled)
     {
-        using WebApplicationFactory<Program> factory = new SpaTestApplicationFactory().WithWebHostBuilder(builder =>
+        // Dispose the SpaTestApplicationFactory itself, not just the derived factory: only the parent's
+        // disposal drops the throwaway PostgreSQL schema.
+        using SpaTestApplicationFactory parentFactory = new();
+        using WebApplicationFactory<Program> factory = parentFactory.WithWebHostBuilder(builder =>
         {
             if (emailEnabled is not null)
             {

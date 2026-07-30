@@ -36,7 +36,7 @@ public class DataViewTests
     private const int GridPageSize = 2;
     private const double VibrationAlertLimitOn = 5;
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the data grid and csv download return dust rows with paging and escaped csv workflow for this module.
     public async Task DataGridAndCsvDownload_ReturnDustRowsWithPagingAndEscapedCsv()
     {
@@ -71,7 +71,7 @@ public class DataViewTests
         Assert.Equal(4, csv.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies database-style unspecified telemetry is restored to UTC before API JSON serialization.
     public async Task DataGrid_RestoresDatabaseTimestampAsUtcJson()
     {
@@ -97,7 +97,7 @@ public class DataViewTests
             grid.RootElement.GetProperty("rows")[0].GetProperty("sampleTime").GetString());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies data-view requests reject ambiguous or offset timestamps and accept explicit UTC instants.
     public async Task DataGrid_RequiresExplicitUtcRequestBounds()
     {
@@ -208,7 +208,7 @@ public class DataViewTests
         Assert.Contains("must be UTC", error.Message, StringComparison.Ordinal);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies a read that stopped at its row bound is reported as truncated, not as complete.
     public async Task CappedRead_IsReportedAsTruncated()
     {
@@ -237,7 +237,7 @@ public class DataViewTests
         Assert.Equal("true", Assert.Single(download.Headers.GetValues(DataController.TruncatedHeader)));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Verifies a complete read is not flagged as truncated.
     public async Task CompleteRead_IsNotReportedAsTruncated()
     {
@@ -260,7 +260,7 @@ public class DataViewTests
         Assert.False(download.Headers.Contains(DataController.TruncatedHeader));
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the graph returns vibration frequency series and alert thresholds workflow for this module.
     public async Task Graph_ReturnsVibrationFrequencySeriesAndAlertThresholds()
     {
@@ -290,7 +290,7 @@ public class DataViewTests
         AssertApproximately(VibrationAlertLimitOn, threshold.GetProperty("limitOn").GetDouble());
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the traces return scoped list detail and csv download workflow for this module.
     public async Task Traces_ReturnScopedListDetailAndCsvDownload()
     {

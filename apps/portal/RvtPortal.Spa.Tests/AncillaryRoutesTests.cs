@@ -7,11 +7,13 @@
 using System.Net;
 using System.Text.Json;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public class AncillaryRoutesTests
 {
-    [Theory]
+    [RequiresPostgresTheory]
     [InlineData("/test")]
     [InlineData("/test/exception")]
     [InlineData("/test/msgtest")]
@@ -37,7 +39,7 @@ public class AncillaryRoutesTests
         Assert.DoesNotContain("Exception test", body, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Theory]
+    [RequiresPostgresTheory]
     [InlineData("/api/test/send-test-ajax?email=operator%40rvt.test")]
     [InlineData("/api/test/msg-test")]
     [InlineData("/api/test/blob?upload=true")]
@@ -59,7 +61,7 @@ public class AncillaryRoutesTests
         Assert.DoesNotContain("RVTmonitoring SPA host is running", body, StringComparison.OrdinalIgnoreCase);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     // Function summary: Handles the error endpoint returns safe problem details workflow for this module.
     public async Task ErrorEndpoint_ReturnsSafeProblemDetails()
     {

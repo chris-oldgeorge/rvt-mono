@@ -7,6 +7,8 @@ using RvtPortal.Application.Sites;
 using RvtPortal.Application.Sites.Ports;
 using RvtPortal.Spa.Data;
 
+using RvtPortal.Spa.Tests.Support;
+
 namespace RvtPortal.Spa.Tests;
 
 public sealed class SiteReadAdapterTests
@@ -14,7 +16,7 @@ public sealed class SiteReadAdapterTests
     private static readonly DateTimeOffset _now =
         new(2026, 7, 23, 12, 0, 0, TimeSpan.Zero);
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task GetArchiveStateAsync_ReturnsMaterializedArchiveState()
     {
         using SpaTestApplicationFactory factory = new();
@@ -47,7 +49,7 @@ public sealed class SiteReadAdapterTests
         Assert.Equal(new SiteArchiveState(siteId, true, archiveUrl), state);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task GetArchiveStateAsync_ReturnsNullCanonicalUrlWhenMetadataIsAbsent()
     {
         using SpaTestApplicationFactory factory = new();
@@ -70,7 +72,7 @@ public sealed class SiteReadAdapterTests
         Assert.Equal(new SiteArchiveState(siteId, true, null), state);
     }
 
-    [Fact]
+    [RequiresPostgresFact]
     public async Task AssignedScope_UsesActiveWindowForExistenceAndPagedQuery()
     {
         using SpaTestApplicationFactory factory = new();
@@ -123,7 +125,7 @@ public sealed class SiteReadAdapterTests
                 SiteId = expiredSiteId,
                 UserId = userId,
                 StartDate = _now.UtcDateTime.AddDays(-10),
-                EndDate = _now.UtcDateTime.AddTicks(-1)
+                EndDate = _now.UtcDateTime.AddMicroseconds(-1)
             });
 
         using WebApplicationFactory<Program> fixedTimeFactory = factory.WithWebHostBuilder(builder =>

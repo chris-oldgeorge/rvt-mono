@@ -55,7 +55,7 @@ superseded narratives to the archive.
   local schema-gap types; and a component module exports a date helper despite
   an existing dedicated date module.
 - Review-time database variables were runtime-only:
-  `RVT_TEST_POSTGRES_CONNECTION` and
+  `RVT__POSTGRES_INTEGRATION_CONNECTION` and
   `RVT__POSTGRES_INTEGRATION_CONNECTION`, both pointed at the disposable local
   PostgreSQL instance on port `55432`. No production credential was used or
   persisted. The verified toolchain is .NET SDK `10.0.302` and Node
@@ -247,7 +247,7 @@ superseded narratives to the archive.
   Monitor suites use
   `RVT__POSTGRES_INTEGRATION_CONNECTION="Host=localhost;Port=55432;Database=rvt_integration;Username=postgres;Password=postgres"`.
   Portal opt-in tests use the same disposable connection through
-  `RVT_TEST_POSTGRES_CONNECTION`, after applying its three EF migration chains
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`, after applying its three EF migration chains
   and `RVT.SchemaDeploy` as documented in
   [docs/database/portal/ef-migrations.md](docs/database/portal/ef-migrations.md).
   The example is a non-secret local test credential; never substitute a

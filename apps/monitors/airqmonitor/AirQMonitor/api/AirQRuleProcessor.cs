@@ -78,7 +78,7 @@ namespace AirQ.Api
                             }
                             ;
                             previousAlert = await ruleEvaluator.EvaluateAsync(
-                                NewRuleEvaluationRequest(monitorDto, end, end),
+                                NewRuleEvaluationRequest(monitorDto, activityTime: end, alertTime: sound.SampleTime, publishTime: end),
                                 rule,
                                 level,
                                 previousAlert,
@@ -97,7 +97,10 @@ namespace AirQ.Api
                 {
                     List<RvtAlertRuleDto> rules = [.. allrules.Where(x => x.AveragingPeriod == 3600).OrderBy(x => x.AlertType)];
                     DateTime Starthour = (new DateTime(start.Year, start.Month, start.Day, start.Hour, 0, 0));
-                    while (Starthour < end) // once for hour change in the period
+                    // Only complete windows: a partial trailing hour averages
+                    // partial data (an empty window scores 0.0), which would
+                    // deactivate latched rules and re-fire them later.
+                    while (Starthour.AddHours(1) <= end) // once for each complete hour in the period
                     {
                         AlertType previousAlert = AlertType.Ignore;
                         string serialId = monitorDto.SerialId!;
@@ -105,7 +108,7 @@ namespace AirQ.Api
                         {
                             double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Starthour, Starthour.AddHours(1));
                             previousAlert = await ruleEvaluator.EvaluateAsync(
-                                NewRuleEvaluationRequest(monitorDto, end, end),
+                                NewRuleEvaluationRequest(monitorDto, activityTime: end, alertTime: Starthour.AddHours(1), publishTime: end),
                                 rule,
                                 level,
                                 previousAlert,
@@ -121,7 +124,7 @@ namespace AirQ.Api
                 {
                     List<RvtAlertRuleDto> rules = [.. allrules.Where(x => x.AveragingPeriod == 86400).OrderBy(x => x.AlertType)];
                     DateTime Startday = (new DateTime(start.Year, start.Month, start.Day, 0, 0, 0));
-                    while (Startday < end) // once for every day change in the period
+                    while (Startday.AddDays(1) <= end) // once for each complete day in the period
                     {
                         AlertType previousAlert = AlertType.Ignore;
                         string serialId = monitorDto.SerialId!;
@@ -129,7 +132,7 @@ namespace AirQ.Api
                         {
                             double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, Startday, Startday.AddDays(1));
                             previousAlert = await ruleEvaluator.EvaluateAsync(
-                                NewRuleEvaluationRequest(monitorDto, end, end),
+                                NewRuleEvaluationRequest(monitorDto, activityTime: end, alertTime: Startday.AddDays(1), publishTime: end),
                                 rule,
                                 level,
                                 previousAlert,
@@ -149,13 +152,14 @@ namespace AirQ.Api
 
         private static RuleEvaluationRequest NewRuleEvaluationRequest(
             NoiseMonitorDto monitorDto,
+            DateTime activityTime,
             DateTime alertTime,
             DateTime publishTime) =>
             new(
                 monitorDto.FleetNr,
                 monitorDto.SerialId!,
                 monitorDto.Id,
-                alertTime,
+                activityTime,
                 alertTime,
                 publishTime);
 

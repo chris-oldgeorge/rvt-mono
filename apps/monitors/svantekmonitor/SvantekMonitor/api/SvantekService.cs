@@ -1,14 +1,29 @@
+using Rvt.Monitor.Common.Alerts;
+
 namespace Svantek.Api;
 
 // Summary: Cancellable scheduled entry points for Svantek monitor jobs.
 public sealed class SvantekService : ISvantekMonitorJobs
 {
     private readonly SvantekApi _svantekApi;
+    private readonly DurableAlertDispatcher _alertDispatcher;
+    private readonly DurableAlertCleanupService _alertCleanup;
 
-    public SvantekService(SvantekApi svantekApi)
+    public SvantekService(
+        SvantekApi svantekApi,
+        DurableAlertDispatcher alertDispatcher,
+        DurableAlertCleanupService alertCleanup)
     {
         _svantekApi = svantekApi;
+        _alertDispatcher = alertDispatcher;
+        _alertCleanup = alertCleanup;
     }
+
+    public Task DispatchAlertsAsync(CancellationToken cancellationToken = default) =>
+        _alertDispatcher.DispatchAsync(cancellationToken);
+
+    public Task CleanupAlertsAsync(CancellationToken cancellationToken = default) =>
+        _alertCleanup.CleanupAsync(cancellationToken);
 
     public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
         _svantekApi.StoreMonitorsAsync(cancellationToken);

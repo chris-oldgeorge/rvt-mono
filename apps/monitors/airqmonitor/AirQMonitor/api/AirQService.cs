@@ -1,4 +1,5 @@
 using AirQ.Api.UseCases;
+using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Configuration;
 
 namespace AirQ.Api
@@ -10,11 +11,24 @@ namespace AirQ.Api
     public sealed class AirQService : IAirQDateImporter, IAirQMonitorJobs
     {
         private readonly AirQApi _airQApi;
+        private readonly DurableAlertDispatcher _alertDispatcher;
+        private readonly DurableAlertCleanupService _alertCleanup;
 
-        public AirQService(AirQApi airQApi)
+        public AirQService(
+            AirQApi airQApi,
+            DurableAlertDispatcher alertDispatcher,
+            DurableAlertCleanupService alertCleanup)
         {
             _airQApi = airQApi;
+            _alertDispatcher = alertDispatcher;
+            _alertCleanup = alertCleanup;
         }
+
+        public Task DispatchAlertsAsync(CancellationToken cancellationToken = default) =>
+            _alertDispatcher.DispatchAsync(cancellationToken);
+
+        public Task CleanupAlertsAsync(CancellationToken cancellationToken = default) =>
+            _alertCleanup.CleanupAsync(cancellationToken);
 
         public Task StoreMonitorsAsync(CancellationToken cancellationToken = default)
         {

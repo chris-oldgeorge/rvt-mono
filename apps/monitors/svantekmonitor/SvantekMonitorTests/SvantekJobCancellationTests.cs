@@ -24,7 +24,9 @@ public sealed class SvantekJobCancellationTests
         "NotifySiteAverages",
         "CheckForOfflineMonitors",
         "NotifyBatteryLevels",
-        "CheckForSoundRecordings"
+        "CheckForSoundRecordings",
+        "DispatchAlerts",
+        "CleanupAlerts"
     ];
 
     [TestInitialize]
@@ -186,6 +188,8 @@ public sealed class SvantekJobCancellationTests
         service.Setup(jobs => jobs.CheckForOfflineMonitorsAsync(token)).Returns(Task.CompletedTask);
         service.Setup(jobs => jobs.NotifyBatteryLevelsAsync(token)).Returns(Task.CompletedTask);
         service.Setup(jobs => jobs.CheckForSoundRecordingsAsync(token)).Returns(Task.CompletedTask);
+        service.Setup(jobs => jobs.DispatchAlertsAsync(token)).Returns(Task.CompletedTask);
+        service.Setup(jobs => jobs.CleanupAlertsAsync(token)).Returns(Task.CompletedTask);
         return service;
     }
 

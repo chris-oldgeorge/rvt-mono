@@ -101,7 +101,7 @@ unmapped by EF; the database supplies the value. Databases that already have the
 
 `RvtPortal.Spa.Tests/UnmappedColumnDefaultTests` guards this: a static test reads `create_unmapped_schema.sql`
 and fails the build if any unmapped `ADD COLUMN` is NOT NULL without a default, and an opt-in test (set
-`RVT_TEST_POSTGRES_CONNECTION`) inserts a monitor and an alert rule against a real PostgreSQL schema to prove
+`RVT__POSTGRES_INTEGRATION_CONNECTION`) inserts a monitor and an alert rule against a real PostgreSQL schema to prove
 EF's INSERT survives it. The rest of the suite runs on InMemory/SQLite, which build their schema from the model
 and so cannot see an unmapped column at all.
 

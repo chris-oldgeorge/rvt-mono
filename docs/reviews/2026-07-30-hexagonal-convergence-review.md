@@ -134,8 +134,21 @@ unifiable). The durable-alerts doc's claim that claim/lease fencing is
 
 **P1 — fix now**
 1. AirQ + Svantek durable-outbox dispatch/cleanup jobs missing in scheduler mode (B1).
+   **Done 2026-07-30: both services expose `DispatchAlertsAsync`/`CleanupAlertsAsync`
+   (dispatcher + cleanup injected), the catalogs and appsettings declare them at
+   Omnidots' cadence, and the Svantek job-contract tests pin the names.**
 2. AirQ partial-window rule evaluation re-arming latched rules + alert-time misattribution (B2).
+   **Done 2026-07-30: the hour/day loops evaluate only complete windows
+   (Svantek's guard) and stamp alerts with the window end; the 15-minute
+   branch stamps the sample time. Idempotency keys are now deterministic.**
 3. Portal Postgres PR-gate env var (B3/G1).
+   **Done 2026-07-30, per ruling: `RVT_TEST_POSTGRES_CONNECTION` is replaced
+   everywhere by `RVT__POSTGRES_INTEGRATION_CONNECTION`; tests.yml prepares
+   the portal schema on the integration database (extensions + three EF
+   chains + SQL deploy, mirroring the SonarQube workflow — monitor fixtures
+   isolate in throwaway schemas, so `public` is free); sonarqube.yml drops the
+   duplicate variable. The portal suite went from 548 passed / 11 skipped to
+   564 passed / 0 skipped.**
 
 **P2 — next slices**
 4. Battery latch-before-signal in Svantek + Omnidots (B4); Svantek failure-collector cancellation semantics + AirQ site-averages guard (B5, B6); Svantek 0.0 dB parsing (B7).

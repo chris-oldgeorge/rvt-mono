@@ -20,6 +20,8 @@ internal static class AirQMonitorJobs
             ["StoreNoiseLevels"] = (service, cancellationToken) => service.StoreNoiseLevelsAsync(cancellationToken),
             ["StoreAllNoiseLevelsForYesterday"] = (service, cancellationToken) => service.StoreAllNoiseLevelsForYesterdayAsync(cancellationToken),
             ["NotifySiteAverages"] = (service, cancellationToken) => service.NotifySiteAveragesAsync(cancellationToken),
-            ["ClearOlderErrorMessages"] = (service, cancellationToken) => service.ClearOlderErrorMessagesAsync(cancellationToken)
+            ["ClearOlderErrorMessages"] = (service, cancellationToken) => service.ClearOlderErrorMessagesAsync(cancellationToken),
+            ["DispatchAlerts"] = (service, cancellationToken) => service.DispatchAlertsAsync(cancellationToken),
+            ["CleanupAlerts"] = (service, cancellationToken) => service.CleanupAlertsAsync(cancellationToken)
         });
 }

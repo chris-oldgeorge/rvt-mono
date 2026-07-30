@@ -5,13 +5,17 @@
 namespace RvtPortal.Spa.Tests.Support;
 
 /// <summary>
-/// Marks a test that needs a real PostgreSQL database, pointed at by the <c>RVT_TEST_POSTGRES_CONNECTION</c>
-/// environment variable. CI has no PostgreSQL, and xUnit v2 has no dynamic skip, so the decision is made here at
-/// discovery: without the variable the test is reported as skipped rather than quietly passing.
+/// Marks a test that needs a real PostgreSQL database, pointed at by the
+/// <c>RVT__POSTGRES_INTEGRATION_CONNECTION</c> environment variable — the same
+/// connection the monitor integration fixtures use (the monitor fixtures work
+/// in throwaway schemas, leaving <c>public</c> to the portal migrations).
+/// xUnit v2 has no dynamic skip, so the decision is made here at discovery:
+/// without the variable the test is reported as skipped rather than quietly
+/// passing.
 /// </summary>
 public sealed class RequiresPostgresFactAttribute : FactAttribute
 {
-    public const string ConnectionVariable = "RVT_TEST_POSTGRES_CONNECTION";
+    public const string ConnectionVariable = "RVT__POSTGRES_INTEGRATION_CONNECTION";
 
     // Function summary: Skips the test unless a PostgreSQL connection string is configured.
     public RequiresPostgresFactAttribute()

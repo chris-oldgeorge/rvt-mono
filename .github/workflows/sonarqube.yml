@@ -64,7 +64,6 @@ jobs:
           CREATE EXTENSION IF NOT EXISTS pgcrypto;
           SQL
           {
-            echo "RVT_TEST_POSTGRES_CONNECTION=Host=rvt-sonar-db;Port=5432;Database=${database_name};Username=postgres;Password=postgres"
             echo "RVT__POSTGRES_INTEGRATION_CONNECTION=Host=rvt-sonar-db;Port=5432;Database=${database_name};Username=postgres;Password=postgres"
             echo "RVT_EF_CONNECTION=Host=rvt-sonar-db;Port=5432;Database=${database_name};Username=postgres;Password=postgres"
             echo "RVT_DEPLOY_CONNECTION=Host=rvt-sonar-db;Port=5432;Database=${database_name};Username=postgres;Password=postgres"

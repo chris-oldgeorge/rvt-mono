@@ -58,6 +58,37 @@ jobs:
       - name: Restore monorepo
         run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel
 
+      # The portal's opt-in PostgreSQL tests share the integration database
+      # with the monitor fixtures (which isolate themselves in throwaway
+      # schemas, leaving the public schema free). The portal schema comes from
+      # the three EF migration chains plus the idempotent SQL deploy, exactly
+      # as in the SonarQube workflow.
+      - name: Prepare portal schema on the integration database
+        env:
+          RVT_EF_CONNECTION: Host=localhost;Port=55432;Database=rvt_integration;Username=postgres;Password=postgres
+          RVT_DEPLOY_CONNECTION: Host=localhost;Port=55432;Database=rvt_integration;Username=postgres;Password=postgres
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -p 55432 -U postgres -d rvt_integration -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE EXTENSION IF NOT EXISTS timescaledb;
+          CREATE EXTENSION IF NOT EXISTS pgcrypto;
+          SQL
+          dotnet tool install dotnet-ef --tool-path .ef --version 10.0.10
+          ./.ef/dotnet-ef database update \
+            --context RVTDbContext \
+            --project apps/portal/RVT.DataAccess/RVT.DataAccess.csproj \
+            --startup-project apps/portal/RVT.DataAccess/RVT.DataAccess.csproj
+          ./.ef/dotnet-ef database update \
+            --context RVTSearchContext \
+            --project apps/portal/RVT.DataAccess/RVT.DataAccess.csproj \
+            --startup-project apps/portal/RVT.DataAccess/RVT.DataAccess.csproj
+          ./.ef/dotnet-ef database update \
+            --context ApplicationDbContext \
+            --project apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj \
+            --startup-project apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj
+          dotnet run --project apps/portal/RVT.SchemaDeploy/RVT.SchemaDeploy.csproj -- \
+            --connection "${RVT_DEPLOY_CONNECTION}"
+
       - name: Run .NET tests
         env:
           # Throwaway credentials for the ephemeral service container above.

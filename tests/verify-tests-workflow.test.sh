@@ -58,6 +58,13 @@ CHANGE_GATED_JOBS = %w[client dotnet].freeze
 
 CHANGE_GATE = "needs.changes.outputs.code != 'false'".freeze
 
+CLIENT_RELEASE_GATE = "${{ hashFiles('RELEASE_SOURCE.json') == '' }}".freeze
+
+CLIENT_RELEASE_ONLY_SKIPS = [
+  "Verify documentation layout",
+  "Verify repository contract tests"
+].freeze
+
 REQUIRED_GUARD_SCRIPTS = %w[
   scripts/verify-postgresql-only.sh
   scripts/verify-mono-layout.sh
@@ -173,10 +180,18 @@ def verify_workflow(source)
         !step.key?("continue-on-error"),
         "#{job_name} step '#{name}' must block the pull request when it fails"
       )
-      assert(
-        !step.key?("if"),
-        "#{job_name} step '#{name}' must not be conditional"
-      )
+      if CLIENT_RELEASE_ONLY_SKIPS.include?(name)
+        assert(
+          step.key?("if") &&
+            scalar(step.fetch("if"), "#{job_name} step '#{name}' condition") == CLIENT_RELEASE_GATE,
+          "#{job_name} step '#{name}' must skip only for curated client releases"
+        )
+      else
+        assert(
+          !step.key?("if"),
+          "#{job_name} step '#{name}' must not be conditional"
+        )
+      end
       next unless step.key?("uses")
 
       reference = scalar(step.fetch("uses"), "action reference")
@@ -385,8 +400,20 @@ workflow_mutations = {
   ],
   "removed documentation guard" => [
     "      - name: Verify documentation layout\n" \
+      "        if: ${{ hashFiles('RELEASE_SOURCE.json') == '' }}\n" \
       "        run: scripts/verify-documentation-layout.sh\n\n",
     ""
+  ],
+  "unconditional documentation guard" => [
+    "      - name: Verify documentation layout\n" \
+      "        if: ${{ hashFiles('RELEASE_SOURCE.json') == '' }}\n",
+    "      - name: Verify documentation layout\n"
+  ],
+  "wrong contract-test release gate" => [
+    "      - name: Verify repository contract tests\n" \
+      "        if: ${{ hashFiles('RELEASE_SOURCE.json') == '' }}\n",
+    "      - name: Verify repository contract tests\n" \
+      "        if: ${{ false }}\n"
   ],
   "narrowed contract-test glob" => [
     "for contract_test in tests/*.test.sh; do",

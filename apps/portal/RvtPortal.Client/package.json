@@ -19,7 +19,6 @@
     "openapi": "npx openapi-typescript@7.13.0 http://localhost:5178/swagger/v1/swagger.json -o src/api/schema.d.ts"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "^5.0.0",
     "chart.js": "^4.4.9",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.468.0",
@@ -37,6 +36,7 @@
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^5.0.0",
     "@vitest/coverage-v8": "^4.1.7",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",

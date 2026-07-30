@@ -927,7 +927,7 @@ export type DownloadedFile = {
   correlationId?: string | null;
 };
 
-export async function downloadFile(path: string, init: RequestInit = {}): Promise<DownloadedFile> {
+async function downloadFile(path: string, init: RequestInit = {}): Promise<DownloadedFile> {
   const url = apiUrl(path);
   let response: Response;
   try {

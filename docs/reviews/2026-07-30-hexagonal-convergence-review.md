@@ -200,6 +200,56 @@ unifiable). The durable-alerts doc's claim that claim/lease fencing is
 
 **P3 — batched cleanups**
 12. L5–L10 deletions; M4–M10 renames/moves/splits; B12 one-liners; G6–G8; solution/config hygiene.
+    **Done 2026-07-30 across PRs #57–#61 (plus earlier waves):**
+    - **PR #60 (monitors/common):** L5 — 22 sync twins deleted (Svantek 14,
+      Omnidots 5+helpers, MyAtm 4; `IMyAtmMeasurementCommands` emptied and
+      deleted). L6 — `OmnidotsQueryProcessor` + scaffolding deleted; the
+      `ReadMonitorList(DateTime?)` decoy removed with *two* deceived callers
+      fixed. L7 — all six shims killed/moved; correction: `AddWithValue` had
+      one production caller (`MonitorDb.WriteException`), given a local helper
+      first. M4/M7/M8 — rename + retargets done; both PR #52 shrink-only
+      baselines shrank to empty; Svantek `triggerDate` now length-guarded and
+      fails explicitly (`InvalidDataException` via the failure collector)
+      instead of the local-`DateTime.Now` fallback. B12 monitor items —
+      outbox `last_error` aligned to 1024 (column widened, rerunnable
+      migration), Omnidots missing-status-row fleet-wide throw fixed,
+      `HandleException` ×4 log full exceptions with best-effort DB audits,
+      Svantek `ClearOlderErrorMessages` daily job added. Follow-ups — MyAtm
+      Delivery files renamed to `MyAtm.Delivery` (pragmas dropped), outbox
+      migration + pin relocated to MyAtm.
+    - **PR #57 (portal):** M6 — legacy repo chain folded into direct
+      `RVTDbContext` reads (`ISearchQueryReader` kept). L8 — all five
+      deletions done (incl. the `ActiveSiteAssignment` "tested therefore
+      alive" trap and the four unused PackageReferences). B12 portal items —
+      `MonitorListReader` on `TimeProvider`, `DataController` invalid-sort on
+      canonical `ApiProblems` (verified still hand-rolled), `CompanyService`
+      honestly nullable, `Task.Delay(250)` replaced with a deterministic
+      assertion.
+    - **PRs #58, #59 (frontend):** M9 — all named splits done (App.tsx
+      1,592→176; `App.test.tsx` deliberately kept whole — its 64 tests are
+      integration tests through one shared harness); sidebar brand fixed.
+      L9 done. B12 frontend — `schema.d.ts` regenerated (6,367→7,373 lines;
+      the `openapi` npm script existed all along and is now documented),
+      installer fetch abortable with failure≠no-status, and the CalendarPanel
+      summary-refetch sibling of the PR #49 dashboard fix (#59).
+    - **PR #61:** G6 — `RvtConfigConsumerTests` shrink-only allowlist
+      (16 current readers). G8 — `setup-monorepo` composite action;
+      required-check-safe `changes` gate job for docs-only PRs; `push:
+      branches: [main]` triggers close the direct-push bypass; Dockerfiles
+      pinned to `sdk:10.0.302`; the `RvtConfig.cs:100` remark was the wrong
+      half of the compose discrepancy (reporting intentionally uses the
+      neutral fallback) and now says so; workflow contract tests rewritten
+      with extended mutation suites. M10 — `MonitorTestUtil` hoists
+      (`ReadTextFromFile` ×4/47 sites, accept-mock ×3, context factory ×2);
+      portal copies folded onto `RepositoryLayout` instead (no portal edge
+      into the monitors' testing library, by design).
+    - **L10** — stale `.worktrees/` remnant removed and both client-release
+      branches deleted (v2 was merged as PR #43; abandoned v1 tip was
+      4ea5b31f). M5 had already been resolved by PR #50's M1 (AForge vendored
+      beside `MonitorData` in the Spa).
+    - **Still open (recorded, not P3 debt):** replatforming
+      `SpaTestApplicationFactory` off EF InMemory (~30 workflow test files) —
+      the follow-up noted under the InMemory ruling.
 
 **Product rulings — all decided 2026-07-30, executed same day (PRs #54, #55):**
 

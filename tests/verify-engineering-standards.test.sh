@@ -614,6 +614,24 @@ assert_output "decrease"
 assert_output "baseline=2"
 assert_output "observed=1"
 
+# Hunk-body content is not a file header. A removed SQL comment reaches the
+# patch as `--- note` and an added line beginning `++ ` as `+++ `, which the
+# parser used to read as malformed `---`/`+++` file markers and abort the run.
+create_repo hunk-body-resembling-patch-headers
+printf '%s\n' '-- Replace only the legacy lookup indexes.' 'SELECT 1;' \
+  > "$last_repo/deploy.sql"
+git -C "$last_repo" add deploy.sql
+git -C "$last_repo" commit -q -m "add deploy script"
+base_revision="$(git -C "$last_repo" rev-parse HEAD)"
+printf '%s\n' 'SELECT 1;' '++ appended marker line' > "$last_repo/deploy.sql"
+sed -i.bak "$hour_to_day_substitution" "$last_repo/src/Clock.cs"
+rm "$last_repo/src/Clock.cs.bak"
+git -C "$last_repo" add deploy.sql src/Clock.cs
+git -C "$last_repo" commit -q -m "rewrite deploy script"
+run_verify --base "$base_revision" --head HEAD
+assert_status 0
+assert_log_contains "$clock_log_argument"
+
 # A change to an analysis policy input cannot be graded against the changed
 # surface: the input decides which diagnostics exist at all, so the verifier
 # re-measures the whole inventory and treats any shortfall as a stale baseline.

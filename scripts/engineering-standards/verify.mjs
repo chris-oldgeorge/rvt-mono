@@ -672,6 +672,11 @@ function parseUnifiedDiffRanges(patch, repoRoot) {
   const deletionOnlyPaths = new Set();
   let currentPath;
   let sawDiff = false;
+  // Header markers and hunk-body content are not distinguishable by prefix alone: a
+  // removed SQL comment (`-- note`) reaches the patch as `--- note`, and an added line
+  // beginning `++ ` as `+++ `. Both are body content, never file headers, because a
+  // file's `---`/`+++` pair always precedes its first `@@`.
+  let inHunkBody = false;
 
   for (const line of patch.split('\n')) {
     if (line.startsWith('Binary files ') || line === 'GIT binary patch') {
@@ -682,6 +687,7 @@ function parseUnifiedDiffRanges(patch, repoRoot) {
     }
     if (line.startsWith('diff --git ')) {
       sawDiff = true;
+      inHunkBody = false;
       if (line.includes('"')) {
         throw new InvocationError(`Malformed or quoted patch header: ${line}`);
       }
@@ -693,7 +699,7 @@ function parseUnifiedDiffRanges(patch, repoRoot) {
       currentPath = validatePatchPath(repoRoot, line.slice(splitAt + 3));
       continue;
     }
-    if (line.startsWith('--- ') || line.startsWith('+++ ')) {
+    if (!inHunkBody && (line.startsWith('--- ') || line.startsWith('+++ '))) {
       const marker = line.slice(4);
       if (marker === '/dev/null') {
         if (line.startsWith('+++ ')) currentPath = undefined;
@@ -712,6 +718,7 @@ function parseUnifiedDiffRanges(patch, repoRoot) {
       if (!match || currentPath === undefined) {
         throw new InvocationError(`Malformed unified diff hunk: ${line}`);
       }
+      inHunkBody = true;
       const startLine = Number(match[1]);
       const count = match[2] === undefined ? 1 : Number(match[2]);
       if (!Number.isSafeInteger(startLine) || !Number.isSafeInteger(count)) {

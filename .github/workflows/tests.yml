@@ -10,7 +10,10 @@ permissions:
 
 concurrency:
   group: tests-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded pull-request runs, never pushes. On `main` the group key is the
+  # branch ref, so a second merge landing while the first is still verifying would cancel
+  # it - leaving the first merge's commits graded by nothing.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Required-check-safe paths filter: docs-only changes skip the expensive
@@ -47,9 +50,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     services:
-      # The PostgreSQL fixtures fail by design when no connection is supplied
-      # rather than silently skipping, so the integration database is part of
-      # the job rather than an optional extra.
+      # The two suites treat a missing connection differently, and the database
+      # is provisioned here so neither has to. The monitor fixtures fail by
+      # design when no connection is supplied
+      # (libs/rvt-monitor-common/testing/.../PostgreSqlIntegrationDatabase.cs);
+      # the portal's tests are skip-gated by RequiresPostgresFactAttribute, so
+      # without this container they would report as skipped, not failed - green,
+      # and blind.
       timescaledb:
         image: timescale/timescaledb:2.28.3-pg17
         env:

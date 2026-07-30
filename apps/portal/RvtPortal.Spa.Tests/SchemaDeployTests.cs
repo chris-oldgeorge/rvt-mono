@@ -277,6 +277,65 @@ public class SchemaDeployTests
     }
 
     [RequiresPostgresFact]
+    // Function summary: Verifies a second site-write-uniqueness run leaves the existing unique indexes in place.
+    public async Task SiteWriteUniquenessScript_LeavesAlreadyUniqueIndexesAlone()
+    {
+        // EF migration 20260723234806_EnforceSiteWriteUniqueness creates these indexes and the deploy
+        // runs after the migrations, so the script's normal case is "nothing to do". A dropped and
+        // recreated index gets a new pg_class oid, which is how that is distinguished from a rebuild.
+        string script = await File.ReadAllTextAsync(Path.Combine(
+            FindRepositoryRoot(),
+            "database",
+            "postgres",
+            "post-load",
+            "06_site_write_uniqueness.sql"));
+
+        await using NpgsqlConnection connection = new(
+            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!);
+        await connection.OpenAsync();
+        await using NpgsqlTransaction transaction = await connection.BeginTransactionAsync();
+
+        await ExecuteAsync(connection, transaction, script);
+        IReadOnlyDictionary<string, long> afterFirstRun = await ReadSiteWriteIndexIdentitiesAsync(
+            connection,
+            transaction);
+
+        await ExecuteAsync(connection, transaction, script);
+        IReadOnlyDictionary<string, long> afterSecondRun = await ReadSiteWriteIndexIdentitiesAsync(
+            connection,
+            transaction);
+
+        await transaction.RollbackAsync();
+
+        Assert.Equal(2, afterFirstRun.Count);
+        Assert.Equal(afterFirstRun, afterSecondRun);
+    }
+
+    // Function summary: Reads the pg_class identity of the two unique indexes the site-write script owns.
+    private static async Task<IReadOnlyDictionary<string, long>> ReadSiteWriteIndexIdentitiesAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction)
+    {
+        Dictionary<string, long> identities = [];
+        await using NpgsqlCommand command = new(
+            """
+            SELECT index_class.relname, index_class.oid::bigint
+            FROM pg_class AS index_class
+            WHERE index_class.relname IN (
+                'ix_site_archived_site_id', 'ix_notification_setting_site_user_id');
+            """,
+            connection,
+            transaction);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            identities[reader.GetString(0)] = reader.GetInt64(1);
+        }
+
+        return identities;
+    }
+
+    [RequiresPostgresFact]
     // Function summary: Verifies the deploy refuses a connection scoped to a schema other than public instead of writing into public.
     public async Task Run_WhenTheConnectionIsNotScopedToPublic_RefusesBeforeApplyingAnything()
     {

@@ -79,7 +79,13 @@ jobs:
         run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel
 
       - name: Verify engineering standards
-        run: scripts/verify-engineering-standards.sh --base auto --head HEAD
+        env:
+          # `--base auto` resolves to HEAD^ when HEAD is already origin/main, which after a
+          # rebase-merge grades only the last commit of the branch. An event that carries the
+          # previous tip is always the better base; a manual dispatch has none, so it keeps the
+          # `auto` fallback and the HEAD^ caveat with it.
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || 'auto' }}
+        run: scripts/verify-engineering-standards.sh --base "${BASE_SHA}" --head HEAD
 
       - name: Begin SonarQube analysis
         env:

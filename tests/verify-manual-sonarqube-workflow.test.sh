@@ -303,7 +303,7 @@ def assert_engineering_standards_gate(steps)
     ],
     [
       standards_step,
-      ["scripts/verify-engineering-standards.sh --base auto --head HEAD"],
+      ['scripts/verify-engineering-standards.sh --base "${BASE_SHA}" --head HEAD'],
       "workflow standards verification"
     ],
     [

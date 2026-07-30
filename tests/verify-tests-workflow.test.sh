@@ -131,8 +131,9 @@ def verify_workflow(source)
     "unexpected workflow concurrency group"
   )
   assert(
-    scalar(concurrency.fetch("cancel-in-progress"), "cancel-in-progress") == "true",
-    "superseded test runs must be cancelled"
+    scalar(concurrency.fetch("cancel-in-progress"), "cancel-in-progress") ==
+      "${{ github.event_name == 'pull_request' }}",
+    "superseded pull-request runs must be cancelled and pushes must not be"
   )
 
   jobs = mapping(root.fetch("jobs"), "jobs")
@@ -337,7 +338,14 @@ workflow_mutations = {
   "removed push trigger" => [on_block, "on: pull_request\n"],
   "push to any branch" => ["    branches: [main]\n", ""],
   "write permission" => ["  contents: read", "  contents: write"],
-  "no cancellation" => ["  cancel-in-progress: true", "  cancel-in-progress: false"],
+  "no cancellation" => [
+    "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+    "  cancel-in-progress: false"
+  ],
+  "cancellation of pushes" => [
+    "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}",
+    "  cancel-in-progress: true"
+  ],
   "shallow checkout" => ["          fetch-depth: 0", "          fetch-depth: 1"],
   "unpinned checkout" => [
     "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803",

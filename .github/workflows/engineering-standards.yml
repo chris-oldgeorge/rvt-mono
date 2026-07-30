@@ -10,7 +10,10 @@ permissions:
 
 concurrency:
   group: engineering-standards-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded pull-request runs, never pushes. On `main` the group key is the
+  # branch ref, so a second merge landing while the first is still verifying would cancel
+  # it - leaving the first merge's commits graded by nothing.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Required-check-safe paths filter: docs-only changes skip the standards

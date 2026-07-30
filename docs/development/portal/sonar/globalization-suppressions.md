@@ -16,12 +16,15 @@ EF predicate, neither works, and the current form is correct on both providers t
 
 ## Why it can't be rewritten (verified 2026-07-15 via `ToQueryString`)
 
-> 2026-07-30: `SpaTestApplicationFactory` has since replatformed onto real PostgreSQL (throwaway schemas), so
-> the workflow suites now exercise these endpoints on Npgsql. The intersection argument below still applies:
-> several unit suites (e.g. `SearchQueryExecutorTests`) still construct EF InMemory contexts around these same
-> query builders, and converting the remaining `ToLower()` sites to `EF.Functions.ILike` is a separate decision.
+> 2026-07-31 (PB-5): the nine suppression justifications in source used to end "…and runs on the InMemory test
+> provider", which stopped being the load-bearing reason when `SpaTestApplicationFactory` replatformed onto real
+> PostgreSQL — the workflow suites exercise these endpoints on Npgsql now. They were rewritten to say what
+> actually constrains the code: **Npgsql cannot translate the alternatives**. The InMemory column below is kept
+> because several unit suites (e.g. `SearchQueryExecutorTests`, `QueryValidationTests`) still construct EF
+> InMemory contexts around these same query builders, so it is a real secondary constraint — but the Npgsql
+> column is the one that decides.
 
-The app is tested on the **EF InMemory** provider in unit suites and runs on **Npgsql**. Six-plus
+The app runs on **Npgsql** and is still tested on the **EF InMemory** provider in some unit suites. Six-plus
 tests exercise these search endpoints (`/api/companies?searchText=`, `/api/report-rules?searchText=`,
 `/api/users?searchText=`, …). A replacement has to work on both.
 

@@ -119,7 +119,7 @@ public sealed class ReportApplicationService : IReportApplicationService
     }
 
     // Function summary: Applies database-side report text and frequency filtering.
-    [SuppressMessage("Globalization", "CA1304:Specify CultureInfo", Justification = "EF query predicate; ToLower() is the only case-insensitive form that translates on Npgsql and runs on the InMemory test provider. See docs/development/portal/sonar/globalization-suppressions.md")]
+    [SuppressMessage("Globalization", "CA1304:Specify CultureInfo", Justification = "EF query predicate; ToLower() is the only case-insensitive form Npgsql translates - the StringComparison and ToLowerInvariant overloads throw on translation, and this one never executes in .NET. See docs/development/portal/sonar/globalization-suppressions.md")]
     [SuppressMessage("Globalization", "CA1311:Specify a culture or use an invariant version", Justification = "EF query predicate; see docs/development/portal/sonar/globalization-suppressions.md")]
     [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]
     private static IQueryable<ReportSearch> ApplySearch(IQueryable<ReportSearch> reports, string searchText)

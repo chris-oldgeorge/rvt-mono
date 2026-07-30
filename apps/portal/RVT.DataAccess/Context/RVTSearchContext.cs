@@ -1,5 +1,6 @@
 // File summary: Defines Entity Framework Core context configuration for RVT domain and search data.
 // Major updates:
+// - 2026-07-30 pending Documented why the store-type provider branch in OnModelCreating stays.
 // - 2026-07-23 Pinned every non-daily SampleTime to timestamp-without-zone and daily aggregates to date.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
@@ -89,6 +90,22 @@ public partial class RVTSearchContext : DbContext
     // Function summary: Handles the on model creating workflow for this module.
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        // PROVIDER BRANCH, DELIBERATELY KEPT (PB-5, 2026-07-30 review). What differs here is store-type *syntax*,
+        // not the model: every entity, property, key, relationship and view mapping below is identical on both
+        // providers, and only the column-type name and the default-value SQL - which are provider dialect by
+        // definition and cannot be written once - are chosen here.
+        //
+        // The non-PostgreSQL side exists for exactly one reason: four suites (EfCoreUnitOfWorkTests,
+        // SiteConcurrencyTests, SiteWriteAdapterTests, DataViewTests) build this context on SQLite so the
+        // shared-connection transaction and trace-bound behaviour can be exercised in-process, with no container
+        // and no throwaway schema. Everything that touches a real database - the Spa host suite, the adapter
+        // suites, production - is PostgreSQL, so the PostgreSQL literals are the only ones ever executed.
+        // Removing the branch would mean moving those four suites onto PostgreSQL and losing that fast local
+        // coverage; that trade was weighed and declined.
+        //
+        // `(newid())` is a leftover of the original SQL Server import and is inert under SQLite (every test
+        // supplies its own key). It is left as-is rather than replaced by something that would look executable
+        // on SQLite and is not.
         string dateTimeColumnType = IsPostgres() ? "timestamp without time zone" : "datetime";
         string guidDefaultSql = IsPostgres() ? "gen_random_uuid()" : "(newid())";
 
@@ -498,7 +515,8 @@ public partial class RVTSearchContext : DbContext
         modelBuilder.ApplyRvtCanonicalDatabaseNames();
     }
 
-    // Function summary: Evaluates postgres for the current decision point.
+    // Function summary: Reports whether the configured provider is Npgsql, choosing the store-type syntax above.
+    // The only provider check left in portal production code; see the note in OnModelCreating for why.
     private bool IsPostgres()
     {
         return Database.ProviderName?.Contains("Npgsql", StringComparison.OrdinalIgnoreCase) == true;

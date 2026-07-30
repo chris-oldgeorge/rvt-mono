@@ -13,15 +13,18 @@ namespace AirQ.Api
         private readonly AirQApi _airQApi;
         private readonly DurableAlertDispatcher _alertDispatcher;
         private readonly DurableAlertCleanupService _alertCleanup;
+        private readonly TimeProvider _timeProvider;
 
         public AirQService(
             AirQApi airQApi,
             DurableAlertDispatcher alertDispatcher,
-            DurableAlertCleanupService alertCleanup)
+            DurableAlertCleanupService alertCleanup,
+            TimeProvider? timeProvider = null)
         {
             _airQApi = airQApi;
             _alertDispatcher = alertDispatcher;
             _alertCleanup = alertCleanup;
+            _timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         public Task DispatchAlertsAsync(CancellationToken cancellationToken = default) =>
@@ -64,7 +67,11 @@ namespace AirQ.Api
 
             // fixme - problem with running at 00:05 means that users wont be notified
             // maybe split and run the collection at 00:05 and the notify at 09:00 next day
-            return _airQApi.NotifySiteAveragesAsync(DateTime.Today.AddDays(-1), cancellationToken);
+            // Scheduled under TimeZoneId "UTC": the averaged day must come from
+            // the UTC clock, not the host's local date.
+            return _airQApi.NotifySiteAveragesAsync(
+                _timeProvider.GetUtcNow().UtcDateTime.Date.AddDays(-1),
+                cancellationToken);
         }
 
         public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default)

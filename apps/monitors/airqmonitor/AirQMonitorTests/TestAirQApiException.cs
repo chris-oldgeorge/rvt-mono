@@ -284,7 +284,7 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IAlertIngressPort> messageClient);
 
-            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => "Blah Blah Blah", TestContext.CancellationToken));
@@ -318,7 +318,7 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IAlertIngressPort> messageClient);
 
-            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
                                 Returns(Task<string>.Factory.StartNew(() => AirQFixture.TooManyRequestsJson(), TestContext.CancellationToken));
@@ -351,7 +351,7 @@ namespace AirQMonitorTests
                                                      out Mock<IMqttClient> mqttClient,
                                                      out Mock<IAlertIngressPort> messageClient);
 
-            string yesterday = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = DateTime.UtcNow.Date.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
             httpClient.Setup(c => c.GetAsync(It.IsRegex(string.Format("\\/dataForDate\\?userID=foo&date={0}&token=bar&instrumentID=*", yesterday)), It.IsAny<CancellationToken>())).
                     Throws(new IOException());

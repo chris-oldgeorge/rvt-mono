@@ -75,7 +75,7 @@ namespace AirQ.Api
                 timeProvider,
                 importOptions);
             _storeNoiseLevelsForDate = new StoreNoiseLevelsForDateHandler(gateway, monitorReader, dbClient, dbClient);
-            _storeAllNoiseLevelsForYesterday = new StoreAllNoiseLevelsForYesterdayHandler(_storeNoiseLevelsForDate);
+            _storeAllNoiseLevelsForYesterday = new StoreAllNoiseLevelsForYesterdayHandler(_storeNoiseLevelsForDate, timeProvider);
             _notifySiteAverages = new NotifySiteAveragesHandler(dbClient, dbClient, dbClient, dbClient, ruleProcessor);
             _clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
         }

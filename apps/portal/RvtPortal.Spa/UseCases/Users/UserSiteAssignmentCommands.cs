@@ -8,8 +8,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RVT.Entities;
-using RvtPortal.Spa.UseCases.Common;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Common;
 
 namespace RvtPortal.Spa.UseCases.Users;
 
@@ -38,33 +38,33 @@ public sealed class UserSiteAssignmentCommandResult : ITransactionOutcome
 public sealed class AddUserToSiteCommandHandler
     : IRequestHandler<AddUserToSiteCommand, UserSiteAssignmentCommandResult>
 {
-    private readonly RVTDbContext domainContext;
-    private readonly UserManager<ApplicationUser> userManager;
+    private readonly RVTDbContext _domainContext;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     // Function summary: Initializes the transactional user site-assignment command handler.
     public AddUserToSiteCommandHandler(RVTDbContext domainContext, UserManager<ApplicationUser> userManager)
     {
-        this.domainContext = domainContext;
-        this.userManager = userManager;
+        _domainContext = domainContext;
+        _userManager = userManager;
     }
 
     // Function summary: Adds a user to a site and creates the default notification settings atomically.
     public async Task<UserSiteAssignmentCommandResult> Handle(AddUserToSiteCommand request, CancellationToken cancellationToken)
     {
         UserSiteAssignmentCommandResult result = new();
-        if (await userManager.FindByIdAsync(request.UserId.ToString()) == null)
+        if (await _userManager.FindByIdAsync(request.UserId.ToString()) == null)
         {
             result.UserNotFound = true;
             return result;
         }
 
-        if (!await domainContext.Sites.AsNoTracking().AnyAsync(site => site.Id == request.SiteId, cancellationToken))
+        if (!await _domainContext.Sites.AsNoTracking().AnyAsync(site => site.Id == request.SiteId, cancellationToken))
         {
             result.SiteNotFound = true;
             return result;
         }
 
-        if (await domainContext.SiteUsers.AnyAsync(
+        if (await _domainContext.SiteUsers.AnyAsync(
             siteUser => siteUser.UserId == request.UserId && siteUser.SiteId == request.SiteId,
             cancellationToken))
         {
@@ -79,8 +79,8 @@ public sealed class AddUserToSiteCommandHandler
             UserId = request.UserId,
             SiteContact = false
         };
-        domainContext.SiteUsers.Add(siteUser);
-        domainContext.NotificationSettings.Add(new NotificationSettings
+        _domainContext.SiteUsers.Add(siteUser);
+        _domainContext.NotificationSettings.Add(new NotificationSettings
         {
             SiteUserId = siteUser.Id,
             Email = true,
@@ -96,19 +96,19 @@ public sealed class AddUserToSiteCommandHandler
 public sealed class SetSiteContactCommandHandler
     : IRequestHandler<SetSiteContactCommand, UserSiteAssignmentCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional set-site-contact command handler.
     public SetSiteContactCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Sets one assigned user as the site's contact and clears other contacts atomically.
     public async Task<UserSiteAssignmentCommandResult> Handle(SetSiteContactCommand request, CancellationToken cancellationToken)
     {
         UserSiteAssignmentCommandResult result = new();
-        List<SiteUsers> siteUsers = await domainContext.SiteUsers
+        List<SiteUsers> siteUsers = await _domainContext.SiteUsers
             .Where(siteUser => siteUser.SiteId == request.SiteId)
             .ToListAsync(cancellationToken);
         SiteUsers? selected = siteUsers.FirstOrDefault(siteUser => siteUser.UserId == request.UserId);
@@ -130,19 +130,19 @@ public sealed class SetSiteContactCommandHandler
 public sealed class RemoveSiteContactCommandHandler
     : IRequestHandler<RemoveSiteContactCommand, UserSiteAssignmentCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional remove-site-contact command handler.
     public RemoveSiteContactCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Clears the site contact flag for all assignments on the requested site.
     public async Task<UserSiteAssignmentCommandResult> Handle(RemoveSiteContactCommand request, CancellationToken cancellationToken)
     {
         UserSiteAssignmentCommandResult result = new();
-        if (!await domainContext.SiteUsers.AnyAsync(
+        if (!await _domainContext.SiteUsers.AnyAsync(
             siteUser => siteUser.SiteId == request.SiteId && siteUser.UserId == request.UserId,
             cancellationToken))
         {
@@ -150,7 +150,7 @@ public sealed class RemoveSiteContactCommandHandler
             return result;
         }
 
-        List<SiteUsers> siteUsers = await domainContext.SiteUsers
+        List<SiteUsers> siteUsers = await _domainContext.SiteUsers
             .Where(siteUser => siteUser.SiteId == request.SiteId)
             .ToListAsync(cancellationToken);
         foreach (SiteUsers? siteUser in siteUsers)
@@ -165,19 +165,19 @@ public sealed class RemoveSiteContactCommandHandler
 public sealed class RemoveUserFromSiteCommandHandler
     : IRequestHandler<RemoveUserFromSiteCommand, UserSiteAssignmentCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional remove-user-from-site command handler.
     public RemoveUserFromSiteCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Removes a user's site assignment through the shared transaction pipeline.
     public async Task<UserSiteAssignmentCommandResult> Handle(RemoveUserFromSiteCommand request, CancellationToken cancellationToken)
     {
         UserSiteAssignmentCommandResult result = new();
-        SiteUsers? siteUser = await domainContext.SiteUsers.SingleOrDefaultAsync(
+        SiteUsers? siteUser = await _domainContext.SiteUsers.SingleOrDefaultAsync(
             assignment => assignment.SiteId == request.SiteId && assignment.UserId == request.UserId,
             cancellationToken);
         if (siteUser == null)
@@ -186,7 +186,7 @@ public sealed class RemoveUserFromSiteCommandHandler
             return result;
         }
 
-        domainContext.SiteUsers.Remove(siteUser);
+        _domainContext.SiteUsers.Remove(siteUser);
         result.Removed = true;
         return result;
     }

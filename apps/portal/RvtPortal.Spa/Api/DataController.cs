@@ -11,8 +11,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RvtPortal.Spa.UseCases.Data;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Data;
 
 namespace RvtPortal.Spa.Api;
 

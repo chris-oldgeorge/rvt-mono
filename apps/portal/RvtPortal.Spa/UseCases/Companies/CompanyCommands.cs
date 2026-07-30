@@ -9,8 +9,8 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.UseCases.Common;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Common;
 
 namespace RvtPortal.Spa.UseCases.Companies;
 
@@ -34,12 +34,12 @@ public sealed class CompanyCommandResult : ITransactionOutcome
 
 public sealed class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyCommand, CompanyCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional company create command handler.
     public CreateCompanyCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Creates a company after validating its display name.
@@ -47,7 +47,7 @@ public sealed class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyC
     {
         CompanyCommandResult result = new();
         string? companyName = await CompanyCommandWorkflow.ValidateCompanyNameAsync(
-            domainContext,
+            _domainContext,
             request.Request.CompanyName,
             null,
             result.Errors,
@@ -58,7 +58,7 @@ public sealed class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyC
         }
 
         Company company = new() { Id = Guid.NewGuid(), CompanyName = companyName!, Contracts = [] };
-        domainContext.Companies.Add(company);
+        _domainContext.Companies.Add(company);
         result.CompanyId = company.Id;
         result.CompanyName = company.CompanyName;
         return result;
@@ -67,19 +67,19 @@ public sealed class CreateCompanyCommandHandler : IRequestHandler<CreateCompanyC
 
 public sealed class UpdateCompanyCommandHandler : IRequestHandler<UpdateCompanyCommand, CompanyCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional company update command handler.
     public UpdateCompanyCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Updates a company name after validating uniqueness.
     public async Task<CompanyCommandResult> Handle(UpdateCompanyCommand request, CancellationToken cancellationToken)
     {
         CompanyCommandResult result = new() { CompanyId = request.CompanyId };
-        Company? company = await domainContext.Companies.SingleOrDefaultAsync(item => item.Id == request.CompanyId, cancellationToken);
+        Company? company = await _domainContext.Companies.SingleOrDefaultAsync(item => item.Id == request.CompanyId, cancellationToken);
         if (company == null)
         {
             result.NotFound = true;
@@ -87,7 +87,7 @@ public sealed class UpdateCompanyCommandHandler : IRequestHandler<UpdateCompanyC
         }
 
         string? companyName = await CompanyCommandWorkflow.ValidateCompanyNameAsync(
-            domainContext,
+            _domainContext,
             request.Request.CompanyName,
             request.CompanyId,
             result.Errors,
@@ -105,28 +105,28 @@ public sealed class UpdateCompanyCommandHandler : IRequestHandler<UpdateCompanyC
 
 public sealed class DeleteCompanyCommandHandler : IRequestHandler<DeleteCompanyCommand, CompanyCommandResult>
 {
-    private readonly RVTDbContext domainContext;
-    private readonly UserManager<ApplicationUser> userManager;
+    private readonly RVTDbContext _domainContext;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     // Function summary: Initializes the transactional company delete command handler.
     public DeleteCompanyCommandHandler(RVTDbContext domainContext, UserManager<ApplicationUser> userManager)
     {
-        this.domainContext = domainContext;
-        this.userManager = userManager;
+        _domainContext = domainContext;
+        _userManager = userManager;
     }
 
     // Function summary: Deletes a company and removes its company-user account data in one transaction.
     public async Task<CompanyCommandResult> Handle(DeleteCompanyCommand request, CancellationToken cancellationToken)
     {
         CompanyCommandResult result = new() { CompanyId = request.CompanyId };
-        Company? company = await domainContext.Companies.SingleOrDefaultAsync(item => item.Id == request.CompanyId, cancellationToken);
+        Company? company = await _domainContext.Companies.SingleOrDefaultAsync(item => item.Id == request.CompanyId, cancellationToken);
         if (company == null)
         {
             result.NotFound = true;
             return result;
         }
 
-        List<ApplicationUser> companyUsers = await userManager.Users
+        List<ApplicationUser> companyUsers = await _userManager.Users
             .Where(user => user.CompanyId == request.CompanyId)
             .ToListAsync(cancellationToken);
         List<Guid> userIds = [.. companyUsers
@@ -135,15 +135,15 @@ public sealed class DeleteCompanyCommandHandler : IRequestHandler<DeleteCompanyC
             .Select(userId => userId!.Value)];
         if (userIds.Count > 0)
         {
-            List<SiteUsers> siteUsers = await domainContext.SiteUsers
+            List<SiteUsers> siteUsers = await _domainContext.SiteUsers
                 .Where(siteUser => userIds.Contains(siteUser.UserId))
                 .ToListAsync(cancellationToken);
-            domainContext.SiteUsers.RemoveRange(siteUsers);
+            _domainContext.SiteUsers.RemoveRange(siteUsers);
         }
 
         foreach (ApplicationUser? user in companyUsers)
         {
-            IdentityResult deleteResult = await userManager.DeleteAsync(user);
+            IdentityResult deleteResult = await _userManager.DeleteAsync(user);
             if (!deleteResult.Succeeded)
             {
                 CompanyCommandWorkflow.AddIdentityErrors(result.Errors, deleteResult.Errors);
@@ -152,7 +152,7 @@ public sealed class DeleteCompanyCommandHandler : IRequestHandler<DeleteCompanyC
         }
 
         result.CompanyName = company.CompanyName;
-        domainContext.Companies.Remove(company);
+        _domainContext.Companies.Remove(company);
         return result;
     }
 }

@@ -44,12 +44,12 @@ public sealed class ReportApplicationService : IReportApplicationService
         "contracts"
     };
 
-    private readonly RVTSearchContext searchContext;
+    private readonly RVTSearchContext _searchContext;
 
     // Function summary: Initializes report reads with the search context.
     public ReportApplicationService(RVTSearchContext searchContext)
     {
-        this.searchContext = searchContext;
+        _searchContext = searchContext;
     }
 
     // Function summary: Returns a paged report list while keeping filtering, count, sort, and paging in EF.
@@ -65,7 +65,7 @@ public sealed class ReportApplicationService : IReportApplicationService
             };
         }
 
-        IQueryable<ReportSearch> query = searchContext.ReportSearches
+        IQueryable<ReportSearch> query = _searchContext.ReportSearches
             .AsNoTracking()
             .Where(report => !report.Deleted);
         if (!string.IsNullOrWhiteSpace(request.SearchText))

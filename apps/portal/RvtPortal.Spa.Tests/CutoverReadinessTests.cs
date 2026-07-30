@@ -323,8 +323,11 @@ public partial class CutoverReadinessTests
         // A migration's .Designer.cs is a generated model snapshot, not DDL. Like RVTDbContextModelSnapshot.cs it
         // records CLR property names ("Archived"), which say nothing about the physical schema. The rule this test
         // enforces - no retired physical names in migration DDL - applies to the migration body only.
-        static bool IsGeneratedModelSnapshot(string path) =>
-            Path.GetFileName(path).EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase);
+        static bool IsGeneratedModelSnapshot(string path)
+        {
+            return Path.GetFileName(path).EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase);
+        }
+
         string[] retiredTokens = new[]
         {
             "MonitorsList",
@@ -549,5 +552,4 @@ public partial class CutoverReadinessTests
             sql.Split(["\r\n", "\n"], StringSplitOptions.None)
                 .Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal)));
     }
-
 }

@@ -20,8 +20,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RvtPortal.Application.Common;
 using RvtPortal.Spa.Api.Mappers;
-using RvtPortal.Spa.UseCases.Users;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Users;
 
 namespace RvtPortal.Spa.Api;
 

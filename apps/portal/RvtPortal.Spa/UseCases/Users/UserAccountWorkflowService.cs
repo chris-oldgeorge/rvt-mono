@@ -13,9 +13,9 @@ using Microsoft.Extensions.Options;
 using RvtPortal.Application.Notifications;
 using RvtPortal.Application.Ports.Notifications;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Data;
 using RvtPortal.Spa.UseCases.Auth;
 using RvtPortal.Spa.UseCases.Companies;
-using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.UseCases.Users;
 

@@ -25,12 +25,12 @@ public sealed class InstallerDeploymentCommandResult : ITransactionOutcome
 public sealed class UpdateInstallerDeploymentLocationCommandHandler
     : IRequestHandler<UpdateInstallerDeploymentLocationCommand, InstallerDeploymentCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional installer deployment-location command handler.
     public UpdateInstallerDeploymentLocationCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Updates deployment location fields for an active deployment.
@@ -45,7 +45,7 @@ public sealed class UpdateInstallerDeploymentLocationCommandHandler
             return result;
         }
 
-        Deployment? deployment = await domainContext.Deployments
+        Deployment? deployment = await _domainContext.Deployments
             .Include(item => item.Monitor)
             .SingleOrDefaultAsync(item => item.Id == request.DeploymentId && item.EndDate == null, cancellationToken);
         if (deployment == null)
@@ -68,14 +68,17 @@ public sealed class UpdateInstallerDeploymentLocationCommandHandler
         {
             AddError(errors, nameof(InstallerDeploymentMutationRequest.Lat), "Latitude must be between -90 and 90.");
         }
+
         if (request.Lng is < -180 or > 180)
         {
             AddError(errors, nameof(InstallerDeploymentMutationRequest.Lng), "Longitude must be between -180 and 180.");
         }
+
         if (request.Location?.Length > 256)
         {
             AddError(errors, nameof(InstallerDeploymentMutationRequest.Location), "Location must be 256 characters or fewer.");
         }
+
         if (request.What3words?.Length > 256)
         {
             AddError(errors, nameof(InstallerDeploymentMutationRequest.What3words), "What3words must be 256 characters or fewer.");

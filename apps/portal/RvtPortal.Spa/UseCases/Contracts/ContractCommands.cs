@@ -32,26 +32,26 @@ public sealed class ContractCommandResult : ITransactionOutcome
 
 public sealed class CreateContractCommandHandler : IRequestHandler<CreateContractCommand, ContractCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional contract create command handler.
     public CreateContractCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Creates a contract after validating number, dates, company, and site.
     public async Task<ContractCommandResult> Handle(CreateContractCommand request, CancellationToken cancellationToken)
     {
         ContractCommandResult result = new();
-        await ContractCommandWorkflow.ValidateContractAsync(domainContext, request.Request, null, result.Errors, cancellationToken);
+        await ContractCommandWorkflow.ValidateContractAsync(_domainContext, request.Request, null, result.Errors, cancellationToken);
         if (result.Errors.Count > 0)
         {
             return result;
         }
 
         Contract contract = ContractCommandWorkflow.CreateContract(request.Request);
-        domainContext.Contracts.Add(contract);
+        _domainContext.Contracts.Add(contract);
         result.ContractId = contract.Id;
         result.ContractNumber = contract.ContractNumber;
         return result;
@@ -60,26 +60,26 @@ public sealed class CreateContractCommandHandler : IRequestHandler<CreateContrac
 
 public sealed class UpdateContractCommandHandler : IRequestHandler<UpdateContractCommand, ContractCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional contract update command handler.
     public UpdateContractCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Updates contract fields after validating number, dates, company, and site.
     public async Task<ContractCommandResult> Handle(UpdateContractCommand request, CancellationToken cancellationToken)
     {
         ContractCommandResult result = new() { ContractId = request.ContractId };
-        Contract? contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
+        Contract? contract = await _domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
         if (contract == null)
         {
             result.NotFound = true;
             return result;
         }
 
-        await ContractCommandWorkflow.ValidateContractAsync(domainContext, request.Request, request.ContractId, result.Errors, cancellationToken);
+        await ContractCommandWorkflow.ValidateContractAsync(_domainContext, request.Request, request.ContractId, result.Errors, cancellationToken);
         if (result.Errors.Count > 0)
         {
             return result;
@@ -93,19 +93,19 @@ public sealed class UpdateContractCommandHandler : IRequestHandler<UpdateContrac
 
 public sealed class DeleteContractCommandHandler : IRequestHandler<DeleteContractCommand, ContractCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional contract delete command handler.
     public DeleteContractCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Deletes a contract by id.
     public async Task<ContractCommandResult> Handle(DeleteContractCommand request, CancellationToken cancellationToken)
     {
         ContractCommandResult result = new() { ContractId = request.ContractId };
-        Contract? contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
+        Contract? contract = await _domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
         if (contract == null)
         {
             result.NotFound = true;
@@ -113,7 +113,7 @@ public sealed class DeleteContractCommandHandler : IRequestHandler<DeleteContrac
         }
 
         result.ContractNumber = contract.ContractNumber;
-        domainContext.Contracts.Remove(contract);
+        _domainContext.Contracts.Remove(contract);
         return result;
     }
 }

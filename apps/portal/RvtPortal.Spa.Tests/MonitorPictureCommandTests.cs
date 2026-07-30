@@ -9,8 +9,8 @@ using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Ports.Storage;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.UseCases.Monitors;
 using RvtPortal.Spa.Tests.Support;
+using RvtPortal.Spa.UseCases.Monitors;
 using MonitorEntity = RVT.Entities.Monitor;
 namespace RvtPortal.Spa.Tests;
 

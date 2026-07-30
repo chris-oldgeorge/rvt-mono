@@ -25,9 +25,9 @@ public interface IMonitorDetailReader
 
 public sealed class MonitorDetailReader : IMonitorDetailReader
 {
-    private readonly RVTDbContext domainContext;
-    private readonly IMonitorDetailSummaryService summaryService;
-    private readonly IMonitorPictureStorage pictureStorage;
+    private readonly RVTDbContext _domainContext;
+    private readonly IMonitorDetailSummaryService _summaryService;
+    private readonly IMonitorPictureStorage _pictureStorage;
 
     // Function summary: Initializes the shared monitor detail read model builder.
     public MonitorDetailReader(
@@ -35,9 +35,9 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
         IMonitorDetailSummaryService summaryService,
         IMonitorPictureStorage pictureStorage)
     {
-        this.domainContext = domainContext;
-        this.summaryService = summaryService;
-        this.pictureStorage = pictureStorage;
+        _domainContext = domainContext;
+        _summaryService = summaryService;
+        _pictureStorage = pictureStorage;
     }
 
     // Function summary: Builds a complete monitor detail response for controller and CQRS read paths.
@@ -48,7 +48,7 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
             : MonitorOwnershipWindowResolver.ForDeployment(deployment);
         List<Notification> notifications = ownershipWindow is null
             ? []
-            : await domainContext.Notifications
+            : await _domainContext.Notifications
                 .AsNoTracking()
                 .Where(notification =>
                     notification.MonitorId == monitor.Id &&
@@ -58,7 +58,7 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
                 .Take(10)
                 .ToListAsync(cancellationToken);
         MonitorListItem row = BuildListItem(monitor, deployment, [.. notifications.Where(notification => notification.ClosedTime == null)], user);
-        List<Alertlevel> alertLevels = await domainContext.RvtAlertRules
+        List<Alertlevel> alertLevels = await _domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(level => level.MonitorId == monitor.Id && !level.IsDeleted)
             .OrderBy(level => level.AlertType)
@@ -98,20 +98,20 @@ public sealed class MonitorDetailReader : IMonitorDetailReader
             Lng = deployment?.Lng,
             Location = deployment?.Location,
             What3words = deployment?.What3words,
-            PictureLink = pictureStorage.BuildProtectedLink(monitor.Id, deployment?.PictureLink),
+            PictureLink = _pictureStorage.BuildProtectedLink(monitor.Id, deployment?.PictureLink),
             StatusLabel = MonitorStatusLabel(row),
             MonitorNotes = "No notes for this monitor",
-            LatestReading = await summaryService.BuildLatestReadingAsync(
+            LatestReading = await _summaryService.BuildLatestReadingAsync(
                 deployment,
                 notifications.FirstOrDefault(),
                 cancellationToken),
-            LatestAverage = await summaryService.BuildLatestAverageAsync(
+            LatestAverage = await _summaryService.BuildLatestAverageAsync(
                 deployment,
                 cancellationToken),
-            LatestBattery = await summaryService.BuildLatestBatteryAsync(
+            LatestBattery = await _summaryService.BuildLatestBatteryAsync(
                 monitor,
                 cancellationToken),
-            DeploymentSummary = summaryService.BuildDeploymentSummary(deployment),
+            DeploymentSummary = _summaryService.BuildDeploymentSummary(deployment),
             AlertLevels = [.. alertLevels.Select(BuildAlertLevelItem)],
             RecentNotifications = [.. notifications.Select(BuildNotificationItem)]
         };

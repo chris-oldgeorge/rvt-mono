@@ -46,19 +46,19 @@ public sealed class VibrationAlertLevelCommandResult : ITransactionOutcome
 
 public sealed class CreateAlertLevelCommandHandler : IRequestHandler<CreateAlertLevelCommand, AlertLevelCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional alert-level create command handler.
     public CreateAlertLevelCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Creates a non-vibration alert level after validating monitor-specific rules.
     public async Task<AlertLevelCommandResult> Handle(CreateAlertLevelCommand request, CancellationToken cancellationToken)
     {
         AlertLevelCommandResult result = new();
-        MonitorEntity? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(item => item.Id == request.Request.MonitorId, cancellationToken);
+        MonitorEntity? monitor = await _domainContext.MonitorsList.SingleOrDefaultAsync(item => item.Id == request.Request.MonitorId, cancellationToken);
         if (monitor == null)
         {
             result.NotFound = true;
@@ -94,7 +94,7 @@ public sealed class CreateAlertLevelCommandHandler : IRequestHandler<CreateAlert
             IsDeleted = false
         };
         AlertLevelWorkflow.NormalizeNoiseSiteHours(monitor, level);
-        domainContext.RvtAlertRules.Add(level);
+        _domainContext.RvtAlertRules.Add(level);
         result.AlertLevelId = level.Id;
         result.Item = AlertLevelWorkflow.BuildAlertLevelItem(level);
         return result;
@@ -106,19 +106,19 @@ public sealed class CreateAlertLevelCommandHandler : IRequestHandler<CreateAlert
 
 public sealed class UpdateAlertLevelCommandHandler : IRequestHandler<UpdateAlertLevelCommand, AlertLevelCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional alert-level update command handler.
     public UpdateAlertLevelCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Updates a non-vibration alert level after validating monitor-specific rules.
     public async Task<AlertLevelCommandResult> Handle(UpdateAlertLevelCommand request, CancellationToken cancellationToken)
     {
         AlertLevelCommandResult result = new() { AlertLevelId = request.AlertLevelId };
-        Alertlevel? level = await domainContext.RvtAlertRules.SingleOrDefaultAsync(
+        Alertlevel? level = await _domainContext.RvtAlertRules.SingleOrDefaultAsync(
             item => item.Id == request.AlertLevelId && !item.IsDeleted,
             cancellationToken);
         if (level == null)
@@ -127,7 +127,7 @@ public sealed class UpdateAlertLevelCommandHandler : IRequestHandler<UpdateAlert
             return result;
         }
 
-        MonitorEntity monitor = await domainContext.MonitorsList.SingleAsync(item => item.Id == level.MonitorId, cancellationToken);
+        MonitorEntity monitor = await _domainContext.MonitorsList.SingleAsync(item => item.Id == level.MonitorId, cancellationToken);
         if (monitor.TypeOfMonitor == MonitorTypeEnum.Vibration)
         {
             AlertLevelCommandWorkflow.AddError(result.Errors, nameof(AlertLevelMutationRequest.MonitorId), "Use the vibration alert-level endpoint for vibration monitors.");
@@ -159,9 +159,9 @@ public sealed class UpdateAlertLevelCommandHandler : IRequestHandler<UpdateAlert
 public sealed class UpdateVibrationAlertLevelsCommandHandler
     : IRequestHandler<UpdateVibrationAlertLevelsCommand, VibrationAlertLevelCommandResult>
 {
-    private readonly RVTDbContext domainContext;
-    private readonly IVibrationVendorGateway vibrationVendorGateway;
-    private readonly IWebHostEnvironment environment;
+    private readonly RVTDbContext _domainContext;
+    private readonly IVibrationVendorGateway _vibrationVendorGateway;
+    private readonly IWebHostEnvironment _environment;
 
     // Function summary: Initializes the transactional vibration alert-level upsert command handler.
     public UpdateVibrationAlertLevelsCommandHandler(
@@ -169,9 +169,9 @@ public sealed class UpdateVibrationAlertLevelsCommandHandler
         IVibrationVendorGateway vibrationVendorGateway,
         IWebHostEnvironment environment)
     {
-        this.domainContext = domainContext;
-        this.vibrationVendorGateway = vibrationVendorGateway;
-        this.environment = environment;
+        _domainContext = domainContext;
+        _vibrationVendorGateway = vibrationVendorGateway;
+        _environment = environment;
     }
 
     // Function summary: Upserts the vibration alert/caution pair and synchronizes the external service when enabled.
@@ -180,7 +180,7 @@ public sealed class UpdateVibrationAlertLevelsCommandHandler
         CancellationToken cancellationToken)
     {
         VibrationAlertLevelCommandResult result = new();
-        MonitorEntity? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(item => item.Id == request.MonitorId, cancellationToken);
+        MonitorEntity? monitor = await _domainContext.MonitorsList.SingleOrDefaultAsync(item => item.Id == request.MonitorId, cancellationToken);
         if (monitor == null)
         {
             result.NotFound = true;
@@ -207,11 +207,11 @@ public sealed class UpdateVibrationAlertLevelsCommandHandler
             return result;
         }
 
-        bool externalAttempted = !environment.IsEnvironment("Testing");
+        bool externalAttempted = !_environment.IsEnvironment("Testing");
         bool externalSucceeded = false;
         if (externalAttempted)
         {
-            VendorSyncResult vendorSync = await vibrationVendorGateway.UpdateAlertLevelsAsync(
+            VendorSyncResult vendorSync = await _vibrationVendorGateway.UpdateAlertLevelsAsync(
                 monitor.SerialId,
                 request.Request.AlertLevel,
                 request.Request.CautionLevel,
@@ -224,7 +224,7 @@ public sealed class UpdateVibrationAlertLevelsCommandHandler
             }
         }
 
-        List<Alertlevel> levels = await domainContext.RvtAlertRules
+        List<Alertlevel> levels = await _domainContext.RvtAlertRules
             .Where(level => level.MonitorId == request.MonitorId && !level.IsDeleted)
             .ToListAsync(cancellationToken);
         if (levels.Count is not 0 and not 2)
@@ -237,7 +237,7 @@ public sealed class UpdateVibrationAlertLevelsCommandHandler
         {
             levels.Add(AlertLevelWorkflow.BuildVibrationLevel(monitor, AlertTypeEnum.Alert, request.Request.AlertLevel, 8));
             levels.Add(AlertLevelWorkflow.BuildVibrationLevel(monitor, AlertTypeEnum.Caution, request.Request.CautionLevel, 5));
-            domainContext.RvtAlertRules.AddRange(levels);
+            _domainContext.RvtAlertRules.AddRange(levels);
         }
         else
         {
@@ -261,19 +261,19 @@ public sealed class UpdateVibrationAlertLevelsCommandHandler
 
 public sealed class DeleteAlertLevelCommandHandler : IRequestHandler<DeleteAlertLevelCommand, AlertLevelCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional alert-level delete command handler.
     public DeleteAlertLevelCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Soft-deletes an alert level and disables it.
     public async Task<AlertLevelCommandResult> Handle(DeleteAlertLevelCommand request, CancellationToken cancellationToken)
     {
         AlertLevelCommandResult result = new() { AlertLevelId = request.AlertLevelId };
-        Alertlevel? level = await domainContext.RvtAlertRules.SingleOrDefaultAsync(
+        Alertlevel? level = await _domainContext.RvtAlertRules.SingleOrDefaultAsync(
             item => item.Id == request.AlertLevelId && !item.IsDeleted,
             cancellationToken);
         if (level == null)

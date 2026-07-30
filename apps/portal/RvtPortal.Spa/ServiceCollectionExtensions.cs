@@ -69,6 +69,11 @@ using RvtPortal.Spa.UseCases.ReportContent;
 using RvtPortal.Spa.UseCases.ReportRules;
 using RvtPortal.Spa.UseCases.Reports;
 using RvtPortal.Spa.UseCases.Users;
+// Aliased rather than imported wholesale: these two use cases live in the standalone BCL-only
+// RvtPortal.Application project, and a bare "Application.Sites" here would read as this host's own layer
+// (RvtPortal.Spa.UseCases) to anyone skimming the registrations.
+using PortalHelpUseCases = RvtPortal.Application.Help;
+using PortalSiteUseCases = RvtPortal.Application.Sites;
 
 namespace RvtPortal.Spa;
 
@@ -117,8 +122,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICurrentUserContextFactory, CurrentUserContextFactory>();
         services.AddScoped<IPortalUserDirectory, PortalUserDirectory>();
         services.AddScoped<
-            RvtPortal.Application.Sites.ISiteApplicationService,
-            RvtPortal.Application.Sites.SiteApplicationService>();
+            PortalSiteUseCases.ISiteApplicationService,
+            PortalSiteUseCases.SiteApplicationService>();
         services.AddScoped<ISiteReadPort, EfSiteReadAdapter>();
         services.AddScoped<ISiteWritePort, EfSiteWriteAdapter>();
         services.AddScoped<ISiteArchivePort, SiteArchiveAdapter>();
@@ -137,8 +142,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IContractApplicationService, ContractApplicationService>();
         services.AddScoped<IReportApplicationService, ReportApplicationService>();
         services.AddScoped<
-            RvtPortal.Application.Help.IHelpApplicationService,
-            RvtPortal.Application.Help.HelpApplicationService>();
+            PortalHelpUseCases.IHelpApplicationService,
+            PortalHelpUseCases.HelpApplicationService>();
         services.AddScoped<IHelpReadPort, EfHelpReadAdapter>();
         services.AddScoped<IHelpWritePort, EfHelpWriteAdapter>();
         services.AddScoped<IUserAccountWorkflowService, UserAccountWorkflowService>();

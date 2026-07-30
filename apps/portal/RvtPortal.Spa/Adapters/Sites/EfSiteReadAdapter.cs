@@ -239,10 +239,10 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
         string search = request.Page.SearchText.Trim().ToLower();
         return query.Where(site =>
             (site.SiteName != null && site.SiteName.ToLower().Contains(search)) ||
-            (((site.AddressLine1 ?? "") + " " +
+            ((site.AddressLine1 ?? "") + " " +
                 (site.AddressLine2 ?? "") + " " +
                 (site.Postcode ?? "") + " " +
-                (site.City ?? "")).ToLower().Contains(search)) ||
+                (site.City ?? "")).ToLower().Contains(search) ||
             site.Contracts.Any(contract =>
                 (contract.ContractNumber != null && contract.ContractNumber.ToLower().Contains(search)) ||
                 contract.Company.CompanyName.ToLower().Contains(search)));

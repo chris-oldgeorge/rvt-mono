@@ -43,19 +43,19 @@ public sealed record ReportContentFileResult(StoredContentFile? File, ReportCont
 
 public sealed class ReportContentApplicationService : IReportContentApplicationService
 {
-    private readonly RVTDbContext domainContext;
-    private readonly ICustomerLogoStorage customerLogoStorage;
-    private readonly IConfiguration configuration;
+    private readonly RVTDbContext _domainContext;
+    private readonly ICustomerLogoStorage _customerLogoStorage;
+    private readonly IConfiguration _configuration;
 
-    // Function summary: Initializes report-content workflows with data, storage, and configuration dependencies.
+    // Function summary: Initializes report-content workflows with data, storage, and _configuration dependencies.
     public ReportContentApplicationService(
         RVTDbContext domainContext,
         ICustomerLogoStorage customerLogoStorage,
         IConfiguration configuration)
     {
-        this.domainContext = domainContext;
-        this.customerLogoStorage = customerLogoStorage;
-        this.configuration = configuration;
+        _domainContext = domainContext;
+        _customerLogoStorage = customerLogoStorage;
+        _configuration = configuration;
     }
 
     // Function summary: Validates the internal key and opens the site logo if the site is active and has one.
@@ -64,7 +64,7 @@ public sealed class ReportContentApplicationService : IReportContentApplicationS
         string? internalKey,
         CancellationToken cancellationToken)
     {
-        string? configuredKey = configuration["ReportContent:InternalApiKey"];
+        string? configuredKey = _configuration["ReportContent:InternalApiKey"];
         if (string.IsNullOrWhiteSpace(configuredKey))
         {
             return ReportContentFileResult.Failed(ReportContentFailureKind.ServiceUnavailable);
@@ -75,7 +75,7 @@ public sealed class ReportContentApplicationService : IReportContentApplicationS
             return ReportContentFileResult.Failed(ReportContentFailureKind.Unauthorized);
         }
 
-        bool siteExists = await domainContext.Sites
+        bool siteExists = await _domainContext.Sites
             .AsNoTracking()
             .AnyAsync(site => site.Id == siteId && !site.Archived, cancellationToken);
         if (!siteExists)
@@ -83,7 +83,7 @@ public sealed class ReportContentApplicationService : IReportContentApplicationS
             return ReportContentFileResult.Failed(ReportContentFailureKind.NotFound);
         }
 
-        StoredContentFile? logo = await customerLogoStorage.OpenReadAsync(siteId, cancellationToken);
+        StoredContentFile? logo = await _customerLogoStorage.OpenReadAsync(siteId, cancellationToken);
         return logo is null
             ? ReportContentFileResult.Failed(ReportContentFailureKind.NotFound)
             : ReportContentFileResult.Success(logo);

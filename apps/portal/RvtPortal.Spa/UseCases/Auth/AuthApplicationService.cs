@@ -16,8 +16,8 @@ using Microsoft.Extensions.Options;
 using RvtPortal.Application.Notifications;
 using RvtPortal.Application.Ports.Notifications;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.UseCases.Companies;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Companies;
 
 namespace RvtPortal.Spa.UseCases.Auth;
 
@@ -126,16 +126,16 @@ public sealed class AuthWorkflowResult<T>
 
 public sealed class AuthApplicationService : IAuthApplicationService
 {
-    private readonly SignInManager<ApplicationUser> signInManager;
-    private readonly UserManager<ApplicationUser> userManager;
-    private readonly ApplicationDbContext applicationContext;
-    private readonly ICompanyService companyService;
-    private readonly IConfiguration configuration;
-    private readonly SpaOptions spaOptions;
-    private readonly IAccountMessenger accountMessenger;
-    private readonly ILogger<AuthApplicationService> logger;
+    private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ApplicationDbContext _applicationContext;
+    private readonly ICompanyService _companyService;
+    private readonly IConfiguration _configuration;
+    private readonly SpaOptions _spaOptions;
+    private readonly IAccountMessenger _accountMessenger;
+    private readonly ILogger<AuthApplicationService> _logger;
 
-    // Function summary: Initializes auth workflows with Identity, company profile, configuration, and email dependencies.
+    // Function summary: Initializes auth workflows with Identity, company profile, _configuration, and email dependencies.
     [SuppressMessage(
         "Maintainability",
         "S107:Methods should not have too many parameters",
@@ -150,14 +150,14 @@ public sealed class AuthApplicationService : IAuthApplicationService
         IAccountMessenger accountMessenger,
         ILogger<AuthApplicationService> logger)
     {
-        this.signInManager = signInManager;
-        this.userManager = userManager;
-        this.applicationContext = applicationContext;
-        this.companyService = companyService;
-        this.configuration = configuration;
-        this.spaOptions = spaOptions.Value;
-        this.accountMessenger = accountMessenger;
-        this.logger = logger;
+        _signInManager = signInManager;
+        _userManager = userManager;
+        _applicationContext = applicationContext;
+        _companyService = companyService;
+        _configuration = configuration;
+        _spaOptions = spaOptions.Value;
+        _accountMessenger = accountMessenger;
+        _logger = logger;
     }
 
     // Function summary: Builds the current authentication state for the supplied principal.
@@ -168,10 +168,10 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<AuthStateResponse>.Success(AuthStateResponse.Anonymous());
         }
 
-        ApplicationUser? user = await userManager.GetUserAsync(principal);
+        ApplicationUser? user = await _userManager.GetUserAsync(principal);
         if (user == null || user.IsDisabled)
         {
-            await signInManager.SignOutAsync();
+            await _signInManager.SignOutAsync();
             return AuthWorkflowResult<AuthStateResponse>.Success(AuthStateResponse.Anonymous());
         }
 
@@ -186,7 +186,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.AlreadySignedIn);
         }
 
-        ApplicationUser? user = await userManager.FindByEmailAsync(request.Email.Trim());
+        ApplicationUser? user = await _userManager.FindByEmailAsync(request.Email.Trim());
         if (user != null && user.IsDisabled)
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.AccountDisabled);
@@ -194,7 +194,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
 
         SignInResult result = user == null
             ? SignInResult.Failed
-            : await signInManager.PasswordSignInAsync(user, request.Password, request.RememberMe, lockoutOnFailure: true);
+            : await _signInManager.PasswordSignInAsync(user, request.Password, request.RememberMe, lockoutOnFailure: true);
         if (result.Succeeded && user is not null)
         {
             return AuthWorkflowResult<AuthStateResponse>.Success(await BuildAuthStateAsync(user));
@@ -216,35 +216,35 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Signs out the current session.
     public async Task<AuthStateResponse> LogoutAsync()
     {
-        await signInManager.SignOutAsync();
+        await _signInManager.SignOutAsync();
         return AuthStateResponse.Anonymous();
     }
 
     // Function summary: Sends a password-reset email when the account is eligible while keeping a generic public response.
     public async Task<AuthWorkflowResult<MessageResponse>> ForgotPasswordAsync(ForgotPasswordRequest request, AuthRequestOrigin origin)
     {
-        ApplicationUser? user = await userManager.FindByEmailAsync(request.Email);
-        if (user == null || !await userManager.IsEmailConfirmedAsync(user))
+        ApplicationUser? user = await _userManager.FindByEmailAsync(request.Email);
+        if (user == null || !await _userManager.IsEmailConfirmedAsync(user))
         {
             return AuthWorkflowResult<MessageResponse>.Success(PasswordResetMessage());
         }
 
-        if (configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
+        if (_configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
         {
             return AuthWorkflowResult<MessageResponse>.Success(PasswordResetMessage());
         }
 
         try
         {
-            string code = await userManager.GeneratePasswordResetTokenAsync(user);
+            string code = await _userManager.GeneratePasswordResetTokenAsync(user);
             string callbackUrl = BuildClientUrl("/reset-password", new Dictionary<string, string?>
             {
                 ["code"] = code
             });
-            EmailDeliveryResult delivery = await accountMessenger.SendPasswordResetAsync(user.Email ?? request.Email, callbackUrl, CancellationToken.None);
+            EmailDeliveryResult delivery = await _accountMessenger.SendPasswordResetAsync(user.Email ?? request.Email, callbackUrl, CancellationToken.None);
             if (!delivery.Succeeded)
             {
-                logger.LogWarning(
+                _logger.LogWarning(
                     "Password-reset email delivery failed. CorrelationId: {CorrelationId}; ProviderResponse: {ProviderResponse}",
                     origin.CorrelationId ?? "unavailable",
                     delivery.ProviderResponse);
@@ -252,7 +252,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
         }
         catch (Exception exception)
         {
-            logger.LogWarning(
+            _logger.LogWarning(
                 exception,
                 "Password-reset email workflow failed. CorrelationId: {CorrelationId}",
                 origin.CorrelationId ?? "unavailable");
@@ -264,13 +264,13 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Resets a password from a supplied reset token.
     public async Task<AuthWorkflowResult<MessageResponse>> ResetPasswordAsync(ResetPasswordRequest request)
     {
-        ApplicationUser? user = await userManager.FindByEmailAsync(request.Email);
+        ApplicationUser? user = await _userManager.FindByEmailAsync(request.Email);
         if (user == null)
         {
             return AuthWorkflowResult<MessageResponse>.Success(PasswordChangedMessage());
         }
 
-        IdentityResult result = await userManager.ResetPasswordAsync(user, request.Code, request.Password);
+        IdentityResult result = await _userManager.ResetPasswordAsync(user, request.Code, request.Password);
         if (!result.Succeeded)
         {
             if (result.Errors.Any(error => string.Equals(error.Code, "InvalidToken", StringComparison.Ordinal)))
@@ -292,7 +292,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MissingConfirmationValues);
         }
 
-        ApplicationUser? user = await userManager.FindByIdAsync(userId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(userId);
         if (user == null || user.EmailConfirmed)
         {
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
@@ -303,7 +303,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.MalformedConfirmationCode);
         }
 
-        IdentityResult result = await userManager.ConfirmEmailAsync(user, decodedCode);
+        IdentityResult result = await _userManager.ConfirmEmailAsync(user, decodedCode);
         return result.Succeeded
             ? AuthWorkflowResult<ConfirmEmailResponse>.Success(new ConfirmEmailResponse
             {
@@ -335,18 +335,18 @@ public sealed class AuthApplicationService : IAuthApplicationService
         string newEmail,
         string decodedCode)
     {
-        IExecutionStrategy strategy = applicationContext.Database.CreateExecutionStrategy();
+        IExecutionStrategy strategy = _applicationContext.Database.CreateExecutionStrategy();
         return await strategy.ExecuteAsync(async () =>
         {
-            applicationContext.ChangeTracker.Clear();
-            await using IDbContextTransaction transaction = await applicationContext.Database.BeginTransactionAsync();
+            _applicationContext.ChangeTracker.Clear();
+            await using IDbContextTransaction transaction = await _applicationContext.Database.BeginTransactionAsync();
             try
             {
-                ApplicationUser? user = await userManager.FindByIdAsync(userId);
+                ApplicationUser? user = await _userManager.FindByIdAsync(userId);
                 if (user == null)
                 {
                     await transaction.RollbackAsync();
-                    applicationContext.ChangeTracker.Clear();
+                    _applicationContext.ChangeTracker.Clear();
                     return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
                 }
 
@@ -358,7 +358,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
                 else
                 {
                     await transaction.RollbackAsync();
-                    applicationContext.ChangeTracker.Clear();
+                    _applicationContext.ChangeTracker.Clear();
                 }
 
                 return transition;
@@ -366,7 +366,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
             catch
             {
                 await transaction.RollbackAsync(CancellationToken.None);
-                applicationContext.ChangeTracker.Clear();
+                _applicationContext.ChangeTracker.Clear();
                 throw;
             }
         });
@@ -378,13 +378,13 @@ public sealed class AuthApplicationService : IAuthApplicationService
         string newEmail,
         string decodedCode)
     {
-        IdentityResult emailResult = await userManager.ChangeEmailAsync(user, newEmail, decodedCode);
+        IdentityResult emailResult = await _userManager.ChangeEmailAsync(user, newEmail, decodedCode);
         if (!emailResult.Succeeded)
         {
             return AuthWorkflowResult<ConfirmEmailResponse>.Failure(AuthWorkflowStatus.ConfirmationFailed);
         }
 
-        IdentityResult userNameResult = await userManager.SetUserNameAsync(user, newEmail);
+        IdentityResult userNameResult = await _userManager.SetUserNameAsync(user, newEmail);
         if (!userNameResult.Succeeded)
         {
             return IdentityErrorResult<ConfirmEmailResponse>(AuthWorkflowStatus.ValidationFailed, userNameResult.Errors);
@@ -400,7 +400,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Sets the initial password after email confirmation and signs in the user.
     public async Task<AuthWorkflowResult<AuthStateResponse>> SetInitialPasswordAsync(SetInitialPasswordRequest request)
     {
-        ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.InitialPasswordUserNotFound);
@@ -416,9 +416,9 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.MalformedConfirmationCode);
         }
 
-        bool isValidConfirmationToken = await userManager.VerifyUserTokenAsync(
+        bool isValidConfirmationToken = await _userManager.VerifyUserTokenAsync(
             user,
-            userManager.Options.Tokens.EmailConfirmationTokenProvider,
+            _userManager.Options.Tokens.EmailConfirmationTokenProvider,
             "EmailConfirmation",
             decodedCode);
         if (!isValidConfirmationToken)
@@ -426,44 +426,44 @@ public sealed class AuthApplicationService : IAuthApplicationService
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.ConfirmationCouldNotBeVerified);
         }
 
-        if (await userManager.HasPasswordAsync(user))
+        if (await _userManager.HasPasswordAsync(user))
         {
             return AuthWorkflowResult<AuthStateResponse>.Failure(AuthWorkflowStatus.PasswordAlreadySet);
         }
 
-        IdentityResult result = await userManager.AddPasswordAsync(user, request.NewPassword);
+        IdentityResult result = await _userManager.AddPasswordAsync(user, request.NewPassword);
         if (!result.Succeeded)
         {
             return IdentityErrorResult<AuthStateResponse>(AuthWorkflowStatus.ValidationFailed, result.Errors);
         }
 
-        await signInManager.SignInAsync(user, isPersistent: true);
+        await _signInManager.SignInAsync(user, isPersistent: true);
         return AuthWorkflowResult<AuthStateResponse>.Success(await BuildAuthStateAsync(user));
     }
 
     // Function summary: Changes the signed-in user's password.
     public async Task<AuthWorkflowResult<MessageResponse>> ChangePasswordAsync(ClaimsPrincipal principal, ChangePasswordRequest request)
     {
-        ApplicationUser? user = await userManager.GetUserAsync(principal);
+        ApplicationUser? user = await _userManager.GetUserAsync(principal);
         if (user == null)
         {
             return AuthWorkflowResult<MessageResponse>.Failure(AuthWorkflowStatus.Unauthorized);
         }
 
-        IdentityResult result = await userManager.ChangePasswordAsync(user, request.OldPassword, request.NewPassword);
+        IdentityResult result = await _userManager.ChangePasswordAsync(user, request.OldPassword, request.NewPassword);
         if (!result.Succeeded)
         {
             return IdentityErrorResult<MessageResponse>(AuthWorkflowStatus.ValidationFailed, result.Errors);
         }
 
-        await signInManager.RefreshSignInAsync(user);
+        await _signInManager.RefreshSignInAsync(user);
         return AuthWorkflowResult<MessageResponse>.Success(new MessageResponse { Message = "Your password has been changed." });
     }
 
     // Function summary: Builds the signed-in user's profile.
     public async Task<AuthWorkflowResult<ProfileResponse>> ProfileAsync(ClaimsPrincipal principal)
     {
-        ApplicationUser? user = await userManager.GetUserAsync(principal);
+        ApplicationUser? user = await _userManager.GetUserAsync(principal);
         return user == null
             ? AuthWorkflowResult<ProfileResponse>.Failure(AuthWorkflowStatus.Unauthorized)
             : AuthWorkflowResult<ProfileResponse>.Success(await BuildProfileAsync(user));
@@ -472,7 +472,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Updates the signed-in user's profile.
     public async Task<AuthWorkflowResult<ProfileResponse>> UpdateProfileAsync(ClaimsPrincipal principal, UpdateProfileRequest request)
     {
-        ApplicationUser? user = await userManager.GetUserAsync(principal);
+        ApplicationUser? user = await _userManager.GetUserAsync(principal);
         if (user == null)
         {
             return AuthWorkflowResult<ProfileResponse>.Failure(AuthWorkflowStatus.Unauthorized);
@@ -481,17 +481,17 @@ public sealed class AuthApplicationService : IAuthApplicationService
         user.Name = request.Name;
         user.PhoneNumber = request.MobilePhone;
         user.CompanyRole = request.CompanyRole;
-        IdentityResult result = await userManager.UpdateAsync(user);
+        IdentityResult result = await _userManager.UpdateAsync(user);
         if (!result.Succeeded)
         {
             return IdentityErrorResult<ProfileResponse>(AuthWorkflowStatus.ValidationFailed, result.Errors);
         }
 
         if (!string.Equals(user.Email, request.Email.Trim(), StringComparison.OrdinalIgnoreCase) &&
-            !configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
+            !_configuration.GetValue<bool>("Auth:SkipPasswordResetEmail"))
         {
             string newEmail = request.Email.Trim();
-            string code = await userManager.GenerateChangeEmailTokenAsync(user, newEmail);
+            string code = await _userManager.GenerateChangeEmailTokenAsync(user, newEmail);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
             string callbackUrl = BuildClientUrl("/api/auth/change-email", new Dictionary<string, string?>
             {
@@ -499,14 +499,14 @@ public sealed class AuthApplicationService : IAuthApplicationService
                 ["email"] = newEmail,
                 ["code"] = code
             });
-            EmailDeliveryResult delivery = await accountMessenger.SendEmailChangeAsync(newEmail, callbackUrl, CancellationToken.None);
+            EmailDeliveryResult delivery = await _accountMessenger.SendEmailChangeAsync(newEmail, callbackUrl, CancellationToken.None);
             if (!delivery.Succeeded)
             {
-                logger.LogWarning("Profile email-change confirmation delivery failed. ProviderResponse: {ProviderResponse}", delivery.ProviderResponse);
+                _logger.LogWarning("Profile email-change confirmation delivery failed. ProviderResponse: {ProviderResponse}", delivery.ProviderResponse);
             }
         }
 
-        await signInManager.RefreshSignInAsync(user);
+        await _signInManager.RefreshSignInAsync(user);
         return AuthWorkflowResult<ProfileResponse>.Success(await BuildProfileAsync(user));
     }
 
@@ -515,7 +515,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     {
         if (user.IsDisabled)
         {
-            await signInManager.SignOutAsync();
+            await _signInManager.SignOutAsync();
             return AuthStateResponse.Anonymous();
         }
 
@@ -529,7 +529,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Builds the API user shape for auth-state responses.
     private async Task<AuthUserResponse> BuildUserAsync(ApplicationUser user)
     {
-        IList<string> roles = await userManager.GetRolesAsync(user);
+        IList<string> roles = await _userManager.GetRolesAsync(user);
         return new AuthUserResponse
         {
             Id = user.Id,
@@ -545,11 +545,11 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Builds the signed-in user's editable profile response.
     private async Task<ProfileResponse> BuildProfileAsync(ApplicationUser user)
     {
-        IList<string> roles = await userManager.GetRolesAsync(user);
+        IList<string> roles = await _userManager.GetRolesAsync(user);
         string? companyName = null;
         if (user.CompanyId.HasValue)
         {
-            companyName = (await companyService.ReadOneAsync(user.CompanyId.Value))?.CompanyName;
+            companyName = (await _companyService.ReadOneAsync(user.CompanyId.Value))?.CompanyName;
         }
 
         return new ProfileResponse
@@ -567,7 +567,7 @@ public sealed class AuthApplicationService : IAuthApplicationService
     // Function summary: Builds an SPA client URL only from the configured public base URL.
     private string BuildClientUrl(string path, IDictionary<string, string?> query)
     {
-        return SpaPublicLinkBuilder.Build(spaOptions, path, query);
+        return SpaPublicLinkBuilder.Build(_spaOptions, path, query);
     }
 
     // Function summary: Attempts to decode a base64-url email-confirmation code.

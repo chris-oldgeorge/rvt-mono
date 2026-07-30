@@ -86,16 +86,16 @@ public sealed class ContractApplicationService : IContractApplicationService
         ["offHireDate"] = "offHireDate"
     };
 
-    private readonly RVTDbContext domainContext;
-    private readonly IMediator mediator;
+    private readonly RVTDbContext _domainContext;
+    private readonly IMediator _mediator;
 
     // Function summary: Initializes contract workflows with domain reads and transactional command dispatch dependencies.
     public ContractApplicationService(
         RVTDbContext domainContext,
         IMediator mediator)
     {
-        this.domainContext = domainContext;
-        this.mediator = mediator;
+        _domainContext = domainContext;
+        _mediator = mediator;
     }
 
     // Function summary: Returns a paged contract list with filters, search, sorting, and paging applied in EF.
@@ -111,7 +111,7 @@ public sealed class ContractApplicationService : IContractApplicationService
             };
         }
 
-        IQueryable<Contract> query = domainContext.Contracts
+        IQueryable<Contract> query = _domainContext.Contracts
             .AsNoTracking()
             .Include(contract => contract.Company)
             .Include(contract => contract.Site)
@@ -120,10 +120,12 @@ public sealed class ContractApplicationService : IContractApplicationService
         {
             query = query.Where(contract => contract.CompanyId == request.CompanyId.Value);
         }
+
         if (request.SiteId.HasValue)
         {
             query = query.Where(contract => contract.SiteiD == request.SiteId.Value);
         }
+
         if (!string.IsNullOrWhiteSpace(request.SearchText))
         {
             string search = request.SearchText.Trim();
@@ -161,7 +163,7 @@ public sealed class ContractApplicationService : IContractApplicationService
     // Function summary: Returns contract edit options, optionally scoped to a company.
     public async Task<ContractOptionsResponse> OptionsAsync(Guid? companyId, CancellationToken cancellationToken)
     {
-        List<OptionItem> companies = await domainContext.Companies
+        List<OptionItem> companies = await _domainContext.Companies
             .AsNoTracking()
             .OrderBy(company => company.CompanyName)
             .Select(company => new OptionItem
@@ -170,7 +172,7 @@ public sealed class ContractApplicationService : IContractApplicationService
                 Label = company.CompanyName
             })
             .ToListAsync(cancellationToken);
-        IQueryable<Site> siteQuery = domainContext.Sites
+        IQueryable<Site> siteQuery = _domainContext.Sites
             .AsNoTracking()
             .Include(site => site.Contracts)
             .Where(site => !site.Archived);
@@ -178,6 +180,7 @@ public sealed class ContractApplicationService : IContractApplicationService
         {
             siteQuery = siteQuery.Where(site => !site.Contracts.Any() || site.Contracts.Any(contract => contract.CompanyId == companyId.Value));
         }
+
         List<OptionItem> sites = await siteQuery
             .OrderBy(site => site.SiteName)
             .Select(site => new OptionItem
@@ -197,7 +200,7 @@ public sealed class ContractApplicationService : IContractApplicationService
     // Function summary: Returns contract detail by id, or null when absent.
     public async Task<ContractDetailResponse?> GetAsync(Guid contractId, CancellationToken cancellationToken)
     {
-        Contract? contract = await domainContext.Contracts
+        Contract? contract = await _domainContext.Contracts
             .AsNoTracking()
             .Include(item => item.Company)
             .Include(item => item.Site)
@@ -210,7 +213,7 @@ public sealed class ContractApplicationService : IContractApplicationService
         ContractMutationRequest request,
         CancellationToken cancellationToken)
     {
-        ContractCommandResult result = await mediator.Send(new CreateContractCommand(request), cancellationToken);
+        ContractCommandResult result = await _mediator.Send(new CreateContractCommand(request), cancellationToken);
         ContractDetailResponse? contract = result.ContractId.HasValue && result.Errors.Count == 0
             ? await GetAsync(result.ContractId.Value, cancellationToken)
             : null;
@@ -223,7 +226,7 @@ public sealed class ContractApplicationService : IContractApplicationService
         ContractMutationRequest request,
         CancellationToken cancellationToken)
     {
-        ContractCommandResult result = await mediator.Send(new UpdateContractCommand(contractId, request), cancellationToken);
+        ContractCommandResult result = await _mediator.Send(new UpdateContractCommand(contractId, request), cancellationToken);
         ContractDetailResponse? contract = !result.NotFound && result.Errors.Count == 0
             ? await GetAsync(contractId, cancellationToken)
             : null;
@@ -233,7 +236,7 @@ public sealed class ContractApplicationService : IContractApplicationService
     // Function summary: Deletes a contract through the transactional command pipeline.
     public async Task<ContractMutationWorkflowResult> DeleteAsync(Guid contractId, CancellationToken cancellationToken)
     {
-        ContractCommandResult result = await mediator.Send(new DeleteContractCommand(contractId), cancellationToken);
+        ContractCommandResult result = await _mediator.Send(new DeleteContractCommand(contractId), cancellationToken);
         return ContractMutationWorkflowResult.FromCommand(result);
     }
 

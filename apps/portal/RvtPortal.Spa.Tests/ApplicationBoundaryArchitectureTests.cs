@@ -77,10 +77,11 @@ public sealed class ApplicationBoundaryArchitectureTests
         Assert.False(
             Directory.Exists(Path.Combine(hostRoot, "Application")),
             "RvtPortal.Spa/Application is the name of the BCL-only project; the host layer is UseCases.");
-        Assert.Empty(Directory
-            .EnumerateFiles(hostRoot, "*.cs", SearchOption.AllDirectories)
-            .Where(path => File.ReadLines(path).Any(line =>
-                line.Contains("RvtPortal.Spa.Application", StringComparison.Ordinal))));
+        string[] hostSources = [.. Directory.EnumerateFiles(hostRoot, "*.cs", SearchOption.AllDirectories)];
+        Assert.DoesNotContain(
+            hostSources,
+            path => File.ReadLines(path).Any(line =>
+                line.Contains("RvtPortal.Spa.Application", StringComparison.Ordinal)));
     }
 
     [Fact]

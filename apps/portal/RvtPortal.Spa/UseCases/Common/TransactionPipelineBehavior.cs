@@ -9,12 +9,12 @@ namespace RvtPortal.Spa.UseCases.Common;
 public sealed class TransactionPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
     where TRequest : notnull
 {
-    private readonly IUnitOfWork unitOfWork;
+    private readonly IUnitOfWork _unitOfWork;
 
     // Function summary: Initializes the transaction behavior with the configured Unit of Work.
     public TransactionPipelineBehavior(IUnitOfWork unitOfWork)
     {
-        this.unitOfWork = unitOfWork;
+        _unitOfWork = unitOfWork;
     }
 
     // Function summary: Wraps transactional MediatR requests in one save-and-commit boundary.
@@ -28,11 +28,11 @@ public sealed class TransactionPipelineBehavior<TRequest, TResponse> : IPipeline
             return next(cancellationToken);
         }
 
-        return unitOfWork.ExecuteInTransactionAsync(
+        return _unitOfWork.ExecuteInTransactionAsync(
             async token =>
             {
                 TResponse? response = await next(token);
-                await unitOfWork.SaveChangesAsync(token);
+                await _unitOfWork.SaveChangesAsync(token);
                 return response;
             },
             cancellationToken);

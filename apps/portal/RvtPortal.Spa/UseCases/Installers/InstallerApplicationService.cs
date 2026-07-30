@@ -1,7 +1,7 @@
 // File summary: Provides installer-scoped monitor inventory, monitor detail, deployment mutation, and status workflows.
 // Major updates:
 // - 2026-07-09 pending Moved installer detail and deployment-location orchestration out of the API controller.
-// - 2026-07-09 pending Moved installer what3words conversion configuration and HTTP access out of the API controller.
+// - 2026-07-09 pending Moved installer what3words conversion _configuration and HTTP access out of the API controller.
 // - 2026-07-09 pending Moved installer monitor read and deployment visibility logic out of the API controller.
 
 using System.Security.Claims;
@@ -97,7 +97,7 @@ public sealed record What3WordsConversionResult(
         return new What3WordsConversionResult(value, null);
     }
 
-    // Function summary: Wraps an unavailable what3words configuration response.
+    // Function summary: Wraps an unavailable what3words _configuration response.
     public static What3WordsConversionResult ServiceUnavailable()
     {
         return new What3WordsConversionResult(null, What3WordsConversionFailureKind.ServiceUnavailable);
@@ -135,12 +135,12 @@ public sealed class InstallerDeploymentWorkflowResult
 
 public sealed class InstallerApplicationService : IInstallerApplicationService
 {
-    private readonly RVTDbContext domainContext;
-    private readonly IMonitorAdministrationReadService monitors;
-    private readonly IMonitorDetailReader detailReader;
-    private readonly IConfiguration configuration;
-    private readonly IHttpClientFactory httpClientFactory;
-    private readonly IMediator mediator;
+    private readonly RVTDbContext _domainContext;
+    private readonly IMonitorAdministrationReadService _monitors;
+    private readonly IMonitorDetailReader _detailReader;
+    private readonly IConfiguration _configuration;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IMediator _mediator;
 
     // Function summary: Initializes installer workflows with monitor read services and the domain context.
     public InstallerApplicationService(
@@ -151,12 +151,12 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         IHttpClientFactory httpClientFactory,
         IMediator mediator)
     {
-        this.domainContext = domainContext;
-        this.monitors = monitors;
-        this.detailReader = detailReader;
-        this.configuration = configuration;
-        this.httpClientFactory = httpClientFactory;
-        this.mediator = mediator;
+        _domainContext = domainContext;
+        _monitors = monitors;
+        _detailReader = detailReader;
+        _configuration = configuration;
+        _httpClientFactory = httpClientFactory;
+        _mediator = mediator;
     }
 
     // Function summary: Returns the paged installer monitor list.
@@ -165,7 +165,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         InstallerMonitorQuery query,
         CancellationToken cancellationToken)
     {
-        return monitors.QueryAsync(
+        return _monitors.QueryAsync(
             new MonitorInventoryRequest(
                 query.MonitorType,
                 MonitorListStates.Installer,
@@ -197,7 +197,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         Deployment? deployment = await FindVisibleDeploymentByMonitorIdAsync(actor, monitorId, cancellationToken);
         return deployment == null
             ? null
-            : await detailReader.BuildAsync(deployment.Monitor, deployment, principal, cancellationToken);
+            : await _detailReader.BuildAsync(deployment.Monitor, deployment, principal, cancellationToken);
     }
 
     // Function summary: Builds detail for a deployment visible to the actor.
@@ -210,7 +210,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         Deployment? deployment = await FindVisibleDeploymentByDeploymentIdAsync(actor, deploymentId, cancellationToken);
         return deployment == null
             ? null
-            : await detailReader.BuildAsync(deployment.Monitor, deployment, principal, cancellationToken);
+            : await _detailReader.BuildAsync(deployment.Monitor, deployment, principal, cancellationToken);
     }
 
     // Function summary: Updates visible installer deployment location data and returns refreshed detail.
@@ -226,7 +226,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
             return InstallerDeploymentWorkflowResult.Missing();
         }
 
-        InstallerDeploymentCommandResult result = await mediator.Send(new UpdateInstallerDeploymentLocationCommand(deploymentId, request), cancellationToken);
+        InstallerDeploymentCommandResult result = await _mediator.Send(new UpdateInstallerDeploymentLocationCommand(deploymentId, request), cancellationToken);
         if (result.NotFound || result.Errors.Count > 0)
         {
             return InstallerDeploymentWorkflowResult.FromCommand(result);
@@ -271,14 +271,14 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
         CancellationToken cancellationToken)
     {
         string trimmedWords = what3words.Trim();
-        string? apiKey = configuration["What3Words:ApiKey"];
+        string? apiKey = _configuration["What3Words:ApiKey"];
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             return What3WordsConversionResult.ServiceUnavailable();
         }
 
         string path = $"https://api.what3words.com/v3/convert-to-coordinates?words={Uri.EscapeDataString(trimmedWords)}&key={Uri.EscapeDataString(apiKey)}";
-        using HttpClient client = httpClientFactory.CreateClient();
+        using HttpClient client = _httpClientFactory.CreateClient();
         client.Timeout = TimeSpan.FromSeconds(15);
         using HttpResponseMessage response = await client.GetAsync(path, cancellationToken);
         if (!response.IsSuccessStatusCode)
@@ -327,7 +327,7 @@ public sealed class InstallerApplicationService : IInstallerApplicationService
     // Function summary: Builds the deployment query shape required for installer authorization and detail responses.
     private IQueryable<Deployment> BaseVisibleDeploymentQuery()
     {
-        return domainContext.Deployments
+        return _domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .ThenInclude(contract => contract.Company)

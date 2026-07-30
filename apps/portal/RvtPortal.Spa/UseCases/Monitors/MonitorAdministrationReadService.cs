@@ -145,12 +145,12 @@ public sealed record MonitorPictureModel(Stream Stream, string ContentType, stri
 
 public sealed class MonitorAdministrationReadService : IMonitorAdministrationReadService
 {
-    private readonly RVTDbContext domainContext;
-    private readonly IMonitorPictureStorage pictureStorage;
-    private readonly IMonitorDetailReader detailReader;
-    private readonly IMonitorListReader monitorListReader;
-    private readonly IMonitorRemovalImpactReader impactReader;
-    private readonly TimeProvider timeProvider;
+    private readonly RVTDbContext _domainContext;
+    private readonly IMonitorPictureStorage _pictureStorage;
+    private readonly IMonitorDetailReader _detailReader;
+    private readonly IMonitorListReader _monitorListReader;
+    private readonly IMonitorRemovalImpactReader _impactReader;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the monitor read service with domain readers and storage ports.
     public MonitorAdministrationReadService(
@@ -161,12 +161,12 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
         IMonitorRemovalImpactReader impactReader,
         TimeProvider timeProvider)
     {
-        this.domainContext = domainContext;
-        this.pictureStorage = pictureStorage;
-        this.detailReader = detailReader;
-        this.monitorListReader = monitorListReader;
-        this.impactReader = impactReader;
-        this.timeProvider = timeProvider;
+        _domainContext = domainContext;
+        _pictureStorage = pictureStorage;
+        _detailReader = detailReader;
+        _monitorListReader = monitorListReader;
+        _impactReader = impactReader;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Returns a role-scoped paged monitor inventory result.
@@ -186,7 +186,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             return new MonitorInventoryResult { Forbidden = true };
         }
 
-        MonitorListPage result = await monitorListReader.QueryAsync(new MonitorListQuery(
+        MonitorListPage result = await _monitorListReader.QueryAsync(new MonitorListQuery(
             request.MonitorType,
             state,
             request.SearchText,
@@ -222,7 +222,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
         PortalUserContext actor,
         CancellationToken cancellationToken)
     {
-        Site? site = await domainContext.Sites
+        Site? site = await _domainContext.Sites
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == siteId, cancellationToken);
         if (site == null)
@@ -230,7 +230,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             return MonitorAssignmentContextResult.Problem(MonitorAssignmentContextStatus.SiteNotFound);
         }
 
-        List<Contract> contracts = await domainContext.Contracts
+        List<Contract> contracts = await _domainContext.Contracts
             .AsNoTracking()
             .Where(contract => contract.SiteiD == siteId)
             .OrderBy(contract => contract.ContractNumber)
@@ -246,7 +246,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             return MonitorAssignmentContextResult.Problem(MonitorAssignmentContextStatus.ContractNotAssignedToSite);
         }
 
-        MonitorAssignmentLists lists = await monitorListReader.BuildAssignmentListsAsync(
+        MonitorAssignmentLists lists = await _monitorListReader.BuildAssignmentListsAsync(
             siteId,
             selectedContract?.Id,
             BuildRoleContext(actor),
@@ -281,7 +281,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             ? await FindDeploymentAsync(deploymentId.Value, cancellationToken)
             : null;
         deployment ??= await FindCurrentDeploymentAsync(monitorId, cancellationToken);
-        return await detailReader.BuildAsync(monitor, deployment, user, cancellationToken);
+        return await _detailReader.BuildAsync(monitor, deployment, user, cancellationToken);
     }
 
     // Function summary: Opens a protected monitor deployment picture after read authorization.
@@ -303,13 +303,13 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             return null;
         }
 
-        MonitorDetailResponse detail = await detailReader.BuildAsync(monitor, deployment, user, cancellationToken);
+        MonitorDetailResponse detail = await _detailReader.BuildAsync(monitor, deployment, user, cancellationToken);
         if (!await CanReadMonitorAsync(detail, actor, cancellationToken))
         {
             return null;
         }
 
-        StoredContentFile? picture = await pictureStorage.OpenReadAsync(deployment.PictureLink, cancellationToken);
+        StoredContentFile? picture = await _pictureStorage.OpenReadAsync(deployment.PictureLink, cancellationToken);
         return picture == null
             ? null
             : new MonitorPictureModel(picture.Stream, picture.ContentType, picture.FileName);
@@ -321,7 +321,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
         PortalUserContext actor,
         CancellationToken cancellationToken)
     {
-        MonitorListPage result = await monitorListReader.QueryUnattachedAsync(new MonitorListQuery(
+        MonitorListPage result = await _monitorListReader.QueryUnattachedAsync(new MonitorListQuery(
             request.MonitorType,
             MonitorListStates.All,
             request.SearchText,
@@ -330,7 +330,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             request.Page,
             request.PageSize,
             BuildRoleContext(actor)), cancellationToken);
-        IReadOnlyDictionary<Guid, MonitorRemovalImpactResponse> impacts = await impactReader.BuildForPageAsync(
+        IReadOnlyDictionary<Guid, MonitorRemovalImpactResponse> impacts = await _impactReader.BuildForPageAsync(
             [.. result.Results.Select(row => new MonitorRemovalImpactKey(row.Id, row.SerialId))],
             cancellationToken);
         List<UnattachedMonitorListItem> enrichedRows = new();
@@ -412,7 +412,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
     // Function summary: Finds the current deployment for a monitor with site and contract details.
     private Task<Deployment?> FindCurrentDeploymentAsync(Guid monitorId, CancellationToken cancellationToken)
     {
-        return domainContext.Deployments
+        return _domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .ThenInclude(contract => contract.Company)
@@ -427,7 +427,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
     // Function summary: Finds one deployment with site and contract details.
     private Task<Deployment?> FindDeploymentAsync(Guid deploymentId, CancellationToken cancellationToken)
     {
-        return domainContext.Deployments
+        return _domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .ThenInclude(contract => contract.Company)
@@ -440,7 +440,7 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
     // Function summary: Finds one active monitor.
     private Task<MonitorEntity?> FindMonitorAsync(Guid monitorId, CancellationToken cancellationToken)
     {
-        return domainContext.MonitorsList
+        return _domainContext.MonitorsList
             .AsNoTracking()
             .SingleOrDefaultAsync(item => item.Id == monitorId && !item.Archived, cancellationToken);
     }
@@ -453,9 +453,9 @@ public sealed class MonitorAdministrationReadService : IMonitorAdministrationRea
             return [];
         }
 
-        List<Guid> siteIds = await domainContext.SiteUsers
+        List<Guid> siteIds = await _domainContext.SiteUsers
             .AsNoTracking()
-            .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, timeProvider.GetUtcNow().UtcDateTime))
+            .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, _timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
         return [.. siteIds];

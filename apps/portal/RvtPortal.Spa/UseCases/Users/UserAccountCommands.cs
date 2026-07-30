@@ -11,8 +11,8 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.UseCases.Common;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Common;
 
 namespace RvtPortal.Spa.UseCases.Users;
 
@@ -46,12 +46,12 @@ public sealed class UserAccountCommandResult : ITransactionOutcome
 
 public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, UserAccountCommandResult>
 {
-    private readonly UserManager<ApplicationUser> userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     // Function summary: Initializes the transactional user create command handler.
     public CreateUserCommandHandler(UserManager<ApplicationUser> userManager)
     {
-        this.userManager = userManager;
+        _userManager = userManager;
     }
 
     // Function summary: Creates a user account and assigns the requested role.
@@ -68,17 +68,17 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
             CompanyRole = request.Request.Role == RoleNames.CompanyUser ? request.Request.CompanyRole?.Trim() : null,
             EmailConfirmed = false
         };
-        IdentityResult createResult = await userManager.CreateAsync(user);
+        IdentityResult createResult = await _userManager.CreateAsync(user);
         if (!createResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, createResult.Errors);
             return result;
         }
 
-        IdentityResult roleResult = await userManager.AddToRoleAsync(user, request.Request.Role);
+        IdentityResult roleResult = await _userManager.AddToRoleAsync(user, request.Request.Role);
         if (!roleResult.Succeeded)
         {
-            await userManager.DeleteAsync(user);
+            await _userManager.DeleteAsync(user);
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, roleResult.Errors);
             return result;
         }
@@ -91,19 +91,19 @@ public sealed class CreateUserCommandHandler : IRequestHandler<CreateUserCommand
 
 public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand, UserAccountCommandResult>
 {
-    private readonly UserManager<ApplicationUser> userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     // Function summary: Initializes the transactional user update command handler.
     public UpdateUserCommandHandler(UserManager<ApplicationUser> userManager)
     {
-        this.userManager = userManager;
+        _userManager = userManager;
     }
 
     // Function summary: Updates user account fields and role membership.
     public async Task<UserAccountCommandResult> Handle(UpdateUserCommand request, CancellationToken cancellationToken)
     {
         UserAccountCommandResult result = new() { UserId = request.UserId };
-        ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
             result.NotFound = true;
@@ -114,7 +114,7 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
         {
             if (!string.IsNullOrWhiteSpace(request.CurrentRole))
             {
-                IdentityResult removeResult = await userManager.RemoveFromRoleAsync(user, request.CurrentRole);
+                IdentityResult removeResult = await _userManager.RemoveFromRoleAsync(user, request.CurrentRole);
                 if (!removeResult.Succeeded)
                 {
                     UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, removeResult.Errors);
@@ -122,13 +122,14 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
                 }
             }
 
-            IdentityResult roleResult = await userManager.AddToRoleAsync(user, request.Request.Role);
+            IdentityResult roleResult = await _userManager.AddToRoleAsync(user, request.Request.Role);
             if (!roleResult.Succeeded)
             {
                 if (!string.IsNullOrWhiteSpace(request.CurrentRole))
                 {
-                    await userManager.AddToRoleAsync(user, request.CurrentRole);
+                    await _userManager.AddToRoleAsync(user, request.CurrentRole);
                 }
+
                 UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, roleResult.Errors);
                 return result;
             }
@@ -142,7 +143,7 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
             user.EmailConfirmed = false;
         }
 
-        IdentityResult updateResult = await userManager.UpdateAsync(user);
+        IdentityResult updateResult = await _userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, updateResult.Errors);
@@ -151,7 +152,7 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
 
         if (request.ReplaceUnconfirmedEmail)
         {
-            IdentityResult stampResult = await userManager.UpdateSecurityStampAsync(user);
+            IdentityResult stampResult = await _userManager.UpdateSecurityStampAsync(user);
             if (!stampResult.Succeeded)
             {
                 UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, stampResult.Errors);
@@ -166,19 +167,19 @@ public sealed class UpdateUserCommandHandler : IRequestHandler<UpdateUserCommand
 
 public sealed class DisableUserCommandHandler : IRequestHandler<DisableUserCommand, UserAccountCommandResult>
 {
-    private readonly UserManager<ApplicationUser> userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     // Function summary: Initializes the transactional user disable command handler.
     public DisableUserCommandHandler(UserManager<ApplicationUser> userManager)
     {
-        this.userManager = userManager;
+        _userManager = userManager;
     }
 
     // Function summary: Disables a user and refreshes their security stamp.
     public async Task<UserAccountCommandResult> Handle(DisableUserCommand request, CancellationToken cancellationToken)
     {
         UserAccountCommandResult result = new() { UserId = request.UserId };
-        ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
             result.NotFound = true;
@@ -186,14 +187,14 @@ public sealed class DisableUserCommandHandler : IRequestHandler<DisableUserComma
         }
 
         user.IsDisabled = true;
-        IdentityResult updateResult = await userManager.UpdateAsync(user);
+        IdentityResult updateResult = await _userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, updateResult.Errors);
             return result;
         }
 
-        IdentityResult stampResult = await userManager.UpdateSecurityStampAsync(user);
+        IdentityResult stampResult = await _userManager.UpdateSecurityStampAsync(user);
         if (!stampResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, stampResult.Errors);
@@ -207,19 +208,19 @@ public sealed class DisableUserCommandHandler : IRequestHandler<DisableUserComma
 
 public sealed class EnableUserCommandHandler : IRequestHandler<EnableUserCommand, UserAccountCommandResult>
 {
-    private readonly UserManager<ApplicationUser> userManager;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     // Function summary: Initializes the transactional user enable command handler.
     public EnableUserCommandHandler(UserManager<ApplicationUser> userManager)
     {
-        this.userManager = userManager;
+        _userManager = userManager;
     }
 
     // Function summary: Enables a disabled user account.
     public async Task<UserAccountCommandResult> Handle(EnableUserCommand request, CancellationToken cancellationToken)
     {
         UserAccountCommandResult result = new() { UserId = request.UserId };
-        ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
             result.NotFound = true;
@@ -227,7 +228,7 @@ public sealed class EnableUserCommandHandler : IRequestHandler<EnableUserCommand
         }
 
         user.IsDisabled = false;
-        IdentityResult updateResult = await userManager.UpdateAsync(user);
+        IdentityResult updateResult = await _userManager.UpdateAsync(user);
         if (!updateResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, updateResult.Errors);
@@ -241,21 +242,21 @@ public sealed class EnableUserCommandHandler : IRequestHandler<EnableUserCommand
 
 public sealed class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand, UserAccountCommandResult>
 {
-    private readonly RVTDbContext domainContext;
-    private readonly UserManager<ApplicationUser> userManager;
+    private readonly RVTDbContext _domainContext;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     // Function summary: Initializes the transactional user delete command handler.
     public DeleteUserCommandHandler(RVTDbContext domainContext, UserManager<ApplicationUser> userManager)
     {
-        this.domainContext = domainContext;
-        this.userManager = userManager;
+        _domainContext = domainContext;
+        _userManager = userManager;
     }
 
     // Function summary: Deletes a user account and removes its site-assignment data atomically.
     public async Task<UserAccountCommandResult> Handle(DeleteUserCommand request, CancellationToken cancellationToken)
     {
         UserAccountCommandResult result = new() { UserId = request.UserId };
-        ApplicationUser? user = await userManager.FindByIdAsync(request.UserId);
+        ApplicationUser? user = await _userManager.FindByIdAsync(request.UserId);
         if (user == null)
         {
             result.NotFound = true;
@@ -263,7 +264,7 @@ public sealed class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand
         }
 
         result.Email = user.Email;
-        IdentityResult deleteResult = await userManager.DeleteAsync(user);
+        IdentityResult deleteResult = await _userManager.DeleteAsync(user);
         if (!deleteResult.Succeeded)
         {
             UserAccountCommandWorkflow.AddIdentityErrors(result.Errors, deleteResult.Errors);
@@ -272,10 +273,10 @@ public sealed class DeleteUserCommandHandler : IRequestHandler<DeleteUserCommand
 
         if (Guid.TryParse(user.Id, out Guid userId))
         {
-            List<SiteUsers> siteUsers = await domainContext.SiteUsers
+            List<SiteUsers> siteUsers = await _domainContext.SiteUsers
                 .Where(siteUser => siteUser.UserId == userId)
                 .ToListAsync(cancellationToken);
-            domainContext.SiteUsers.RemoveRange(siteUsers);
+            _domainContext.SiteUsers.RemoveRange(siteUsers);
         }
 
         return result;

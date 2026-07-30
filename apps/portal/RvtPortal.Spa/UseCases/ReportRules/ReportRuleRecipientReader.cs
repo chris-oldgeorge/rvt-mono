@@ -440,22 +440,5 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
         return items;
     }
 
-    private static bool Contains(string? value, string search)
-    {
-        return value?.Contains(search, StringComparison.OrdinalIgnoreCase) == true;
-    }
-
-    private static IEnumerable<UserListItem> ApplyUserSort(IEnumerable<UserListItem> users, string sort, string direction)
-    {
-        bool descending = string.Equals(direction, SortDirections.Descending, StringComparison.OrdinalIgnoreCase);
-        return sort.ToLowerInvariant() switch
-        {
-            "name" => descending ? users.OrderByDescending(user => user.Name) : users.OrderBy(user => user.Name),
-            "role" => descending ? users.OrderByDescending(user => user.Role) : users.OrderBy(user => user.Role),
-            "companyname" => descending ? users.OrderByDescending(user => user.CompanyName) : users.OrderBy(user => user.CompanyName),
-            _ => descending ? users.OrderByDescending(user => user.Email) : users.OrderBy(user => user.Email)
-        };
-    }
-
     private sealed record ReportAssignmentContext(Guid SiteId, string SiteName, Guid? CompanyId, string? CompanyName);
 }

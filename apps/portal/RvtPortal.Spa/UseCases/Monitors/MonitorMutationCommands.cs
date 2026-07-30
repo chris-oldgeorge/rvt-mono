@@ -30,19 +30,19 @@ public sealed class MonitorMutationCommandResult : ITransactionOutcome
 
 public sealed class UpdateMonitorCommandHandler : IRequestHandler<UpdateMonitorCommand, MonitorMutationCommandResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional monitor update command handler.
     public UpdateMonitorCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Updates monitor fields and optional deployment coordinates.
     public async Task<MonitorMutationCommandResult> Handle(UpdateMonitorCommand request, CancellationToken cancellationToken)
     {
         MonitorMutationCommandResult result = new() { MonitorId = request.MonitorId };
-        MonitorEntity? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(
+        MonitorEntity? monitor = await _domainContext.MonitorsList.SingleOrDefaultAsync(
             item => item.Id == request.MonitorId && !item.Archived,
             cancellationToken);
         if (monitor == null)
@@ -52,7 +52,7 @@ public sealed class UpdateMonitorCommandHandler : IRequestHandler<UpdateMonitorC
             return result;
         }
 
-        await MonitorMutationWorkflow.ValidateMonitorMutationAsync(domainContext, request.MonitorId, request.Request, result.Errors, cancellationToken);
+        await MonitorMutationWorkflow.ValidateMonitorMutationAsync(_domainContext, request.MonitorId, request.Request, result.Errors, cancellationToken);
         if (result.Errors.Count > 0)
         {
             return result;
@@ -64,12 +64,12 @@ public sealed class UpdateMonitorCommandHandler : IRequestHandler<UpdateMonitorC
         monitor.CalibrationDue = MonitorMutationWorkflow.AsUtcDate(request.Request.CalibrationDue);
         if (hadNoFleetNumber && !string.IsNullOrWhiteSpace(monitor.FleetNr))
         {
-            await MonitorMutationWorkflow.AddDefaultAlertLevelsAsync(domainContext, monitor, cancellationToken);
+            await MonitorMutationWorkflow.AddDefaultAlertLevelsAsync(_domainContext, monitor, cancellationToken);
         }
 
         if (request.Request.DeploymentId.HasValue)
         {
-            Deployment? deployment = await domainContext.Deployments.SingleOrDefaultAsync(
+            Deployment? deployment = await _domainContext.Deployments.SingleOrDefaultAsync(
                 item => item.Id == request.Request.DeploymentId.Value && item.MonitorId == request.MonitorId,
                 cancellationToken);
             if (deployment == null)
@@ -95,25 +95,25 @@ public sealed class UpdateMonitorCommandHandler : IRequestHandler<UpdateMonitorC
 public sealed class CreateDefaultMonitorAlertLevelsCommandHandler
     : IRequestHandler<CreateDefaultMonitorAlertLevelsCommand, DefaultMonitorsResponse>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional default-monitor-alert command handler.
     public CreateDefaultMonitorAlertLevelsCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Creates default alert levels for all monitors with fleet numbers.
     public async Task<DefaultMonitorsResponse> Handle(CreateDefaultMonitorAlertLevelsCommand request, CancellationToken cancellationToken)
     {
-        List<MonitorEntity> monitors = await domainContext.MonitorsList
+        List<MonitorEntity> monitors = await _domainContext.MonitorsList
             .Where(monitor => !monitor.Archived && !string.IsNullOrWhiteSpace(monitor.FleetNr))
             .OrderBy(monitor => monitor.FleetNr)
             .ToListAsync(cancellationToken);
         DefaultMonitorsResponse response = new() { Processed = monitors.Count };
         foreach (MonitorEntity? monitor in monitors)
         {
-            int created = await MonitorMutationWorkflow.AddDefaultAlertLevelsAsync(domainContext, monitor, cancellationToken);
+            int created = await MonitorMutationWorkflow.AddDefaultAlertLevelsAsync(_domainContext, monitor, cancellationToken);
             if (created > 0)
             {
                 response.CreatedAlertLevels += created;
@@ -153,6 +153,7 @@ internal static class MonitorMutationWorkflow
         {
             AddError(errors, nameof(MonitorMutationRequest.FleetNumber), "Fleet number must be 32 characters or fewer.");
         }
+
         if (!string.IsNullOrWhiteSpace(fleet) && await domainContext.MonitorsList.AnyAsync(
             monitor => monitor.Id != id &&
                 !monitor.Archived &&

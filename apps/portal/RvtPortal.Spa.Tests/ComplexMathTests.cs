@@ -74,5 +74,4 @@ public sealed class ComplexMathTests
     {
         Assert.Equal(expected, Tools.Log2(value));
     }
-
 }

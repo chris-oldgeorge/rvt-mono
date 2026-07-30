@@ -125,9 +125,9 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         ["endTime"] = "endTime"
     };
 
-    private readonly RVTDbContext domainContext;
-    private readonly IMediator mediator;
-    private readonly TimeProvider timeProvider;
+    private readonly RVTDbContext _domainContext;
+    private readonly IMediator _mediator;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes alert-level workflows with domain reads and transactional command dispatch dependencies.
     public AlertLevelApplicationService(
@@ -135,9 +135,9 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         IMediator mediator,
         TimeProvider timeProvider)
     {
-        this.domainContext = domainContext;
-        this.mediator = mediator;
-        this.timeProvider = timeProvider;
+        _domainContext = domainContext;
+        _mediator = mediator;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Returns a paged alert-level list for a visible monitor.
@@ -152,7 +152,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         }
 
         Guid monitorId = query.MonitorId.Value;
-        RVT.Entities.Monitor? monitor = await domainContext.MonitorsList.AsNoTracking().SingleOrDefaultAsync(item => item.Id == monitorId, cancellationToken);
+        RVT.Entities.Monitor? monitor = await _domainContext.MonitorsList.AsNoTracking().SingleOrDefaultAsync(item => item.Id == monitorId, cancellationToken);
         if (monitor == null || !await CanReadMonitorAsync(actor, monitorId, cancellationToken))
         {
             return new AlertLevelQueryResult { NotFound = true };
@@ -168,7 +168,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
             };
         }
 
-        List<Alertlevel> levels = await domainContext.RvtAlertRules
+        List<Alertlevel> levels = await _domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(level => level.MonitorId == monitorId && !level.IsDeleted)
             .ToListAsync(cancellationToken);
@@ -208,7 +208,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         Guid monitorId,
         CancellationToken cancellationToken)
     {
-        RVT.Entities.Monitor? monitor = await domainContext.MonitorsList.AsNoTracking().SingleOrDefaultAsync(item => item.Id == monitorId, cancellationToken);
+        RVT.Entities.Monitor? monitor = await _domainContext.MonitorsList.AsNoTracking().SingleOrDefaultAsync(item => item.Id == monitorId, cancellationToken);
         return monitor == null || !await CanReadMonitorAsync(actor, monitorId, cancellationToken)
             ? null
             : AlertLevelWorkflow.BuildOptions(monitor);
@@ -220,7 +220,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         Guid alertLevelId,
         CancellationToken cancellationToken)
     {
-        Alertlevel? level = await domainContext.RvtAlertRules.AsNoTracking().SingleOrDefaultAsync(
+        Alertlevel? level = await _domainContext.RvtAlertRules.AsNoTracking().SingleOrDefaultAsync(
             item => item.Id == alertLevelId && !item.IsDeleted,
             cancellationToken);
         return level == null || !await CanReadMonitorAsync(actor, level.MonitorId, cancellationToken)
@@ -233,7 +233,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         AlertLevelMutationRequest request,
         CancellationToken cancellationToken)
     {
-        AlertLevelCommandResult result = await mediator.Send(new CreateAlertLevelCommand(request), cancellationToken);
+        AlertLevelCommandResult result = await _mediator.Send(new CreateAlertLevelCommand(request), cancellationToken);
         return AlertLevelMutationWorkflowResult.FromCommand(result);
     }
 
@@ -243,7 +243,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         AlertLevelMutationRequest request,
         CancellationToken cancellationToken)
     {
-        AlertLevelCommandResult result = await mediator.Send(new UpdateAlertLevelCommand(alertLevelId, request), cancellationToken);
+        AlertLevelCommandResult result = await _mediator.Send(new UpdateAlertLevelCommand(alertLevelId, request), cancellationToken);
         return AlertLevelMutationWorkflowResult.FromCommand(result);
     }
 
@@ -253,14 +253,14 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         VibrationAlertLevelMutationRequest request,
         CancellationToken cancellationToken)
     {
-        VibrationAlertLevelCommandResult result = await mediator.Send(new UpdateVibrationAlertLevelsCommand(monitorId, request), cancellationToken);
+        VibrationAlertLevelCommandResult result = await _mediator.Send(new UpdateVibrationAlertLevelsCommand(monitorId, request), cancellationToken);
         return VibrationAlertLevelMutationWorkflowResult.FromCommand(result);
     }
 
     // Function summary: Soft-deletes an alert level through the transactional command pipeline.
     public async Task<AlertLevelMutationWorkflowResult> DeleteAsync(Guid alertLevelId, CancellationToken cancellationToken)
     {
-        AlertLevelCommandResult result = await mediator.Send(new DeleteAlertLevelCommand(alertLevelId), cancellationToken);
+        AlertLevelCommandResult result = await _mediator.Send(new DeleteAlertLevelCommand(alertLevelId), cancellationToken);
         return AlertLevelMutationWorkflowResult.FromCommand(result);
     }
 
@@ -272,7 +272,7 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
     {
         if (actor.IsAdmin)
         {
-            return await domainContext.MonitorsList.AnyAsync(monitor => monitor.Id == monitorId, cancellationToken);
+            return await _domainContext.MonitorsList.AnyAsync(monitor => monitor.Id == monitorId, cancellationToken);
         }
 
         if (!actor.IsCompanyUser || !actor.UserId.HasValue)
@@ -281,9 +281,9 @@ public sealed class AlertLevelApplicationService : IAlertLevelApplicationService
         }
 
         Guid userId = actor.UserId.Value;
-        IQueryable<SiteUsers> activeAssignments = domainContext.SiteUsers
-            .Where(ActiveSiteAssignment.ForUser(userId, timeProvider.GetUtcNow().UtcDateTime));
-        return await domainContext.Deployments
+        IQueryable<SiteUsers> activeAssignments = _domainContext.SiteUsers
+            .Where(ActiveSiteAssignment.ForUser(userId, _timeProvider.GetUtcNow().UtcDateTime));
+        return await _domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .AnyAsync(deployment =>

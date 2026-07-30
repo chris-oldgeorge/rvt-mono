@@ -52,14 +52,14 @@ public sealed class DashboardBreachApplicationService : IDashboardBreachApplicat
         DefaultSort
     };
 
-    private readonly RVTDbContext domainContext;
-    private readonly IRvtDateTimeProvider dateTimeProvider;
+    private readonly RVTDbContext _domainContext;
+    private readonly IRvtDateTimeProvider _dateTimeProvider;
 
     // Function summary: Initializes this application service with the domain read context and the clock/time-zone provider.
     public DashboardBreachApplicationService(RVTDbContext domainContext, IRvtDateTimeProvider dateTimeProvider)
     {
-        this.domainContext = domainContext;
-        this.dateTimeProvider = dateTimeProvider;
+        _domainContext = domainContext;
+        _dateTimeProvider = dateTimeProvider;
     }
 
     // Function summary: Returns vibration breach and alert rows after applying date, sort, and page in EF.
@@ -71,10 +71,10 @@ public sealed class DashboardBreachApplicationService : IDashboardBreachApplicat
         // NotificationTime is timestamptz, so its query bounds must be Kind=Utc or Npgsql rejects them. The
         // request names a calendar day in the configured local zone (defaulting to local "today"); convert that
         // day's local midnight boundaries to UTC rather than comparing a local/Unspecified value directly.
-        DateTime localDay = (request.Date ?? dateTimeProvider.UtcToLocal(dateTimeProvider.UtcNow)).Date;
-        DateTime start = localDay.LocalToUtc(dateTimeProvider);
-        DateTime end = localDay.AddDays(1).LocalToUtc(dateTimeProvider);
-        IQueryable<DashboardBreachModel> query = domainContext.Notifications
+        DateTime localDay = (request.Date ?? _dateTimeProvider.UtcToLocal(_dateTimeProvider.UtcNow)).Date;
+        DateTime start = localDay.LocalToUtc(_dateTimeProvider);
+        DateTime end = localDay.AddDays(1).LocalToUtc(_dateTimeProvider);
+        IQueryable<DashboardBreachModel> query = _domainContext.Notifications
             .AsNoTracking()
             .Where(notification =>
                 notification.Monitor.TypeOfMonitor == MonitorTypeEnum.Vibration &&

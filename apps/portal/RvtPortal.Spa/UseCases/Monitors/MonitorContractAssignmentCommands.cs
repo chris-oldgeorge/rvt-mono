@@ -27,12 +27,12 @@ public sealed class AssignMonitorToContractResult : ITransactionOutcome
 public sealed class AssignMonitorToContractCommandHandler
     : IRequestHandler<AssignMonitorToContractCommand, AssignMonitorToContractResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional monitor assignment command handler.
     public AssignMonitorToContractCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Validates and creates the current deployment for a monitor contract assignment.
@@ -41,7 +41,7 @@ public sealed class AssignMonitorToContractCommandHandler
         CancellationToken cancellationToken)
     {
         AssignMonitorToContractResult result = new();
-        MonitorEntity? monitor = await domainContext.MonitorsList
+        MonitorEntity? monitor = await _domainContext.MonitorsList
             .SingleOrDefaultAsync(item => item.Id == request.MonitorId && !item.Archived, cancellationToken);
         if (monitor == null)
         {
@@ -55,7 +55,7 @@ public sealed class AssignMonitorToContractCommandHandler
             AddError(result.Errors, nameof(MonitorEntity.FleetNr), "A fleet number is required before assigning a monitor to a contract.");
         }
 
-        Contract? contract = await domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
+        Contract? contract = await _domainContext.Contracts.SingleOrDefaultAsync(item => item.Id == request.ContractId, cancellationToken);
         if (contract == null)
         {
             AddError(result.Errors, nameof(MonitorAssignmentRequest.ContractId), "Please select a contract.");
@@ -65,7 +65,7 @@ public sealed class AssignMonitorToContractCommandHandler
             AddError(result.Errors, nameof(MonitorAssignmentRequest.ContractId), "The contract must be assigned to a site before monitor deployment.");
         }
 
-        if (await domainContext.Deployments.AnyAsync(
+        if (await _domainContext.Deployments.AnyAsync(
             item => item.MonitorId == request.MonitorId && item.EndDate == null,
             cancellationToken))
         {
@@ -84,7 +84,7 @@ public sealed class AssignMonitorToContractCommandHandler
             MonitorId = request.MonitorId,
             StartDate = DateTime.UtcNow
         };
-        domainContext.Deployments.Add(deployment);
+        _domainContext.Deployments.Add(deployment);
         result.DeploymentId = deployment.Id;
         return result;
     }
@@ -110,12 +110,12 @@ public sealed class RemoveMonitorFromContractResult : ITransactionOutcome
 public sealed class RemoveMonitorFromContractCommandHandler
     : IRequestHandler<RemoveMonitorFromContractCommand, RemoveMonitorFromContractResult>
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes the transactional monitor unassignment command handler.
     public RemoveMonitorFromContractCommandHandler(RVTDbContext domainContext)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Ends or deletes the active deployment for a monitor contract assignment.
@@ -124,7 +124,7 @@ public sealed class RemoveMonitorFromContractCommandHandler
         CancellationToken cancellationToken)
     {
         RemoveMonitorFromContractResult result = new();
-        Deployment? deployment = await domainContext.Deployments.SingleOrDefaultAsync(
+        Deployment? deployment = await _domainContext.Deployments.SingleOrDefaultAsync(
             item => item.MonitorId == request.MonitorId && item.EndDate == null,
             cancellationToken);
         if (deployment == null)
@@ -135,7 +135,7 @@ public sealed class RemoveMonitorFromContractCommandHandler
 
         if (deployment.StartDate > DateTime.UtcNow.AddHours(-1))
         {
-            domainContext.Deployments.Remove(deployment);
+            _domainContext.Deployments.Remove(deployment);
         }
         else
         {

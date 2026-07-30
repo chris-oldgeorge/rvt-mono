@@ -13,8 +13,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
-using RvtPortal.Spa.UseCases.Notifications;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Notifications;
 
 namespace RvtPortal.Spa.Api;
 
@@ -117,10 +117,12 @@ public class NotificationsController : ControllerBase
         {
             ModelState.AddModelError(nameof(NotificationBatchCloseRequest.NotificationIds), "Select at least one notification to close.");
         }
+
         if (request.Note?.Length > 255)
         {
             ModelState.AddModelError(nameof(NotificationBatchCloseRequest.Note), "Note must be 255 characters or fewer.");
         }
+
         if (!ModelState.IsValid)
         {
             return ValidationProblem(ModelState);

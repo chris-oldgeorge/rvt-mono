@@ -24,16 +24,16 @@ public sealed class RemoveUnattachedMonitorResult : ITransactionOutcome
 public sealed class RemoveUnattachedMonitorCommandHandler
     : IRequestHandler<RemoveUnattachedMonitorCommand, RemoveUnattachedMonitorResult>
 {
-    private readonly RVTDbContext domainContext;
-    private readonly IMonitorRemovalImpactReader impactReader;
+    private readonly RVTDbContext _domainContext;
+    private readonly IMonitorRemovalImpactReader _impactReader;
 
     // Function summary: Initializes the transactional unattached monitor removal command handler.
     public RemoveUnattachedMonitorCommandHandler(
         RVTDbContext domainContext,
         IMonitorRemovalImpactReader impactReader)
     {
-        this.domainContext = domainContext;
-        this.impactReader = impactReader;
+        _domainContext = domainContext;
+        _impactReader = impactReader;
     }
 
     // Function summary: Archives monitors with historical data and deletes monitors without related data.
@@ -42,7 +42,7 @@ public sealed class RemoveUnattachedMonitorCommandHandler
         CancellationToken cancellationToken)
     {
         RemoveUnattachedMonitorResult result = new();
-        RVT.Entities.Monitor? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(
+        RVT.Entities.Monitor? monitor = await _domainContext.MonitorsList.SingleOrDefaultAsync(
             item => item.Id == request.MonitorId && !item.Archived,
             cancellationToken);
         if (monitor == null)
@@ -51,7 +51,7 @@ public sealed class RemoveUnattachedMonitorCommandHandler
             return result;
         }
 
-        if (await domainContext.Deployments.AnyAsync(
+        if (await _domainContext.Deployments.AnyAsync(
             item => item.MonitorId == request.MonitorId && item.EndDate == null,
             cancellationToken))
         {
@@ -59,7 +59,7 @@ public sealed class RemoveUnattachedMonitorCommandHandler
             return result;
         }
 
-        MonitorRemovalImpactResponse impact = await impactReader.BuildAsync(request.MonitorId, monitor.SerialId, cancellationToken);
+        MonitorRemovalImpactResponse impact = await _impactReader.BuildAsync(request.MonitorId, monitor.SerialId, cancellationToken);
         string monitorName = monitor.FleetNr ?? monitor.SerialId;
         if (impact.HasRelatedData)
         {
@@ -77,7 +77,7 @@ public sealed class RemoveUnattachedMonitorCommandHandler
             return result;
         }
 
-        domainContext.MonitorsList.Remove(monitor);
+        _domainContext.MonitorsList.Remove(monitor);
         result.Response = new MonitorRemovalResponse
         {
             Id = request.MonitorId,

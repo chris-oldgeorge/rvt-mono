@@ -9,9 +9,9 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Identity;
+using RvtPortal.Spa.Data;
 using RvtPortal.Spa.UseCases.Monitors;
 using RvtPortal.Spa.UseCases.Sites;
-using RvtPortal.Spa.Data;
 using MonitorEntity = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.UseCases.Dashboard;
@@ -198,18 +198,18 @@ public sealed class DashboardAlertLevelModel
 
 public sealed class DashboardApplicationService : IDashboardApplicationService
 {
-    private readonly RVTDbContext domainContext;
-    private readonly TimeProvider timeProvider;
+    private readonly RVTDbContext _domainContext;
+    private readonly TimeProvider _timeProvider;
 
     // Per-request memo for the signed-in user's visible sites; see VisibleSiteIdsAsync.
-    private HashSet<Guid>? visibleSiteIdsCache;
-    private Guid? visibleSiteIdsCacheUserId;
+    private HashSet<Guid>? _visibleSiteIdsCache;
+    private Guid? _visibleSiteIdsCacheUserId;
 
     // Function summary: Initializes this application service with the domain read context.
     public DashboardApplicationService(RVTDbContext domainContext, TimeProvider timeProvider)
     {
-        this.domainContext = domainContext;
-        this.timeProvider = timeProvider;
+        _domainContext = domainContext;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Returns dashboard counts, options, and recent open notifications for the caller's role scope.
@@ -335,7 +335,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             DateTimeKind.Utc);
         List<Notification> notifications = notificationEnd <= notificationStart
             ? []
-            : await domainContext.Notifications
+            : await _domainContext.Notifications
                 .AsNoTracking()
                 .Where(notification =>
                     notification.MonitorId == deployment.MonitorId &&
@@ -383,7 +383,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DateTime displayDay,
         CancellationToken cancellationToken)
     {
-        MonitorEntity? monitor = await domainContext.MonitorsList
+        MonitorEntity? monitor = await _domainContext.MonitorsList
             .AsNoTracking()
             .FirstOrDefaultAsync(item => item.Id == monitorId, cancellationToken);
         if (monitor is null)
@@ -398,7 +398,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
             return null;
         }
 
-        List<Notification> notifications = await domainContext.Notifications
+        List<Notification> notifications = await _domainContext.Notifications
             .AsNoTracking()
             .Include(notification => notification.Monitor)
             .Where(notification =>
@@ -407,7 +407,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
                 notification.NotificationTime < nextDay)
             .OrderByDescending(notification => notification.NotificationTime)
             .ToListAsync(cancellationToken);
-        List<Alertlevel> alertLevels = await domainContext.RvtAlertRules
+        List<Alertlevel> alertLevels = await _domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(level => level.MonitorId == monitor.Id && !level.IsDeleted)
             .OrderBy(level => level.AlertField)
@@ -451,11 +451,11 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DashboardActor actor,
         CancellationToken cancellationToken)
     {
-        DateTime now = timeProvider.GetUtcNow().UtcDateTime;
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
 
         // The ownership window is applied in SQL now, so only deployments that actually own their monitor's
         // data right now come back - previously every open deployment was loaded and then filtered in memory.
-        IQueryable<Deployment> deploymentQuery = domainContext.Deployments
+        IQueryable<Deployment> deploymentQuery = _domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .ThenInclude(contract => contract.Company)
@@ -490,7 +490,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         // (MonitorListReader.BuildMonitorScope); a monitor can only be archived while unattached, so no
         // deployed row disappears. Every role but an administrator sees only deployed monitors, so those
         // callers read just the rows their deployments named instead of the whole fleet.
-        IQueryable<MonitorEntity> monitorQuery = domainContext.MonitorsList
+        IQueryable<MonitorEntity> monitorQuery = _domainContext.MonitorsList
             .AsNoTracking()
             .Where(monitor => !monitor.Archived);
         if (!actor.IsAdmin)
@@ -499,7 +499,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         }
 
         List<MonitorEntity> monitors = await monitorQuery.ToListAsync(cancellationToken);
-        List<Notification> notifications = await domainContext.Notifications
+        List<Notification> notifications = await _domainContext.Notifications
             .AsNoTracking()
             .Where(notification => deployedMonitorIds.Contains(notification.MonitorId) && notification.ClosedTime == null)
             .ToListAsync(cancellationToken);
@@ -553,14 +553,14 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         List<Guid> deploymentIds = [.. rows
             .Where(row => row.DeploymentId.HasValue)
             .Select(row => row.DeploymentId!.Value)];
-        List<Deployment> deployments = await domainContext.Deployments
+        List<Deployment> deployments = await _domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .Where(deployment => deploymentIds.Contains(deployment.Id))
             .ToListAsync(cancellationToken);
         Dictionary<Guid, Deployment> currentByMonitor = deployments.ToDictionary(deployment => deployment.MonitorId);
 
-        List<Notification> notifications = await domainContext.Notifications
+        List<Notification> notifications = await _domainContext.Notifications
             .AsNoTracking()
             .Include(notification => notification.Monitor)
             .Where(notification =>
@@ -578,7 +578,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DashboardActor actor,
         CancellationToken cancellationToken)
     {
-        IQueryable<Site> sites = domainContext.Sites
+        IQueryable<Site> sites = _domainContext.Sites
             .AsNoTracking()
             .Where(site => !site.Archived);
         if (actor.IsScopedCompanyUser)
@@ -588,7 +588,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         }
         else if (actor.IsInstaller)
         {
-            List<Guid> siteIds = await domainContext.Deployments
+            List<Guid> siteIds = await _domainContext.Deployments
                 .AsNoTracking()
                 .Where(deployment => deployment.EndDate == null && deployment.Contract.SiteiD.HasValue)
                 .Select(deployment => deployment.Contract.SiteiD!.Value)
@@ -702,26 +702,26 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         // A single dashboard request asks for the visible sites up to three times (role filtering, site
         // options, deployment authorization). This service is request-scoped and the actor is the signed-in
         // user, so the answer is memoized for the request rather than re-queried each time.
-        if (visibleSiteIdsCache is not null && visibleSiteIdsCacheUserId == actor.UserId.Value)
+        if (_visibleSiteIdsCache is not null && _visibleSiteIdsCacheUserId == actor.UserId.Value)
         {
-            return visibleSiteIdsCache;
+            return _visibleSiteIdsCache;
         }
 
-        List<Guid> siteIds = await domainContext.SiteUsers
+        List<Guid> siteIds = await _domainContext.SiteUsers
             .AsNoTracking()
-            .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, timeProvider.GetUtcNow().UtcDateTime))
+            .Where(ActiveSiteAssignment.ForUser(actor.UserId.Value, _timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
 
-        visibleSiteIdsCacheUserId = actor.UserId.Value;
-        visibleSiteIdsCache = [.. siteIds];
-        return visibleSiteIdsCache;
+        _visibleSiteIdsCacheUserId = actor.UserId.Value;
+        _visibleSiteIdsCache = [.. siteIds];
+        return _visibleSiteIdsCache;
     }
 
     // Function summary: Finds the deployment required for a calendar month view.
     private Task<Deployment?> FindDeploymentAsync(Guid deploymentId, CancellationToken cancellationToken)
     {
-        return domainContext.Deployments
+        return _domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Monitor)
             .Include(deployment => deployment.Contract)
@@ -736,7 +736,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DateTime to,
         CancellationToken cancellationToken)
     {
-        List<Deployment> deployments = await domainContext.Deployments
+        List<Deployment> deployments = await _domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .Where(deployment => deployment.MonitorId == monitorId)
@@ -792,6 +792,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         {
             return firstDeploymentMonth;
         }
+
         if (selectedMonth > lastDeploymentMonth)
         {
             return lastDeploymentMonth;
@@ -811,7 +812,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
     {
         // The UTC business day comes from the injected clock; DateTime.Today read the server-local
         // zone and could not be faked in tests.
-        DateTime today = timeProvider.GetUtcNow().UtcDateTime.Date;
+        DateTime today = _timeProvider.GetUtcNow().UtcDateTime.Date;
         if (deployment.EndDate.HasValue && deployment.EndDate.Value.Date < today)
         {
             return deployment.EndDate.Value.Date;
@@ -850,6 +851,7 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         {
             return "Alert";
         }
+
         if (notifications.Any(notification => notification.AlertType == AlertTypeEnum.Caution))
         {
             return "Caution";
@@ -894,10 +896,12 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         {
             return EnumLabel(((AveragingPeriodsDustEnum)level.AveragingPeriod).ToString());
         }
+
         if (Enum.IsDefined(typeof(AveragingPeriodsNoiseEnum), level.AveragingPeriod))
         {
             return EnumLabel(((AveragingPeriodsNoiseEnum)level.AveragingPeriod).ToString());
         }
+
         if (Enum.IsDefined(typeof(AveragingPeriodsVibrationEnum), level.AveragingPeriod))
         {
             return EnumLabel(((AveragingPeriodsVibrationEnum)level.AveragingPeriod).ToString());

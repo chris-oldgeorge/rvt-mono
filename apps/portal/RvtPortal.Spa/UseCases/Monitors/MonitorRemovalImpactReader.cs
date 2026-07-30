@@ -26,22 +26,22 @@ public interface IMonitorRemovalImpactReader
 
 public sealed class MonitorRemovalImpactReader : IMonitorRemovalImpactReader
 {
-    private readonly RVTDbContext domainContext;
-    private readonly RVTSearchContext searchContext;
+    private readonly RVTDbContext _domainContext;
+    private readonly RVTSearchContext _searchContext;
 
     // Function summary: Initializes the removal impact reader with domain and search contexts.
     public MonitorRemovalImpactReader(RVTDbContext domainContext, RVTSearchContext searchContext)
     {
-        this.domainContext = domainContext;
-        this.searchContext = searchContext;
+        _domainContext = domainContext;
+        _searchContext = searchContext;
     }
 
     // Function summary: Counts monitor-related data that determines delete versus archive behavior.
     public async Task<MonitorRemovalImpactResponse> BuildAsync(Guid monitorId, string serialId, CancellationToken cancellationToken)
     {
-        int deploymentCount = await domainContext.Deployments.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
-        int notificationCount = await domainContext.Notifications.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
-        int alertRuleCount = await domainContext.RvtAlertRules.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
+        int deploymentCount = await _domainContext.Deployments.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
+        int notificationCount = await _domainContext.Notifications.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
+        int alertRuleCount = await _domainContext.RvtAlertRules.CountAsync(item => item.MonitorId == monitorId, cancellationToken);
         (int tableCount, int rowCount) = await CountMeasurementRowsAsync(serialId, cancellationToken);
 
         return new MonitorRemovalImpactResponse
@@ -67,13 +67,13 @@ public sealed class MonitorRemovalImpactReader : IMonitorRemovalImpactReader
 
         List<Guid> monitorIds = [.. monitors.Select(monitor => monitor.MonitorId).Distinct()];
         Dictionary<Guid, int> deploymentCounts = await CountByMonitorAsync(
-            domainContext.Deployments.Where(item => monitorIds.Contains(item.MonitorId)).Select(item => item.MonitorId),
+            _domainContext.Deployments.Where(item => monitorIds.Contains(item.MonitorId)).Select(item => item.MonitorId),
             cancellationToken);
         Dictionary<Guid, int> notificationCounts = await CountByMonitorAsync(
-            domainContext.Notifications.Where(item => monitorIds.Contains(item.MonitorId)).Select(item => item.MonitorId),
+            _domainContext.Notifications.Where(item => monitorIds.Contains(item.MonitorId)).Select(item => item.MonitorId),
             cancellationToken);
         Dictionary<Guid, int> alertRuleCounts = await CountByMonitorAsync(
-            domainContext.RvtAlertRules.Where(item => monitorIds.Contains(item.MonitorId)).Select(item => item.MonitorId),
+            _domainContext.RvtAlertRules.Where(item => monitorIds.Contains(item.MonitorId)).Select(item => item.MonitorId),
             cancellationToken);
         Dictionary<string, (int TableCount, int RowCount)> measurementCounts =
             await CountMeasurementRowsForPageAsync(monitors, cancellationToken);
@@ -120,7 +120,7 @@ public sealed class MonitorRemovalImpactReader : IMonitorRemovalImpactReader
             return counts;
         }
 
-        var impacts = await searchContext.MonitorMeasurementRemovalImpacts
+        var impacts = await _searchContext.MonitorMeasurementRemovalImpacts
             .AsNoTracking()
             .Where(item => serialIds.Contains(item.SerialId))
             .Select(item => new
@@ -146,7 +146,7 @@ public sealed class MonitorRemovalImpactReader : IMonitorRemovalImpactReader
             return (0, 0);
         }
 
-        var impact = await searchContext.MonitorMeasurementRemovalImpacts
+        var impact = await _searchContext.MonitorMeasurementRemovalImpacts
             .AsNoTracking()
             .Where(item => item.SerialId == serialId)
             .Select(item => new

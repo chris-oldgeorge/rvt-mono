@@ -186,16 +186,16 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         ["alertStatus"] = "alertStatus"
     };
 
-    private readonly RVTDbContext domainContext;
-    private readonly IMediator mediator;
-    private readonly TimeProvider timeProvider;
+    private readonly RVTDbContext _domainContext;
+    private readonly IMediator _mediator;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the notification read service with the domain context.
     public NotificationApplicationService(RVTDbContext domainContext, IMediator mediator, TimeProvider timeProvider)
     {
-        this.domainContext = domainContext;
-        this.mediator = mediator;
-        this.timeProvider = timeProvider;
+        _domainContext = domainContext;
+        _mediator = mediator;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Builds the paged notification list for the caller's role and filters.
@@ -206,7 +206,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
     {
         NotificationCloseActor actor = BuildCloseActor(user);
         List<NotificationListModel> rows = await BuildNotificationRowsAsync(cancellationToken);
-        HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, timeProvider, cancellationToken);
+        HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(_domainContext, actor, _timeProvider, cancellationToken);
         rows = [.. ApplyRoleVisibility(rows, actor, visibleSiteIds)];
         rows = [.. ApplyState(rows, query.State)];
 
@@ -273,7 +273,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         Guid id,
         CancellationToken cancellationToken)
     {
-        Notification? notification = await domainContext.Notifications
+        Notification? notification = await _domainContext.Notifications
             .AsNoTracking()
             .Include(item => item.Monitor)
             .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
@@ -282,7 +282,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
             return null;
         }
 
-        Deployment? deployment = await NotificationCloseWorkflow.FindDeploymentForNotificationAsync(domainContext, notification, cancellationToken);
+        Deployment? deployment = await NotificationCloseWorkflow.FindDeploymentForNotificationAsync(_domainContext, notification, cancellationToken);
         return await BuildDetailAsync(user, notification, deployment, cancellationToken);
     }
 
@@ -294,7 +294,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         CancellationToken cancellationToken)
     {
         NotificationCloseActor actor = BuildCloseActor(user);
-        HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(domainContext, actor, timeProvider, cancellationToken);
+        HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(_domainContext, actor, _timeProvider, cancellationToken);
         NotificationListModel row = BuildNotificationListModel(notification, deployment);
         if (!CanReadNotification(row, actor, visibleSiteIds))
         {
@@ -317,7 +317,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         string? note,
         CancellationToken cancellationToken)
     {
-        CloseNotificationResult result = await mediator.Send(
+        CloseNotificationResult result = await _mediator.Send(
             new CloseNotificationCommand(id, note, BuildCloseActor(user)),
             cancellationToken);
         if (result.NotFound || result.Notification == null)
@@ -343,7 +343,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         string? note,
         CancellationToken cancellationToken)
     {
-        return mediator.Send(
+        return _mediator.Send(
             new BatchCloseNotificationsCommand(ids, note, BuildCloseActor(user)),
             cancellationToken);
     }
@@ -351,12 +351,12 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
     // Function summary: Builds notification rows with effective deployment ownership attached.
     private async Task<List<NotificationListModel>> BuildNotificationRowsAsync(CancellationToken cancellationToken)
     {
-        List<Notification> notifications = await domainContext.Notifications
+        List<Notification> notifications = await _domainContext.Notifications
             .AsNoTracking()
             .Include(notification => notification.Monitor)
             .OrderByDescending(notification => notification.NotificationTime)
             .ToListAsync(cancellationToken);
-        Dictionary<Guid, Deployment?> deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(domainContext, notifications, cancellationToken);
+        Dictionary<Guid, Deployment?> deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(_domainContext, notifications, cancellationToken);
 
         return [.. notifications
             .Where(notification => !string.IsNullOrWhiteSpace(notification.Monitor?.FleetNr))
@@ -415,7 +415,7 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
             .Where(item => item.DeploymentId == row.DeploymentId)
             .OrderByDescending(item => item.NotificationTime)
             .Take(10)];
-        List<Alertlevel> alertLevelEntities = await domainContext.RvtAlertRules
+        List<Alertlevel> alertLevelEntities = await _domainContext.RvtAlertRules
             .AsNoTracking()
             .Where(level => level.MonitorId == notification.MonitorId && !level.IsDeleted)
             .OrderBy(level => level.AlertType)
@@ -610,10 +610,12 @@ public sealed class NotificationApplicationService : INotificationApplicationSer
         {
             return EnumLabel(((AveragingPeriodsDustEnum)level.AveragingPeriod).ToString());
         }
+
         if (Enum.IsDefined(typeof(AveragingPeriodsNoiseEnum), level.AveragingPeriod))
         {
             return EnumLabel(((AveragingPeriodsNoiseEnum)level.AveragingPeriod).ToString());
         }
+
         if (Enum.IsDefined(typeof(AveragingPeriodsVibrationEnum), level.AveragingPeriod))
         {
             return EnumLabel(((AveragingPeriodsVibrationEnum)level.AveragingPeriod).ToString());

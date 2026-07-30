@@ -28,10 +28,10 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
 {
     private const int MaxPictureBytes = 5 * 1024 * 1024;
 
-    private readonly RVTDbContext domainContext;
-    private readonly IHttpContextAccessor httpContextAccessor;
-    private readonly IMonitorPictureStorage pictureStorage;
-    private readonly IMonitorDetailReader detailReader;
+    private readonly RVTDbContext _domainContext;
+    private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IMonitorPictureStorage _pictureStorage;
+    private readonly IMonitorDetailReader _detailReader;
 
     // Function summary: Initializes dependencies used to validate and persist monitor picture uploads.
     public UploadMonitorPictureCommandHandler(
@@ -40,17 +40,17 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
         IMonitorPictureStorage pictureStorage,
         IMonitorDetailReader detailReader)
     {
-        this.domainContext = domainContext;
-        this.httpContextAccessor = httpContextAccessor;
-        this.pictureStorage = pictureStorage;
-        this.detailReader = detailReader;
+        _domainContext = domainContext;
+        _httpContextAccessor = httpContextAccessor;
+        _pictureStorage = pictureStorage;
+        _detailReader = detailReader;
     }
 
     // Function summary: Handles monitor picture upload validation, storage, and detail response rebuilding.
     public async Task<UploadMonitorPictureResult> Handle(UploadMonitorPictureCommand request, CancellationToken cancellationToken)
     {
         UploadMonitorPictureResult result = new();
-        Deployment? deployment = await domainContext.Deployments
+        Deployment? deployment = await _domainContext.Deployments
             .Include(item => item.Contract)
             .ThenInclude(contract => contract.Company)
             .Include(item => item.Contract)
@@ -61,7 +61,7 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
             .FirstOrDefaultAsync(cancellationToken);
         if (deployment == null)
         {
-            bool monitorExists = await domainContext.MonitorsList.AnyAsync(item => item.Id == request.MonitorId && !item.Archived, cancellationToken);
+            bool monitorExists = await _domainContext.MonitorsList.AnyAsync(item => item.Id == request.MonitorId && !item.Archived, cancellationToken);
             if (monitorExists)
             {
                 AddError(result, "picture", "A current deployment is required before uploading a monitor picture.");
@@ -80,26 +80,26 @@ public sealed class UploadMonitorPictureCommandHandler : IRequestHandler<UploadM
             return result;
         }
 
-        string storedPictureLink = await pictureStorage.SaveAsync(deployment.Id, request.Picture, cancellationToken);
+        string storedPictureLink = await _pictureStorage.SaveAsync(deployment.Id, request.Picture, cancellationToken);
         try
         {
             deployment.PictureLink = storedPictureLink;
-            await domainContext.SaveChangesAsync(cancellationToken);
+            await _domainContext.SaveChangesAsync(cancellationToken);
         }
         catch
         {
-            await pictureStorage.DeleteAsync(storedPictureLink, CancellationToken.None);
+            await _pictureStorage.DeleteAsync(storedPictureLink, CancellationToken.None);
             throw;
         }
 
-        ClaimsPrincipal? user = httpContextAccessor.HttpContext?.User;
+        ClaimsPrincipal? user = _httpContextAccessor.HttpContext?.User;
         if (user == null)
         {
             result.NotFound = true;
             return result;
         }
 
-        result.Detail = await detailReader.BuildAsync(deployment.Monitor, deployment, user, cancellationToken);
+        result.Detail = await _detailReader.BuildAsync(deployment.Monitor, deployment, user, cancellationToken);
         return result;
     }
 

@@ -45,11 +45,11 @@ using RvtPortal.Spa.Adapters.Archive;
 using RvtPortal.Spa.Adapters.Reporting;
 using RvtPortal.Spa.Adapters.Storage;
 using RvtPortal.Spa.Api;
+using RvtPortal.Spa.Data;
 using RvtPortal.Spa.UseCases.Common;
 using RvtPortal.Spa.UseCases.Companies;
 using RvtPortal.Spa.UseCases.Lookups;
 using RvtPortal.Spa.UseCases.ReportRules;
-using RvtPortal.Spa.Data;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -221,7 +221,7 @@ public class CqrsArchitectureTests
         Assert.DoesNotContain(typeof(ICompanyService), constructorParameters);
         Assert.DoesNotContain(typeof(ILookupService), constructorParameters);
         Assert.DoesNotContain(typeof(IConfiguration), constructorParameters);
-        Assert.DoesNotContain(typeof(RvtPortal.Application.Notifications.IAccountMessenger), constructorParameters);
+        Assert.DoesNotContain(typeof(Application.Notifications.IAccountMessenger), constructorParameters);
     }
 
     [Fact]
@@ -237,7 +237,7 @@ public class CqrsArchitectureTests
         Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
         Assert.DoesNotContain(typeof(ICompanyService), constructorParameters);
         Assert.DoesNotContain(typeof(IConfiguration), constructorParameters);
-        Assert.DoesNotContain(typeof(RvtPortal.Application.Notifications.IAccountMessenger), constructorParameters);
+        Assert.DoesNotContain(typeof(Application.Notifications.IAccountMessenger), constructorParameters);
     }
 
     [Fact]
@@ -377,7 +377,7 @@ public class CqrsArchitectureTests
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(HelpController));
         Type serviceInterface =
-            typeof(RvtPortal.Application.Help.IHelpApplicationService);
+            typeof(Application.Help.IHelpApplicationService);
 
         Assert.Contains(serviceInterface, constructorParameters);
         Assert.Contains(typeof(ICurrentUserContextFactory), constructorParameters);
@@ -385,10 +385,10 @@ public class CqrsArchitectureTests
         Assert.DoesNotContain(typeof(IMediator), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
         Assert.DoesNotContain(
-            typeof(RvtPortal.Application.Help.Ports.IHelpReadPort),
+            typeof(Application.Help.Ports.IHelpReadPort),
             constructorParameters);
         Assert.DoesNotContain(
-            typeof(RvtPortal.Application.Help.Ports.IHelpWritePort),
+            typeof(Application.Help.Ports.IHelpWritePort),
             constructorParameters);
     }
 

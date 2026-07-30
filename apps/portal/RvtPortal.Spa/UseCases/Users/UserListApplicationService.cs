@@ -89,14 +89,14 @@ public sealed class UserListApplicationService : IUserListApplicationService
 
     public static readonly IReadOnlySet<string> SortFields = new HashSet<string>(SortAliases.Keys, StringComparer.OrdinalIgnoreCase);
 
-    private readonly ApplicationDbContext applicationContext;
-    private readonly RVTDbContext domainContext;
+    private readonly ApplicationDbContext _applicationContext;
+    private readonly RVTDbContext _domainContext;
 
     // Function summary: Initializes this application service with Identity and domain read contexts.
     public UserListApplicationService(ApplicationDbContext applicationContext, RVTDbContext domainContext)
     {
-        this.applicationContext = applicationContext;
-        this.domainContext = domainContext;
+        _applicationContext = applicationContext;
+        _domainContext = domainContext;
     }
 
     // Function summary: Returns a paged admin user list with filters applied before materialization where provider boundaries allow.
@@ -138,10 +138,10 @@ public sealed class UserListApplicationService : IUserListApplicationService
     private IQueryable<UserRoleProjection> BuildUserRoleQuery(Guid? companyId)
     {
         IQueryable<UserRoleProjection> query =
-            from user in applicationContext.Users.AsNoTracking()
-            join userRole in applicationContext.UserRoles.AsNoTracking() on user.Id equals userRole.UserId into userRoles
+            from user in _applicationContext.Users.AsNoTracking()
+            join userRole in _applicationContext.UserRoles.AsNoTracking() on user.Id equals userRole.UserId into userRoles
             from userRole in userRoles.DefaultIfEmpty()
-            join role in applicationContext.Roles.AsNoTracking() on userRole.RoleId equals role.Id into roles
+            join role in _applicationContext.Roles.AsNoTracking() on userRole.RoleId equals role.Id into roles
             from role in roles.DefaultIfEmpty()
             select new UserRoleProjection
             {
@@ -271,7 +271,7 @@ public sealed class UserListApplicationService : IUserListApplicationService
     // Function summary: Loads company names once for user list display, search, and projected sorting.
     private async Task<Dictionary<Guid, string>> LoadCompaniesAsync(CancellationToken cancellationToken)
     {
-        return await domainContext.Companies
+        return await _domainContext.Companies
             .AsNoTracking()
             .ToDictionaryAsync(company => company.Id, company => company.CompanyName, cancellationToken);
     }
@@ -285,7 +285,7 @@ public sealed class UserListApplicationService : IUserListApplicationService
             .Select(id => id!.Value)];
         return parsedIds.Count == 0
             ? []
-            : await domainContext.SiteUsers
+            : await _domainContext.SiteUsers
                 .AsNoTracking()
                 .Where(siteUser => parsedIds.Contains(siteUser.UserId))
                 .GroupBy(siteUser => siteUser.UserId)

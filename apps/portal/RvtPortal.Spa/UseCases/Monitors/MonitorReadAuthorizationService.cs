@@ -10,8 +10,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.UseCases.Sites;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Sites;
 
 namespace RvtPortal.Spa.UseCases.Monitors;
 
@@ -23,9 +23,9 @@ public interface IMonitorReadAuthorizationService
 
 public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationService
 {
-    private readonly RVTDbContext domainContext;
-    private readonly UserManager<ApplicationUser> userManager;
-    private readonly TimeProvider timeProvider;
+    private readonly RVTDbContext _domainContext;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes monitor read authorization dependencies.
     public MonitorReadAuthorizationService(
@@ -33,9 +33,9 @@ public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationS
         UserManager<ApplicationUser> userManager,
         TimeProvider timeProvider)
     {
-        this.domainContext = domainContext;
-        this.userManager = userManager;
-        this.timeProvider = timeProvider;
+        _domainContext = domainContext;
+        _userManager = userManager;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Evaluates whether a user can read a monitor detail response.
@@ -72,9 +72,9 @@ public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationS
             return [];
         }
 
-        List<Guid> siteIds = await domainContext.SiteUsers
+        List<Guid> siteIds = await _domainContext.SiteUsers
             .AsNoTracking()
-            .Where(ActiveSiteAssignment.ForUser(currentUserId.Value, timeProvider.GetUtcNow().UtcDateTime))
+            .Where(ActiveSiteAssignment.ForUser(currentUserId.Value, _timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
         return [.. siteIds];
@@ -95,19 +95,19 @@ public sealed class MonitorReadAuthorizationService : IMonitorReadAuthorizationS
     // Function summary: Resolves the authenticated user id from Identity claims.
     private Guid? CurrentUserId(ClaimsPrincipal user)
     {
-        return Guid.TryParse(userManager.GetUserId(user) ?? user.FindFirstValue(ClaimTypes.NameIdentifier), out Guid userId)
+        return Guid.TryParse(_userManager.GetUserId(user) ?? user.FindFirstValue(ClaimTypes.NameIdentifier), out Guid userId)
             ? userId
             : null;
     }
 
     private async Task<Guid?> CurrentUserCompanyIdAsync(ClaimsPrincipal user)
     {
-        string? userId = userManager.GetUserId(user) ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? userId = _userManager.GetUserId(user) ?? user.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrWhiteSpace(userId))
         {
             return null;
         }
 
-        return (await userManager.FindByIdAsync(userId))?.CompanyId;
+        return (await _userManager.FindByIdAsync(userId))?.CompanyId;
     }
 }

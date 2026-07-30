@@ -32,14 +32,14 @@ public sealed class CloseNotificationResult : ITransactionOutcome
 public sealed class CloseNotificationCommandHandler
     : IRequestHandler<CloseNotificationCommand, CloseNotificationResult>
 {
-    private readonly RVTDbContext domainContext;
-    private readonly TimeProvider timeProvider;
+    private readonly RVTDbContext _domainContext;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the transactional notification close command handler.
     public CloseNotificationCommandHandler(RVTDbContext domainContext, TimeProvider timeProvider)
     {
-        this.domainContext = domainContext;
-        this.timeProvider = timeProvider;
+        _domainContext = domainContext;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Validates visibility and closes a single alert notification.
@@ -48,19 +48,19 @@ public sealed class CloseNotificationCommandHandler
         CancellationToken cancellationToken)
     {
         CloseNotificationResult result = new();
-        Notification? notification = await NotificationCloseWorkflow.LoadNotificationAsync(domainContext, request.NotificationId, cancellationToken);
+        Notification? notification = await NotificationCloseWorkflow.LoadNotificationAsync(_domainContext, request.NotificationId, cancellationToken);
         if (notification == null)
         {
             result.NotFound = true;
             return result;
         }
 
-        Deployment? deployment = await NotificationCloseWorkflow.FindDeploymentForNotificationAsync(domainContext, notification, cancellationToken);
+        Deployment? deployment = await NotificationCloseWorkflow.FindDeploymentForNotificationAsync(_domainContext, notification, cancellationToken);
         NotificationCloseAccess access = NotificationCloseWorkflow.BuildAccessInfo(notification, deployment);
         HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(
-            domainContext,
+            _domainContext,
             request.Actor,
-            timeProvider,
+            _timeProvider,
             cancellationToken);
         if (!NotificationCloseWorkflow.CanReadNotification(access, request.Actor, visibleSiteIds))
         {
@@ -74,10 +74,12 @@ public sealed class CloseNotificationCommandHandler
         {
             AddError(result.Errors, nameof(NotificationCloseRequest.Note), "Only alert notifications can be closed.");
         }
+
         if (request.Note?.Length > 255)
         {
             AddError(result.Errors, nameof(NotificationCloseRequest.Note), "Note must be 255 characters or fewer.");
         }
+
         if (result.Errors.Count > 0)
         {
             return result;
@@ -105,14 +107,14 @@ public sealed record BatchCloseNotificationsCommand(
 public sealed class BatchCloseNotificationsCommandHandler
     : IRequestHandler<BatchCloseNotificationsCommand, NotificationBatchCloseResponse>
 {
-    private readonly RVTDbContext domainContext;
-    private readonly TimeProvider timeProvider;
+    private readonly RVTDbContext _domainContext;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the transactional notification batch-close command handler.
     public BatchCloseNotificationsCommandHandler(RVTDbContext domainContext, TimeProvider timeProvider)
     {
-        this.domainContext = domainContext;
-        this.timeProvider = timeProvider;
+        _domainContext = domainContext;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Closes visible alert notifications and reports skipped notification ids.
@@ -127,16 +129,16 @@ public sealed class BatchCloseNotificationsCommandHandler
             return response;
         }
 
-        List<Notification> notifications = await domainContext.Notifications
+        List<Notification> notifications = await _domainContext.Notifications
             .Include(notification => notification.Monitor)
             .Where(notification => ids.Contains(notification.Id))
             .ToListAsync(cancellationToken);
         Dictionary<Guid, Notification> byId = notifications.ToDictionary(notification => notification.Id);
-        Dictionary<Guid, Deployment?> deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(domainContext, notifications, cancellationToken);
+        Dictionary<Guid, Deployment?> deploymentLookup = await NotificationCloseWorkflow.BuildDeploymentLookupAsync(_domainContext, notifications, cancellationToken);
         HashSet<Guid> visibleSiteIds = await NotificationCloseWorkflow.VisibleSiteIdsAsync(
-            domainContext,
+            _domainContext,
             request.Actor,
-            timeProvider,
+            _timeProvider,
             cancellationToken);
         string note = string.IsNullOrWhiteSpace(request.Note) ? "batch close" : request.Note;
 
@@ -155,6 +157,7 @@ public sealed class BatchCloseNotificationsCommandHandler
                 response.ForbiddenIds.Add(id);
                 continue;
             }
+
             if (!access.CanClose)
             {
                 response.InvalidIds.Add(id);

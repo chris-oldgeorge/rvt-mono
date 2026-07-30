@@ -16,10 +16,9 @@ using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Querying;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.UseCases.Companies;
 using RvtPortal.Spa.Data;
-
 using RvtPortal.Spa.Tests.Support;
+using RvtPortal.Spa.UseCases.Companies;
 
 namespace RvtPortal.Spa.Tests;
 

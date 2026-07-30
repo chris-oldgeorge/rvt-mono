@@ -56,7 +56,7 @@ REQUIRED_JOBS = %w[changes client dotnet repository-guards].freeze
 # unconditionally (repository-guards is what verifies the documentation).
 CHANGE_GATED_JOBS = %w[client dotnet].freeze
 
-CHANGE_GATE = "needs.changes.outputs.code == 'true'".freeze
+CHANGE_GATE = "needs.changes.outputs.code != 'false'".freeze
 
 REQUIRED_GUARD_SCRIPTS = %w[
   scripts/verify-postgresql-only.sh
@@ -338,7 +338,7 @@ workflow_mutations = {
     'run: echo code=false >>"${GITHUB_OUTPUT}"'
   ],
   "always-skipped dotnet job" => [
-    "  dotnet:\n    name: .NET tests\n    needs: changes\n    if: needs.changes.outputs.code == 'true'\n",
+    "  dotnet:\n    name: .NET tests\n    needs: changes\n    if: needs.changes.outputs.code != 'false'\n",
     "  dotnet:\n    name: .NET tests\n    needs: changes\n    if: ${{ false }}\n"
   ],
   "conditional guards job" => [

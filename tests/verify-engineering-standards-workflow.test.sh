@@ -59,7 +59,7 @@ PINNED_ACTIONS = {
 
 SETUP_ACTION_REFERENCE = "./.github/actions/setup-monorepo".freeze
 
-CHANGE_GATE = "needs.changes.outputs.code == 'true'".freeze
+CHANGE_GATE = "needs.changes.outputs.code != 'false'".freeze
 
 def assert_pinned_action(reference, context)
   assert(
@@ -404,7 +404,7 @@ workflow_mutations = {
     'run: printf %s\\\\n code=false >>"${GITHUB_OUTPUT}"'
   ],
   "always-skipped standards job" => [
-    "    if: needs.changes.outputs.code == 'true'\n",
+    "    if: needs.changes.outputs.code != 'false'\n",
     "    if: ${{ false }}\n"
   ],
   "detached standards job" => ["    needs: changes\n", ""],

@@ -14,7 +14,7 @@ namespace Rvt.Monitor.CommonTests.Alerts;
 public sealed class AlertDeliveryAdapterTests
 {
     private static readonly DateTime SentAt = new(2026, 7, 15, 12, 30, 0, DateTimeKind.Utc);
-    private static readonly MqttOptions EnabledMqtt = new() { Enabled = true };
+    private static readonly MqttOptions _enabledMqtt = new() { Enabled = true };
 
     [TestMethod]
     public async Task MqttAdapter_DeliversVersionOneEnvelopeAndReturnsNoAudit()
@@ -22,7 +22,7 @@ public sealed class AlertDeliveryAdapterTests
         Mock<IMonitorEventPublisher> publisher = new();
         AlertDeliveryEnvelope envelope = CreateEnvelope();
         ClaimedAlertDelivery delivery = CreateDelivery("MqttAlert", "alert", envelope);
-        MqttAlertDeliveryAdapter adapter = new(publisher.Object, EnabledMqtt);
+        MqttAlertDeliveryAdapter adapter = new(publisher.Object, _enabledMqtt);
 
         AlertDeliveryAudit? audit = await adapter.DeliverAsync(delivery, CancellationToken.None);
 
@@ -231,7 +231,7 @@ public sealed class AlertDeliveryAdapterTests
             })
             .Returns(Task.CompletedTask);
         MonitorEventPublisher publisher = new(mqttClient.Object, "insert/topic", "configured/alert/topic");
-        MqttAlertDeliveryAdapter adapter = new(publisher, EnabledMqtt);
+        MqttAlertDeliveryAdapter adapter = new(publisher, _enabledMqtt);
         AlertDeliveryEnvelope envelope = CreateEnvelope();
 
         await adapter.DeliverAsync(
@@ -253,7 +253,7 @@ public sealed class AlertDeliveryAdapterTests
         IMonitorEventPublisher publisher,
         INotificationDeliveryService notificationDelivery) => adapterKind switch
         {
-            "mqtt" => new MqttAlertDeliveryAdapter(publisher, EnabledMqtt),
+            "mqtt" => new MqttAlertDeliveryAdapter(publisher, _enabledMqtt),
             "email" => new EmailAlertDeliveryAdapter(
                 notificationDelivery,
                 Options.Create(new DurableAlertOptions()),

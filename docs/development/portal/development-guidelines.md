@@ -141,7 +141,7 @@ Enforced by: `RvtCommonDependencyBoundaryTests` and
   - `DateTime.Kind` (both providers ignore it).
   A green suite is not evidence that a schema or Kind bug is absent.
 - **Use a real database for those classes of bug.** Opt-in tests are gated on
-  `RVT_TEST_POSTGRES_CONNECTION` via `RequiresPostgresFactAttribute`; they skip in
+  `RVT__POSTGRES_INTEGRATION_CONNECTION` via `RequiresPostgresFactAttribute`; they skip in
   CI (which has no PostgreSQL) and run locally against a real schema. Wrap them in
   a transaction and roll back so they leave no rows behind.
 - **Guard the invariant statically where you can**, so CI fails rather than

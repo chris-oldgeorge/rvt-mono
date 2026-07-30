@@ -67,7 +67,10 @@ public static class AirQMonitorServices
             RvtLogger.CreateLogger(provider.GetRequiredService<ILoggerFactory>(), "AirQService");
             try
             {
-                return new AirQService(provider.GetRequiredService<AirQApi>());
+                return new AirQService(
+                    provider.GetRequiredService<AirQApi>(),
+                    provider.GetRequiredService<DurableAlertDispatcher>(),
+                    provider.GetRequiredService<DurableAlertCleanupService>());
             }
             catch (Exception e)
             {

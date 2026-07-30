@@ -76,7 +76,10 @@ public static class SvantekMonitorServices
             RvtLogger.CreateLogger(provider.GetRequiredService<ILoggerFactory>(), "SvantekService");
             try
             {
-                return new SvantekService(provider.GetRequiredService<SvantekApi>());
+                return new SvantekService(
+                    provider.GetRequiredService<SvantekApi>(),
+                    provider.GetRequiredService<DurableAlertDispatcher>(),
+                    provider.GetRequiredService<DurableAlertCleanupService>());
             }
             catch (Exception e)
             {

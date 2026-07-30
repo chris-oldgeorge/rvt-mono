@@ -16,4 +16,6 @@ public interface IAirQMonitorJobs
     Task StoreAllNoiseLevelsForYesterdayAsync(CancellationToken cancellationToken = default);
     Task NotifySiteAveragesAsync(CancellationToken cancellationToken = default);
     Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default);
+    Task DispatchAlertsAsync(CancellationToken cancellationToken = default);
+    Task CleanupAlertsAsync(CancellationToken cancellationToken = default);
 }

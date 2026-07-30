@@ -390,7 +390,7 @@ def assert_database_lifecycle(steps)
   assert(database_setup.include?('CREATE DATABASE :"database_name";'), "database setup must create the job database")
   assert(database_setup.include?("CREATE EXTENSION IF NOT EXISTS timescaledb;"), "database setup must create timescaledb")
   assert(database_setup.include?("CREATE EXTENSION IF NOT EXISTS pgcrypto;"), "database setup must create pgcrypto")
-  ["RVT_TEST_POSTGRES_CONNECTION", "RVT__POSTGRES_INTEGRATION_CONNECTION", "RVT_EF_CONNECTION", "RVT_DEPLOY_CONNECTION"].each do |variable|
+  ["RVT__POSTGRES_INTEGRATION_CONNECTION", "RVT_EF_CONNECTION", "RVT_DEPLOY_CONNECTION"].each do |variable|
     assert(database_setup.include?("#{variable}=Host=rvt-sonar-db;Port=5432;Database=${database_name};Username=postgres;Password=postgres"), "database setup must export #{variable}")
   end
 

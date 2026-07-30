@@ -162,7 +162,9 @@ def verify_workflow(source)
     "the integration database must be published on the established port"
   )
 
-  test_step = dotnet_steps.find { |step| step.key?("env") }
+  test_step = dotnet_steps.find do |step|
+    step.key?("env") && mapping(step.fetch("env"), "step environment").key?("RVT__POSTGRES_INTEGRATION_CONNECTION")
+  end
   assert(test_step, "the .NET job must supply the integration connection to the test step")
   connection = scalar(
     mapping(test_step.fetch("env"), "test environment").fetch("RVT__POSTGRES_INTEGRATION_CONNECTION"),

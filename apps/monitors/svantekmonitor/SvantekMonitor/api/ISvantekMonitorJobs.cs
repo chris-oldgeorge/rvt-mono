@@ -8,4 +8,6 @@ public interface ISvantekMonitorJobs
     Task CheckForOfflineMonitorsAsync(CancellationToken cancellationToken = default);
     Task NotifyBatteryLevelsAsync(CancellationToken cancellationToken = default);
     Task CheckForSoundRecordingsAsync(CancellationToken cancellationToken = default);
+    Task DispatchAlertsAsync(CancellationToken cancellationToken = default);
+    Task CleanupAlertsAsync(CancellationToken cancellationToken = default);
 }

@@ -20,6 +20,8 @@ internal static class SvantekMonitorJobs
             ["NotifySiteAverages"] = (service, cancellationToken) => service.NotifySiteAveragesAsync(cancellationToken),
             ["CheckForOfflineMonitors"] = (service, cancellationToken) => service.CheckForOfflineMonitorsAsync(cancellationToken),
             ["NotifyBatteryLevels"] = (service, cancellationToken) => service.NotifyBatteryLevelsAsync(cancellationToken),
-            ["CheckForSoundRecordings"] = (service, cancellationToken) => service.CheckForSoundRecordingsAsync(cancellationToken)
+            ["CheckForSoundRecordings"] = (service, cancellationToken) => service.CheckForSoundRecordingsAsync(cancellationToken),
+            ["DispatchAlerts"] = (service, cancellationToken) => service.DispatchAlertsAsync(cancellationToken),
+            ["CleanupAlerts"] = (service, cancellationToken) => service.CleanupAlertsAsync(cancellationToken)
         });
 }

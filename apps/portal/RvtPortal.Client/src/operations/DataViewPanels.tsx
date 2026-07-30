@@ -5,7 +5,7 @@
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
-import { BarChart3, Download, FileDown, ListFilter, RefreshCcw, Route, Search, Table2 } from 'lucide-react';
+import { BarChart3, Download, FileDown, ListFilter, Route, Search, Table2 } from 'lucide-react';
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -34,6 +34,9 @@ import {
 import { Notice } from '../components/FormControls';
 import { formatDateTime, formatNumber } from '../format';
 import { normalizeSortDirection, parsePositiveInt } from '../gridQuery';
+import { LoadingInline } from './panelComponents';
+import { pageSize } from './panelShared';
+import type { ReadOnlyRouteProps } from './panelShared';
 import type {
   DashboardSummaryResponse,
   MonitorDataGridRequest,
@@ -49,17 +52,11 @@ import type {
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
-const pageSize = 10;
 const defaultSort = 'sampleTime';
 const defaultSortDir: SortDirection = 'Descending';
 const panelModes = ['grid', 'graph', 'traces'] as const;
 
 type PanelMode = (typeof panelModes)[number];
-
-type DataViewsPanelProps = Readonly<{
-  locationPath: string;
-  onRequestError: (error: unknown) => void;
-}>;
 
 type DataViewQuery = Readonly<{
   deploymentId: string;
@@ -96,7 +93,7 @@ type FilterOptionsResult = Readonly<{
 }>;
 
 // Function summary: Renders the DataViewsPanel React component and wires its local UI behavior.
-export function DataViewsPanel({ locationPath, onRequestError }: DataViewsPanelProps) {
+export function DataViewsPanel({ locationPath, onRequestError }: ReadOnlyRouteProps) {
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [deploymentId, setDeploymentId] = useState(initialParams.get('deploymentId') ?? '');
@@ -652,15 +649,6 @@ function Pagination({
 }
 
 // Function summary: Renders the LoadingInline React component and wires its local UI behavior.
-function LoadingInline({ label }: Readonly<{ label: string }>) {
-  return (
-    <div className="loading-inline">
-      <RefreshCcw size={16} aria-hidden="true" />
-      <span>{label}</span>
-    </div>
-  );
-}
-
 // Function summary: Builds grid request data for callers.
 function buildGridRequest({
   filterOption,
@@ -890,7 +878,7 @@ function toDateTimeInput(value: string | null) {
 // The value is seeded from the query string, so a hand-edited or bookmarked URL can carry
 // a value Date cannot parse; toISOString() then threw inside the request effect and the
 // error boundary replaced the whole shell.
-export function fromDateToApi(value: string) {
+function fromDateToApi(value: string) {
   if (!value) {
     return null;
   }

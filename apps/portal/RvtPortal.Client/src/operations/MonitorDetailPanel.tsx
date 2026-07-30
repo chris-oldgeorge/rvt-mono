@@ -1,9 +1,10 @@
 // File summary: Renders the monitor detail panel with metric cards, map context, and notification drill-through.
 // Major updates:
+// - 2026-07-30 pending Confirmed contract removal before it runs.
 // - 2026-07-30 pending Extracted from MonitorPanels.tsx during the monitor panel split.
 
 import { BarChart3, Bell, Edit3, Eye, Image, MapPinned, SlidersHorizontal, Trash2, Wrench } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ApiError,
   getInstallerMonitor,
@@ -14,11 +15,12 @@ import {
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn } from '../components/DataGrid';
-import { Notice } from '../components/FormControls';
+import { ConfirmDialog, Notice } from '../components/FormControls';
 import { MonitorMap, MonitorMarkerList } from '../components/MonitorMap';
 import { formatDate, formatDateTime } from '../format';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
-import type { MonitorsPanelProps } from './monitorShared';
+import { DetailItem } from './panelComponents';
+import type { MonitorsPanelProps } from './panelShared';
 import type {
   InstallerMonitorStatusResponse,
   MapMonitorMarker,
@@ -43,6 +45,10 @@ export function MonitorDetailPanel({
   const [statusError, setStatusError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  // One array per monitor: rebuilding it inline gave the map, the marker list and the
+  // visibility check three different arrays, remounting Leaflet on every render.
+  const markers = useMemo(() => (monitor ? monitorDetailMarkers(monitor) : []), [monitor]);
   const backPath = returnToOr(locationPath, '/monitors');
   const detailPath = currentRoutePath(locationPath);
   useEffect(() => {
@@ -86,6 +92,7 @@ export function MonitorDetailPanel({
       onRequestError(err);
     } finally {
       setIsRemoving(false);
+      setConfirmRemove(false);
     }
   }
 
@@ -132,7 +139,12 @@ export function MonitorDetailPanel({
             </button>
           )}
           {canManage && monitor?.isAssigned && (
-            <button className="danger-button" type="button" onClick={handleRemoveAssignment} disabled={isRemoving}>
+            <button
+              className="danger-button"
+              type="button"
+              onClick={() => setConfirmRemove(true)}
+              disabled={isRemoving}
+            >
               <Trash2 size={17} aria-hidden="true" />
               <span>{isRemoving ? 'Removing' : 'Remove'}</span>
             </button>
@@ -209,14 +221,14 @@ export function MonitorDetailPanel({
               <img className="monitor-location-image" src={monitor.pictureLink} alt="Monitor location" />
             </section>
           )}
-          {monitorDetailMarkers(monitor).length > 0 && (
+          {markers.length > 0 && (
             <section className="subsection">
               <div className="subsection-heading">
                 <MapPinned size={18} aria-hidden="true" />
                 <h3>Location Map</h3>
               </div>
-              <MonitorMap markers={monitorDetailMarkers(monitor)} label="Monitor detail map" />
-              <MonitorMarkerList markers={monitorDetailMarkers(monitor)} />
+              <MonitorMap markers={markers} label="Monitor detail map" />
+              <MonitorMarkerList markers={markers} />
             </section>
           )}
           {monitor.deploymentSummary && (
@@ -283,17 +295,16 @@ export function MonitorDetailPanel({
           </section>
         </>
       )}
+      <ConfirmDialog
+        open={confirmRemove}
+        title="Remove monitor from contract"
+        message={`Remove ${monitor?.fleetNumber || monitor?.serialId || 'this monitor'} from ${monitor?.contractNumber || 'its contract'}? The monitor returns to the unassigned pool.`}
+        confirmLabel="Remove from contract"
+        isBusy={isRemoving}
+        onCancel={() => setConfirmRemove(false)}
+        onConfirm={handleRemoveAssignment}
+      />
     </section>
-  );
-}
-
-// Function summary: Renders the DetailItem React component and wires its local UI behavior.
-function DetailItem({ label, value }: Readonly<{ label: string; value?: string | null }>) {
-  return (
-    <div className="detail-item">
-      <span>{label}</span>
-      <strong>{value || 'None'}</strong>
-    </div>
   );
 }
 

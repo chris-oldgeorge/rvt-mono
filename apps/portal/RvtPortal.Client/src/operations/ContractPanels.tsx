@@ -21,8 +21,8 @@ import { ReadOnlyRow } from '../components/ReadOnlyRow';
 import { formatDate } from '../format';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
-import { pageSize } from './contractSiteShared';
-import type { ListExecution, OperationsRouteProps } from './contractSiteShared';
+import { pageSize } from './panelShared';
+import type { ListExecution, OperationsRouteProps } from './panelShared';
 import type {
   ContractDetailResponse,
   ContractListItem,

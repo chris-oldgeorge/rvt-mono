@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using MQTTnet;
 using MQTTnet.Certificates;
 using MQTTnet.Client;
+using MQTTnet.Protocol;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 
@@ -18,7 +19,10 @@ public class RvtMqttClient : IMqttClient, IDisposable
 {
     private readonly MQTTnet.Client.IMqttClient _mqttClient;
     private readonly SemaphoreSlim _connectLock = new(1, 1);
+    private readonly Lock _certificateLock = new();
     private readonly MqttOptions _options;
+    private X509Certificate2? _clientCertificate;
+    private X509Certificate2Collection? _clientCertificates;
 
     public RvtMqttClient(MqttOptions options)
     {
@@ -56,7 +60,27 @@ public class RvtMqttClient : IMqttClient, IDisposable
         }
 
         await EnsureConnectedAsync(cancellationToken);
-        await _mqttClient.PublishStringAsync(topic, message, cancellationToken: cancellationToken);
+
+        // QoS 1 so the broker acknowledges the publish. At QoS 0 the call
+        // returned success for anything the socket accepted, which made the
+        // outbox's retry and dead-letter machinery unreachable for MQTT.
+        MqttClientPublishResult result = await _mqttClient.PublishStringAsync(
+            topic,
+            message,
+            MqttQualityOfServiceLevel.AtLeastOnce,
+            retain: false,
+            cancellationToken);
+        EnsurePublishAccepted(result.ReasonCode);
+    }
+
+    internal static void EnsurePublishAccepted(MqttClientPublishReasonCode reasonCode)
+    {
+        if (reasonCode != MqttClientPublishReasonCode.Success)
+        {
+            throw AdapterException.Of(
+                "RVT MQTT publish was rejected by the broker with reason code ",
+                reasonCode.ToString());
+        }
     }
 
     private async Task EnsureConnectedAsync(CancellationToken cancellationToken)
@@ -85,18 +109,35 @@ public class RvtMqttClient : IMqttClient, IDisposable
         }
     }
 
-    private X509Certificate2 GetCert()
+    /// <summary>
+    /// Loads the client certificate once and keeps it for the client's
+    /// lifetime. It used to be reloaded on every <see cref="ConnectAsync"/>
+    /// and never disposed, so each reconnect leaked one PKCS12 key handle.
+    /// </summary>
+    private X509Certificate2Collection GetClientCertificates()
     {
-        if (!_options.HasClientCertificate)
+        lock (_certificateLock)
         {
-            throw new InvalidOperationException(
-                "MQTT is enabled but RVT__MQTT_CERTIFICATE_PATH and RVT__MQTT_PRIVATE_KEY_PATH are not configured.");
-        }
+            if (_clientCertificates is not null)
+            {
+                return _clientCertificates;
+            }
 
-        using X509Certificate2 pemCertificate = X509Certificate2.CreateFromPemFile(
-            _options.CertificatePath,
-            _options.PrivateKeyPath);
-        return X509CertificateLoader.LoadPkcs12(pemCertificate.Export(X509ContentType.Pkcs12), null);
+            if (!_options.HasClientCertificate)
+            {
+                throw new InvalidOperationException(
+                    "MQTT is enabled but RVT__MQTT_CERTIFICATE_PATH and RVT__MQTT_PRIVATE_KEY_PATH are not configured.");
+            }
+
+            using X509Certificate2 pemCertificate = X509Certificate2.CreateFromPemFile(
+                _options.CertificatePath,
+                _options.PrivateKeyPath);
+            _clientCertificate = X509CertificateLoader.LoadPkcs12(
+                pemCertificate.Export(X509ContentType.Pkcs12),
+                null);
+            _clientCertificates = new X509Certificate2Collection(_clientCertificate);
+            return _clientCertificates;
+        }
     }
 
     /// <summary>
@@ -119,6 +160,12 @@ public class RvtMqttClient : IMqttClient, IDisposable
 
         _mqttClient.Dispose();
         _connectLock.Dispose();
+        lock (_certificateLock)
+        {
+            _clientCertificate?.Dispose();
+            _clientCertificate = null;
+            _clientCertificates = null;
+        }
     }
 
     public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
@@ -137,7 +184,7 @@ public class RvtMqttClient : IMqttClient, IDisposable
             .WithTlsOptions(options =>
             {
                 options.UseTls();
-                options.WithClientCertificatesProvider(new DefaultMqttCertificatesProvider(new X509Certificate2Collection(GetCert())));
+                options.WithClientCertificatesProvider(new DefaultMqttCertificatesProvider(GetClientCertificates()));
             })
             .Build(), cancellationToken);
         return ack.ResultCode == MqttClientConnectResultCode.Success;

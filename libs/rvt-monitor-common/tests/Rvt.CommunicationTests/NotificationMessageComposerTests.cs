@@ -68,10 +68,10 @@ public sealed class NotificationMessageComposerTests
         yield return Row(
             NotificationMessageKind.Alert,
             NotificationChannel.Sms,
-            $"Alert received from  {MonitorName}",
-            $"Alert received from  {MonitorName}{Environment.NewLine}" +
+            $"Alert received from {MonitorName}",
+            $"Alert received from {MonitorName}{Environment.NewLine}" +
             $"Your monitor has detected an alert above the safe limit set.{Environment.NewLine}" +
-            $"Click here '{CallbackUrl}' to view the details.{Environment.NewLine}" +
+            $"Click here {CallbackUrl} to view the details.{Environment.NewLine}" +
             "Many thanks From the RVT Group",
             string.Empty);
         yield return Row(

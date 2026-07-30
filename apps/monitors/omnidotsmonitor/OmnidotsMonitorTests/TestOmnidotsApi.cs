@@ -447,6 +447,38 @@ namespace OmnidotsAdapterTests
             messageClient.VerifyNoOtherCalls();
         }
 
+        // A measuring point with no sensor row used to be dropped by the inner
+        // join in ReadMonitorList, so it never reached this handler at all.
+        // Nothing downstream needs the sensor: polling keys off SerialId.
+        [TestMethod]
+        public async Task TestStorePeakRecords_SensorlessMeasuringPoint_IsStillPolled()
+        {
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+                                                 out Mock<IDBClient> dbClient,
+                                                 out Mock<IMqttClient> mqttClient,
+                                                 out Mock<IAlertIngressPort> messageClient);
+            string token = "hghjadg";
+            httpClient.Setup(c => c.PostAsync("/api/v1/user/authenticate",
+                It.Is<HttpContent>(c => TestUtil.VerifyAuthenticateForm(c)), It.IsAny<CancellationToken>())).
+                    Returns(OmnidotsFixture.AuthenticateTask(token));
+
+            string peakRecordsUrl = string.Format("/api/v1/get_peak_records?token={0}", token);
+            httpClient.Setup(c => c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>())).
+                Returns(OmnidotsFixture.StringTask(OmnidotsFixture.PeakRecordsJson()));
+
+            VibrationMonitorDto sensorless = OmnidotsFixture.MonitorsList(2)[0];
+            Assert.IsNull(sensorless.Sensor);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns([sensorless]);
+            dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).Returns([]);
+
+            await testObj.StorePeakRecordsLastDataTimeAsync(TestContext.CancellationToken);
+
+            dbClient.As<IOmnidotsMeasurementImportCommands>().Verify(c => c.ImportPeakRecords(
+                sensorless.SerialId,
+                It.Is<DataTable>(t => t.Rows.Count == 2),
+                It.IsAny<DateTime>()), Times.Once);
+        }
+
         [TestMethod]
         public async Task TestStorePeakRecords_UsesPeakCursorOverlapAndAtomicImport()
         {

@@ -406,6 +406,37 @@ namespace OmnidotsAdapterTests
             Assert.AreEqual(missingStatusSerialId, degraded.MonitorStatus.SerialId);
         }
 
+        // A measuring point that has not reported a sensor is legitimate - the
+        // DTO models it nullable and ReadMonitor uses FirstOrDefault - but the
+        // inner join here dropped it from the fleet list entirely, so it was
+        // catalogued and then never polled and never alerted on.
+        [TestMethod]
+        public void ReadMonitorList_MissingSensorRow_StillReturnsTheMeasuringPoint()
+        {
+            List<VibrationMonitorDto> monitorsIn = OmnidotsFixture.MonitorsList(2, null, true);
+            _testObj!.WriteMonitorList(monitorsIn);
+            string sensorlessSerialId = monitorsIn[0].SerialId;
+
+            using (NpgsqlConnection connection = _database!.OpenConnection())
+            {
+                connection.Open();
+                using NpgsqlCommand command = new(
+                    "DELETE FROM omnidots_sensor WHERE serial_id = $1;",
+                    connection);
+                command.Parameters.AddWithValue(sensorlessSerialId);
+                Assert.AreEqual(1, command.ExecuteNonQuery());
+            }
+
+            List<VibrationMonitorDto> monitorsOut = _testObj.ReadMonitorList();
+
+            Assert.HasCount(2, monitorsOut);
+            VibrationMonitorDto sensorless = monitorsOut.Single(monitor => monitor.SerialId == sensorlessSerialId);
+            Assert.IsNull(sensorless.Sensor);
+            Assert.IsNull(sensorless.LastSeen);
+            // ReadMonitor already tolerated the absence; the two reads now agree.
+            Assert.IsNull(_testObj.ReadMonitor(sensorlessSerialId).Sensor);
+        }
+
 
         private static int CountRows(string connectionString, string tableName)
         {

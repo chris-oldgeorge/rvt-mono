@@ -152,6 +152,8 @@ Apply `OmnidotsMonitor/postgres/2026-07-14-add-import-cursors-and-trace-order.sq
 
 The migration creates one import cursor per monitor serial and series (`Peak`, `Veff`, or `Vdv`) and adds the trace-sample ordinal used by the `(TraceId, SampleIndex)` key. The matching PostgreSQL `2026-07-14-rollback-import-cursors-and-trace-order.sql` file is the rollback asset. Do not run the rollback while this application version is active because the runtime depends on both the cursor table and ordered trace key.
 
+`omnidots_trace` and `omnidots_trace_index` are shared with the portal, which owns their naming; this monitor writes the rows and conforms to the portal's column names, so the migration requires the portal's canonical naming cutover to have been applied first. See [`omnidots_trace` schema ownership](../../../database/omnidots-trace-ownership.md).
+
 Each measurement page and its cursor advance commit in one database transaction. Cursors never move backward, a replay cannot duplicate an existing sample, and the three measurement series advance independently. Peak alone continues to update the compatibility `LastDataTime1Min` field. Each trace index and its ordered sample collection also commit atomically; failed sample persistence leaves neither an orphaned index nor a partial trace.
 
 ## Import failure behavior

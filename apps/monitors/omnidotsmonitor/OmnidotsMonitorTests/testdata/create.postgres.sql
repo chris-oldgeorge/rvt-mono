@@ -165,12 +165,12 @@ CREATE TABLE omnidots_trace_index (
 );
 
 CREATE TABLE omnidots_trace (
-    trace_id uuid NOT NULL REFERENCES omnidots_trace_index (id) ON DELETE CASCADE,
+    omnidots_trace_index_id uuid NOT NULL REFERENCES omnidots_trace_index (id) ON DELETE CASCADE,
     sample_index integer NOT NULL,
     x double precision,
     y double precision,
     z double precision,
-    PRIMARY KEY (trace_id, sample_index)
+    PRIMARY KEY (omnidots_trace_index_id, sample_index)
 );
 
 CREATE TABLE omnidots_error_message (

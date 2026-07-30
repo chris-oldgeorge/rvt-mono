@@ -47,11 +47,11 @@ public sealed partial class OmnidotsMigrationContractTests
             "CONSTRAINT pk_omnidots_import_cursor PRIMARY KEY (serial_id, series)",
             "CONSTRAINT ck_omnidots_import_cursor_series CHECK (series IN ('Peak', 'Veff', 'Vdv'))",
             "ALTER TABLE omnidots_trace ADD COLUMN IF NOT EXISTS sample_index integer",
-            "row_number() OVER (PARTITION BY trace_id ORDER BY ctid) - 1",
+            "row_number() OVER (PARTITION BY omnidots_trace_index_id ORDER BY ctid) - 1",
             "ALTER TABLE omnidots_trace ALTER COLUMN sample_index SET NOT NULL",
-            "ADD CONSTRAINT pk_omnidots_trace PRIMARY KEY (trace_id, sample_index)",
-            "DROP INDEX IF EXISTS ix_omnidots_trace_trace_id",
+            "ADD CONSTRAINT pk_omnidots_trace PRIMARY KEY (omnidots_trace_index_id, sample_index)",
             "COMMIT;");
+        Assert.DoesNotContain("DROP INDEX", script);
         AssertCursorHasNoDefault(script, "CREATE TABLE IF NOT EXISTS omnidots_import_cursor", "ALTER TABLE omnidots_trace");
     }
 
@@ -66,15 +66,23 @@ public sealed partial class OmnidotsMigrationContractTests
         AssertAppearsInOrder(
             script,
             "DROP CONSTRAINT IF EXISTS pk_omnidots_trace",
-            "CREATE INDEX IF NOT EXISTS ix_omnidots_trace_trace_id",
+            "ALTER COLUMN omnidots_trace_index_id DROP NOT NULL",
             "DROP COLUMN IF EXISTS sample_index",
             "DROP TABLE IF EXISTS omnidots_import_cursor",
             "COMMIT;");
         Assert.MatchesRegex(
             RollbackWarningPattern(),
             rawScript);
+        Assert.DoesNotContain("CREATE INDEX", script);
     }
 
+    /// <summary>
+    /// The pre-migration table is the shape the portal deploys - the portal owns this table's
+    /// naming (docs/database/omnidots-trace-ownership.md). This copy of it is a convenience for
+    /// the monitor suite; the binding cross-owner check builds the same table from
+    /// <c>RVTSearchContext</c> itself in the portal suite's
+    /// <c>OmnidotsTraceSchemaOwnershipTests</c>.
+    /// </summary>
     [TestMethod]
     [TestCategory("PostgreSqlIntegration")]
     public async Task PostgreSqlScripts_ExecuteForwardAndRollbackIdempotently()
@@ -82,26 +90,30 @@ public sealed partial class OmnidotsMigrationContractTests
         const string legacySchema = """
             CREATE TABLE omnidots_trace_index
             (
-                id uuid PRIMARY KEY,
-                serial_id text,
-                start_time timestamp with time zone NOT NULL,
-                end_time timestamp with time zone NOT NULL
+                id uuid NOT NULL,
+                serial_id character varying(32),
+                start_time timestamp without time zone NOT NULL,
+                end_time timestamp without time zone NOT NULL,
+                CONSTRAINT pk_omnidots_trace_index PRIMARY KEY (id)
             );
 
             CREATE TABLE omnidots_trace
             (
-                trace_id uuid NOT NULL REFERENCES omnidots_trace_index (id) ON DELETE CASCADE,
+                omnidots_trace_index_id uuid,
                 x double precision,
                 y double precision,
-                z double precision
+                z double precision,
+                CONSTRAINT fk_omnidots_trace_omnidots_trace_index_id
+                    FOREIGN KEY (omnidots_trace_index_id) REFERENCES omnidots_trace_index (id)
             );
 
-            CREATE INDEX ix_omnidots_trace_trace_id ON omnidots_trace (trace_id);
+            CREATE INDEX ix_omnidots_trace_omnidots_trace_index_id
+                ON omnidots_trace (omnidots_trace_index_id);
 
             INSERT INTO omnidots_trace_index (id, start_time, end_time)
             VALUES ('11111111-1111-1111-1111-111111111111', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
-            INSERT INTO omnidots_trace (trace_id, x, y, z)
+            INSERT INTO omnidots_trace (omnidots_trace_index_id, x, y, z)
             VALUES
                 ('11111111-1111-1111-1111-111111111111', 1, 2, 3),
                 ('11111111-1111-1111-1111-111111111111', 1, 2, 3),
@@ -125,7 +137,8 @@ public sealed partial class OmnidotsMigrationContractTests
             timeout.Token));
         Assert.AreEqual(0L, await QueryScalarAsync<long>(
             database,
-            "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'omnidots_import_cursor' AND column_default IS NOT NULL;",
+            "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = current_schema() "
+            + "AND table_name = 'omnidots_import_cursor' AND column_default IS NOT NULL;",
             timeout.Token));
 
         string rollback = ReadScript("postgres", _rollbackScript);
@@ -136,15 +149,26 @@ public sealed partial class OmnidotsMigrationContractTests
 
         Assert.AreEqual(0L, await QueryScalarAsync<long>(
             database,
-            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'omnidots_import_cursor';",
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema() "
+            + "AND table_name = 'omnidots_import_cursor';",
             timeout.Token));
         Assert.AreEqual(0L, await QueryScalarAsync<long>(
             database,
-            "SELECT COUNT(*) FROM information_schema.columns WHERE table_name = 'omnidots_trace' AND column_name = 'sample_index';",
+            "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = current_schema() "
+            + "AND table_name = 'omnidots_trace' AND column_name = 'sample_index';",
+            timeout.Token));
+        // Neither script may touch the portal-owned index: the forward one no longer drops it and
+        // the rollback no longer recreates it under a non-canonical name.
+        Assert.AreEqual(1L, await QueryScalarAsync<long>(
+            database,
+            "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = current_schema() "
+            + "AND tablename = 'omnidots_trace' AND indexname = 'ix_omnidots_trace_omnidots_trace_index_id';",
             timeout.Token));
         Assert.AreEqual(1L, await QueryScalarAsync<long>(
             database,
-            "SELECT COUNT(*) FROM pg_indexes WHERE tablename = 'omnidots_trace' AND indexname = 'ix_omnidots_trace_trace_id';",
+            "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = current_schema() "
+            + "AND table_name = 'omnidots_trace' AND column_name = 'omnidots_trace_index_id' "
+            + "AND is_nullable = 'YES';",
             timeout.Token));
     }
 

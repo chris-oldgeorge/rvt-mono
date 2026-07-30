@@ -23,6 +23,8 @@ vi.mock('../api/client', () => ({
 }));
 
 const date = '2026-05-24';
+// Calendar days arrive as server DateTime values, not bare 'YYYY-MM-DD' strings.
+const calendarDayDate = '2026-05-24T00:00:00Z';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -90,7 +92,7 @@ function calendarMonth(deploymentId: string, monitorId: string, fleetNumber = de
     endDate: '2026-05-31T00:00:00Z',
     unit: 'ug/m3',
     deployments: dashboardSummary().calendarDeployments,
-    days: [{ date, isCurrentMonth: true, status: 'Alert', average: 1, notificationCount: 1 }],
+    days: [{ date: calendarDayDate, isCurrentMonth: true, status: 'Alert', average: 1, notificationCount: 1 }],
   };
 }
 
@@ -245,6 +247,42 @@ describe('Portal dashboard request ownership', () => {
     api.getDashboardSummary.mockResolvedValue(dashboardSummary());
   });
 
+  it('queries and labels the calendar day by the served UTC date west of UTC', async () => {
+    const originalTimeZone = process.env.TZ;
+    process.env.TZ = 'America/Los_Angeles';
+    try {
+      api.getCalendarMonth.mockResolvedValue(calendarMonth('deployment-a', 'monitor-a'));
+      api.getCalendarDay.mockResolvedValue(calendarDay('monitor-a', 'Deployment A'));
+
+      render(
+        <CalendarPanel locationPath="/calendar?deploymentId=deployment-a&year=2026&month=5" onRequestError={vi.fn()} />,
+      );
+      expect(await screen.findByText('Deployment A / Dust')).toBeInTheDocument();
+
+      expect(within(screen.getByRole('grid')).getByText('24')).toBeInTheDocument();
+      expect(api.getCalendarDay).toHaveBeenCalledWith(
+        { monitorId: 'monitor-a', year: 2026, month: 5, day: 24 },
+        expect.anything(),
+      );
+    } finally {
+      process.env.TZ = originalTimeZone;
+    }
+  });
+
+  it('fetches the calendar summary once across a deployment change', async () => {
+    api.getCalendarMonth.mockResolvedValue(calendarMonth('deployment-a', 'monitor-a'));
+    api.getCalendarDay.mockResolvedValue(calendarDay('monitor-a', 'Deployment A'));
+
+    render(
+      <CalendarPanel locationPath="/calendar?deploymentId=deployment-a&year=2026&month=5" onRequestError={vi.fn()} />,
+    );
+    expect(await screen.findByText('Deployment A / Dust')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Deployment'), { target: { value: 'deployment-b' } });
+    await waitFor(() => expect(api.getCalendarMonth).toHaveBeenCalledTimes(2));
+
+    expect(api.getDashboardSummary).toHaveBeenCalledTimes(1);
+  });
+
   it('hides a previous calendar day when a same-date deployment change has no completed day response', async () => {
     const deploymentAMonth = deferred<ReturnType<typeof calendarMonth>>();
     const deploymentBMonth = deferred<ReturnType<typeof calendarMonth>>();
@@ -375,6 +413,18 @@ describe('Portal dashboard request ownership', () => {
     expect(screen.queryByText('All Sites (Dust)')).not.toBeInTheDocument();
   });
 
+  it('fetches the map summary once across a site filter change', async () => {
+    api.queryMapMarkers.mockResolvedValue(mapResponse('Site A'));
+
+    render(<MapPanel locationPath="/maps" onRequestError={vi.fn()} />);
+    await screen.findByRole('option', { name: 'Site A' });
+    fireEvent.change(screen.getByLabelText('Site'), { target: { value: 'site-a' } });
+    await waitFor(() => expect(api.queryMapMarkers).toHaveBeenCalledTimes(2));
+
+    expect(api.getDashboardSummary).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('option', { name: 'Site B' })).toBeInTheDocument();
+  });
+
   it('keeps the newest live site search result when an older query resolves last', async () => {
     const initialSearch = deferred<ReturnType<typeof siteResponse>>();
     const alphaSearch = deferred<ReturnType<typeof siteResponse>>();
@@ -489,6 +539,21 @@ describe('Portal dashboard request ownership', () => {
 
     expect(screen.getByText('Newest grid')).toBeInTheDocument();
     expect(screen.queryByText('Old grid')).not.toBeInTheDocument();
+  });
+
+  it('drops a malformed URL date instead of crashing the data view', async () => {
+    api.queryMonitorDataGrid.mockResolvedValue(gridResponse('Malformed date grid'));
+
+    render(
+      <DataViewsPanel locationPath="/data?deploymentId=deployment-a&fromDate=not-a-date" onRequestError={vi.fn()} />,
+    );
+
+    expect(await screen.findByText('Malformed date grid')).toBeInTheDocument();
+    expect(api.queryMonitorDataGrid).toHaveBeenCalledWith(
+      'deployment-a',
+      expect.objectContaining({ fromDate: null, toDate: null }),
+      expect.anything(),
+    );
   });
 
   it('keeps averaging controls interactive while an intermediate grid request is pending', async () => {

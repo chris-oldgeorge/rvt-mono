@@ -77,7 +77,10 @@ if ! git cat-file -e "${base}^{commit}" 2>/dev/null ||
   exit 0
 fi
 
-changed_paths="$(git diff --name-only "${base}" "${head}" --)"
+# --no-renames is load-bearing: with rename detection on (the default), a commit
+# that deletes a code path and adds a similar-content docs/**/*.md path collapses
+# to the destination only, and the change would be classified documentation-only.
+changed_paths="$(git diff --no-renames --name-only "${base}" "${head}" --)"
 if [[ -z "${changed_paths}" ]]; then
   emit true "no changed paths resolved"
   exit 0

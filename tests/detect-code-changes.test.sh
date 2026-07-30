@@ -103,6 +103,29 @@ previous_sha="${head_sha}"
 head_sha="$(commit_change "apps/monitors/README.md")"
 expect "markdown beside code is code" true "${previous_sha}" "${head_sha}"
 
+# Rename detection is the fail-open case this gate must resist: git collapses a
+# delete+add of similar content into the destination path alone, so a code file
+# renamed into docs/ would otherwise read as documentation-only.
+previous_sha="${head_sha}"
+write_file "src/renamed.cs" "class Renamed { }"
+commit_all "seed rename source"
+rename_base_sha="$(fixture_git rev-parse HEAD)"
+fixture_git mv "src/renamed.cs" "docs/reviews/renamed.md"
+commit_all "rename code into docs"
+head_sha="$(fixture_git rev-parse HEAD)"
+expect "code renamed into docs is code" true "${rename_base_sha}" "${head_sha}"
+
+previous_sha="${head_sha}"
+write_file "docs/modules/monitors/pinned.md" "pinned content asserted by tests"
+commit_all "seed pinned module doc"
+rename_base_sha="$(fixture_git rev-parse HEAD)"
+mkdir -p "${fixture}/docs/architecture"
+fixture_git mv "docs/modules/monitors/pinned.md" "docs/architecture/pinned.md"
+commit_all "relocate content-pinned module doc"
+head_sha="$(fixture_git rev-parse HEAD)"
+expect "content-pinned doc relocated out of its tree is code" true \
+  "${rename_base_sha}" "${head_sha}"
+
 expect "zero base falls back to code" true \
   "0000000000000000000000000000000000000000" "${head_sha}"
 expect "unknown base falls back to code" true \

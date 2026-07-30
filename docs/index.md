@@ -36,6 +36,7 @@ lives here under `docs/`.
 ## Database
 
 - [Monitor data-access migration](database/monitors/monitor-data-access-migration.md)
+- [`omnidots_trace` schema ownership](database/omnidots-trace-ownership.md)
 - [Portal database naming standard](database/portal/database-naming-standard.md)
 - [Shared-library migrations](database/rvt-monitor-common/migrations/README.md)
 

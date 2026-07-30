@@ -17,6 +17,11 @@ jobs:
   # jobs below via `if:` gating (a skipped job still satisfies a required
   # check), while repository-guards always runs because it is what verifies
   # the documentation layout.
+  #
+  # The gates below test `!= 'false'`, not `== 'true'`, deliberately. If this
+  # job fails or is skipped, its output is empty and the gated jobs would also
+  # skip - which reads as green to required checks. Only an explicit
+  # documentation-only verdict may skip them; anything else runs everything.
   changes:
     name: Detect documentation-only changes
     runs-on: ubuntu-latest
@@ -38,7 +43,7 @@ jobs:
   dotnet:
     name: .NET tests
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     services:
@@ -107,7 +112,7 @@ jobs:
   client:
     name: Portal client tests
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -174,12 +179,17 @@ jobs:
       - name: Verify RVT common source boundary
         run: scripts/verify-rvt-common-source-boundary.sh
 
+      # RELEASE_SOURCE.json marks a curated client payload. Those releases
+      # intentionally omit internal documentation and contract fixtures while
+      # retaining the product, boundary, and engineering checks above.
       - name: Verify documentation layout
+        if: ${{ hashFiles('RELEASE_SOURCE.json') == '' }}
         run: scripts/verify-documentation-layout.sh
 
       # A glob rather than a list: a contract test that nothing runs is the
       # failure mode this job exists to remove, so new ones opt in by existing.
       - name: Verify repository contract tests
+        if: ${{ hashFiles('RELEASE_SOURCE.json') == '' }}
         run: |
           for contract_test in tests/*.test.sh; do
             printf '==> %s\n' "${contract_test}"

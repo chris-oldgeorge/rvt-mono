@@ -63,6 +63,7 @@ export function MapPanel({ locationPath, onRequestError }: MapCalendarPanelProps
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [siteId, setSiteId] = useState(initialParams.get('siteId') ?? '');
   const [sites, setSites] = useState<OptionItem[]>([]);
+  const [sitesError, setSitesError] = useState<string | null>(null);
   const [mapResult, setMapResult] = useState<MapResult | null>(null);
   const execution = useMemo<MapExecution>(() => ({ siteId }), [siteId]);
   const activeResult = mapResult?.execution === execution ? mapResult : null;
@@ -72,14 +73,30 @@ export function MapPanel({ locationPath, onRequestError }: MapCalendarPanelProps
 
   useEffect(() => {
     const controller = new AbortController();
-    globalThis.history.replaceState(null, '', `/maps${mapQuery(execution.siteId)}`);
-    Promise.all([
-      getDashboardSummary({ signal: controller.signal }),
-      queryMapMarkers(mapMarkersRequest(execution.siteId), { signal: controller.signal }),
-    ])
-      .then(([nextSummary, nextMarkers]) => {
+    // The summary only supplies the site filter options, so it stays in its own
+    // mount-once effect and a site change no longer refetches it.
+    getDashboardSummary({ signal: controller.signal })
+      .then((summary) => {
         if (!controller.signal.aborted) {
-          setSites(nextSummary.sites);
+          setSites(summary.sites);
+        }
+      })
+      .catch((err: Error) => {
+        if (isAbortError(err) || controller.signal.aborted) {
+          return;
+        }
+        setSitesError(err.message);
+        onRequestError(err);
+      });
+    return () => controller.abort();
+  }, [onRequestError]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    globalThis.history.replaceState(null, '', `/maps${mapQuery(execution.siteId)}`);
+    queryMapMarkers(mapMarkersRequest(execution.siteId), { signal: controller.signal })
+      .then((nextMarkers) => {
+        if (!controller.signal.aborted) {
           setMapResult({ execution, markers: nextMarkers, error: null });
         }
       })
@@ -113,7 +130,7 @@ export function MapPanel({ locationPath, onRequestError }: MapCalendarPanelProps
           ))}
         </select>
       </label>
-      {error && <Notice tone="error" message={error} />}
+      {(error ?? sitesError) && <Notice tone="error" message={error ?? sitesError ?? ''} />}
       {isLoading && <LoadingInline label="Loading map" />}
       <MonitorMap markers={markers?.markers ?? []} />
       <MonitorMarkerList markers={markers?.markers ?? []} />
@@ -361,8 +378,9 @@ function CalendarDayButton({
   selectedDate: string | null;
   onSelect: (date: string) => void;
 }>) {
-  const date = new Date(day.date);
-  const dayNumber = date.getDate();
+  // Read the calendar date the server meant instead of the viewer's local date,
+  // which shifted the printed day number west of UTC.
+  const dayNumber = parseCalendarDate(day.date).day;
   const isSelected = selectedDate === day.date;
   return (
     <button className={calendarDayClassName(day, isSelected)} type="button" onClick={() => onSelect(day.date)}>
@@ -471,8 +489,10 @@ function defaultSelectedDate(month: CalendarMonthResponse) {
 }
 
 // Function summary: Converts a calendar ISO date into the day-query fields without browser time-zone conversion.
+// The server sends a DateTime ('2026-05-24T00:00:00Z'), so the leading 'YYYY-MM-DD' is
+// taken before splitting; parsing the whole value yielded NaN day numbers.
 function parseCalendarDate(value: string) {
-  const [year, month, day] = value.split('-').map(Number);
+  const [year, month, day] = value.slice(0, 10).split('-').map(Number);
   return { year, month, day };
 }
 

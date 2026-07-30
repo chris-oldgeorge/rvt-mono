@@ -128,7 +128,7 @@ public sealed class SvantekJobCancellationTests
             null,
             utcNow.AddDays(-30),
             false,
-            SvantekApi.BatteryAlertType.Off,
+            BatteryAlertType.Off,
             100);
         Mock<ISvantekMonitorQueries> monitorQueries = new(MockBehavior.Strict);
         monitorQueries.Setup(queries => queries.ReadMonitorListAsync(null, token))

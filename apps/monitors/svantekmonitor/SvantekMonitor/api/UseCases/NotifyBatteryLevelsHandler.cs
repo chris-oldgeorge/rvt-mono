@@ -3,7 +3,7 @@ using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Utilities;
 using Svantek.Api.Db;
-using SvantekMonitor.model.dto;
+using Svantek.Model.Dto;
 
 namespace Svantek.Api.UseCases;
 
@@ -73,7 +73,7 @@ public sealed class NotifyBatteryLevelsHandler
 
         if (batteryLevel <= _batteryLevelPercentAlert)
         {
-            if (monitor.BatteryStatus != SvantekApi.BatteryAlertType.BatteryAlert)
+            if (monitor.BatteryStatus != BatteryAlertType.BatteryAlert)
             {
                 await ProcessBatteryAlertAsync(
                     batteryLevel,
@@ -85,7 +85,7 @@ public sealed class NotifyBatteryLevelsHandler
         }
         else if (batteryLevel <= _batteryLevelPercentCaution)
         {
-            if (monitor.BatteryStatus != SvantekApi.BatteryAlertType.BatteryCaution)
+            if (monitor.BatteryStatus != BatteryAlertType.BatteryCaution)
             {
                 await ProcessBatteryAlertAsync(
                     batteryLevel,
@@ -95,7 +95,7 @@ public sealed class NotifyBatteryLevelsHandler
                     cancellationToken).ConfigureAwait(false);
             }
         }
-        else if (monitor.BatteryStatus != SvantekApi.BatteryAlertType.Off)
+        else if (monitor.BatteryStatus != BatteryAlertType.Off)
         {
             await _monitorCommands.SetMonitorBatteryStatusAsync(
                 monitor.Id,

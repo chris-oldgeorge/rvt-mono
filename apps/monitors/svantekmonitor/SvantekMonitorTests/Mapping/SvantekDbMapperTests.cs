@@ -51,7 +51,7 @@ public sealed class SvantekDbMapperTests
         Assert.AreEqual(DateTime.Parse("2026-07-06T08:20:00"), dto.LastStatusTimestamp);
         Assert.AreEqual(deployedStart, dto.DeployedStart);
         Assert.IsTrue(dto.Offline);
-        Assert.AreEqual(SvantekApi.BatteryAlertType.BatteryCaution, dto.BatteryStatus);
+        Assert.AreEqual(BatteryAlertType.BatteryCaution, dto.BatteryStatus);
         Assert.AreEqual(77, dto.BatteryCharge);
     }
 

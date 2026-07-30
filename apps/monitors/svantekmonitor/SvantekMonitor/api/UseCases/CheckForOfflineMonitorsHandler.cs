@@ -4,7 +4,7 @@ using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using Svantek.Api.Db;
-using SvantekMonitor.model.dto;
+using Svantek.Model.Dto;
 
 namespace Svantek.Api.UseCases;
 
@@ -52,7 +52,7 @@ public sealed class CheckForOfflineMonitorsHandler
                     DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
                     DateTime lastDataTime = monitor.LastDataTime.HasValue
                         ? DateTimeUtil.TruncateMillis(monitor.LastDataTime.Value).ToUniversalTime()
-                        : SvantekApi.JAN1_1970;
+                        : DateTimeUtil.JAN1_1970;
                     double diffInSeconds = monitor.LastDataTime.HasValue
                         ? offlineDateTime.Subtract(lastDataTime).TotalSeconds
                         : 0;

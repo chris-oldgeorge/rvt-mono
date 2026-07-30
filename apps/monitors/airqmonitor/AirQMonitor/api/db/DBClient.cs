@@ -1,7 +1,6 @@
 using AirQ.Api.Db.EntityFramework;
 using AirQ.Api.Db.Mapping;
 using AirQ.Model.Dto;
-using AirQMonitor.model.dto;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Data;
@@ -11,6 +10,7 @@ using Rvt.Monitor.Common.Data.Queries;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
+using Rvt.Monitor.Common.Utilities;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 namespace AirQ.Api.Db
 {
@@ -63,7 +63,7 @@ namespace AirQ.Api.Db
 
         public List<NoiseMonitorDto> ReadMonitorList(DateTime? lastDataTime)
         {
-            DateTime cutoff = lastDataTime ?? AirQApi.JAN1_1970;
+            DateTime cutoff = lastDataTime ?? DateTimeUtil.JAN1_1970;
             using AirQMonitorContext context = CreateContext();
 
             List<MonitorEntity> monitors = [.. context.Monitors

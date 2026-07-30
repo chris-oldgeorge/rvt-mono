@@ -1,7 +1,7 @@
 using System.Reflection;
 using System.Text;
 
-namespace SvantekMonitor.model.dto
+namespace Svantek.Model.Dto
 {
     // Summary: Shared diagnostic base for Svantek DTOs that prints public property values.
     // Major updates:

@@ -10,8 +10,8 @@ using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Svantek.Api.Db.EntityFramework;
 using Svantek.Api.Db.Mapping;
+using Rvt.Monitor.Common.Utilities;
 using Svantek.Model.Dto;
-using SvantekMonitor.model.dto;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 namespace Svantek.Api.Db
 {
@@ -49,7 +49,7 @@ namespace Svantek.Api.Db
 
         public List<NoiseMonitorReadDto> ReadMonitorList(DateTime? lastDataTime)
         {
-            DateTime minLastDataTime = lastDataTime ?? SvantekApi.JAN1_1970;
+            DateTime minLastDataTime = lastDataTime ?? DateTimeUtil.JAN1_1970;
             using SvantekMonitorContext context = CreateContext();
 
             var rows = (from monitor in context.Monitors.AsNoTracking()
@@ -73,7 +73,7 @@ namespace Svantek.Api.Db
             DateTime? lastDataTime,
             CancellationToken cancellationToken = default)
         {
-            DateTime minLastDataTime = lastDataTime ?? SvantekApi.JAN1_1970;
+            DateTime minLastDataTime = lastDataTime ?? DateTimeUtil.JAN1_1970;
             await using SvantekMonitorContext context = CreateContext();
 
             var rows = await (from monitor in context.Monitors.AsNoTracking()

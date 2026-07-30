@@ -96,7 +96,7 @@ namespace Omnidots.Api.UseCases
             }
             else if (batteryLevel <= _batteryLevelPercentAlert)
             {
-                if (monitor.BatteryStatus == OmnidotsApi.BatteryAlertType.BatteryAlert)
+                if (monitor.BatteryStatus == BatteryAlertType.BatteryAlert)
                 {
                     if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
                     {
@@ -115,7 +115,7 @@ namespace Omnidots.Api.UseCases
             }
             else if (batteryLevel <= _batteryLevelPercentCaution)
             {
-                if (monitor.BatteryStatus == OmnidotsApi.BatteryAlertType.BatteryCaution)
+                if (monitor.BatteryStatus == BatteryAlertType.BatteryCaution)
                 {
                     if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
                     {
@@ -139,7 +139,7 @@ namespace Omnidots.Api.UseCases
                     RvtLogger.Logger.LogInformation("NotifyBatteryLevels Battery OK level={Value1} for serialId={Value2} is above caution level={Value3}",
                     batteryLevel, monitor.SerialId!, _batteryLevelPercentCaution);
                 }
-                if (monitor.BatteryStatus != OmnidotsApi.BatteryAlertType.Off)
+                if (monitor.BatteryStatus != BatteryAlertType.Off)
                 {
                     _monitorCommands.SetMonitorBatteryStatus(monitor.Id, 0);
                 }

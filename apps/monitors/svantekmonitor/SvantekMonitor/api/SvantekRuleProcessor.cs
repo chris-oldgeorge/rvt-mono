@@ -3,7 +3,7 @@ using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Svantek.Api.Db;
-using SvantekMonitor.model.dto;
+using Svantek.Model.Dto;
 
 namespace Svantek.Api
 {

@@ -1,5 +1,3 @@
-using SvantekMonitor.model.dto;
-
 namespace Svantek.Model.Dto
 {
     // Summary: Captures legacy Svantek status metadata used by tests and compatibility seed data.

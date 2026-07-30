@@ -1,4 +1,4 @@
-using SvantekMonitor.model.dto;
+using Svantek.Model.Dto;
 
 namespace Svantek.Api.Db;
 

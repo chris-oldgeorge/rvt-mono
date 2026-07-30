@@ -19,7 +19,6 @@ using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
-using static Omnidots.Api.OmnidotsApi;
 namespace OmnidotsAdapterTests
 {
 

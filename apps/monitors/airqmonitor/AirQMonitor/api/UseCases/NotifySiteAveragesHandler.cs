@@ -1,5 +1,5 @@
 using AirQ.Api.Db;
-using AirQMonitor.model.dto;
+using AirQ.Model.Dto;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 

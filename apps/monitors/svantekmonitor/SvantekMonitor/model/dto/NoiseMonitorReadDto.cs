@@ -1,6 +1,4 @@
-using static Svantek.Api.SvantekApi;
-
-namespace SvantekMonitor.model.dto
+namespace Svantek.Model.Dto
 {
     // Summary: Represents a deployed Svantek monitor selected for data collection and battery checks.
     // Major updates:

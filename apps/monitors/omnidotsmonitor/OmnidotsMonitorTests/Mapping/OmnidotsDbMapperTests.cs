@@ -64,7 +64,7 @@ public sealed class OmnidotsDbMapperTests
         Assert.AreEqual("14768", dto.SerialId);
         Assert.AreEqual("R17222V-QUCILO", dto.FleetNr);
         Assert.IsTrue(dto.Offline);
-        Assert.AreEqual(OmnidotsApi.BatteryAlertType.BatteryCaution, dto.BatteryStatus);
+        Assert.AreEqual(BatteryAlertType.BatteryCaution, dto.BatteryStatus);
         Assert.AreEqual(60, dto.MonitorStatus.MeasurementDuration);
         Assert.AreEqual("S1", dto.Sensor!.Name);
     }
@@ -97,7 +97,7 @@ public sealed class OmnidotsDbMapperTests
             monitorStatus: MinimalStatus("14768"),
             sensor: null,
             offline: false,
-            batteryStatus: OmnidotsApi.BatteryAlertType.BatteryAlert,
+            batteryStatus: BatteryAlertType.BatteryAlert,
             lastSeen: null,
             deployDate: null);
 

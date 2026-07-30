@@ -1,6 +1,5 @@
 
 using Svantek.Model.Dto;
-using SvantekMonitor.model.dto;
 
 namespace Svantek.Api;
 

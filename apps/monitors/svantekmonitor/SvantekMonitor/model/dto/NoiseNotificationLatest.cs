@@ -1,4 +1,4 @@
-namespace SvantekMonitor.model.dto
+namespace Svantek.Model.Dto
 {
     // Summary: Tracks the latest noise notification context used to prevent duplicate Svantek alerts.
     // Major updates:

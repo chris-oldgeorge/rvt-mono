@@ -3,7 +3,7 @@ using AirQ.Api;
 using AirQ.Api.Db;
 using AirQ.Api.Http;
 using AirQ.Model.Dto;
-using AirQMonitor.model.dto;
+using AirQ.Model.Dto;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Language.Flow;

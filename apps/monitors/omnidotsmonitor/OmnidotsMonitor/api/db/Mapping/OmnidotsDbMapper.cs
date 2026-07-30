@@ -2,7 +2,6 @@ using Omnidots.Api.Db.EntityFramework;
 using Omnidots.Model.Dto;
 using Riok.Mapperly.Abstractions;
 using Rvt.Monitor.Common.Data.Entities;
-using static Omnidots.Api.OmnidotsApi;
 
 namespace Omnidots.Api.Db.Mapping;
 

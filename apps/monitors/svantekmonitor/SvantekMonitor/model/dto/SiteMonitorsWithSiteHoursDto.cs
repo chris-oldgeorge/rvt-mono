@@ -1,4 +1,4 @@
-namespace SvantekMonitor.model.dto
+namespace Svantek.Model.Dto
 {
     // Summary: Combines deployed Svantek monitor identity with the site hours used for reporting windows.
     // Major updates:

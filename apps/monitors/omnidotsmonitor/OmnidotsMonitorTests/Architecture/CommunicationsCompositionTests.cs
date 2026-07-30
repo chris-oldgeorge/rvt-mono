@@ -1,7 +1,7 @@
 using Omnidots.Api;
 using Rvt.Monitor.IntegrationTesting;
 
-namespace OmnidotsMonitorTests.Architecture;
+namespace OmnidotsAdapterTests.Architecture;
 
 // Summary: Asserts this host honors the shared communications-composition contract.
 // Major updates:

@@ -47,7 +47,7 @@ namespace SvantekMonitorTests
             int pointId = 1,
             DateTime? lastDataTime = null,
             int batteryCharge = 100,
-            SvantekApi.BatteryAlertType batteryStatus = SvantekApi.BatteryAlertType.Off)
+            BatteryAlertType batteryStatus = BatteryAlertType.Off)
         {
             DateTime deployedStart = (lastDataTime ?? DateTime.UtcNow).AddDays(-1);
             return new NoiseMonitorReadDto(

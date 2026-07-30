@@ -59,7 +59,7 @@ namespace Omnidots.Api.UseCases
                     {
                         DateTime lastDataTime = monitor.LastDataTime != null
                             ? AsUtc(DateTimeUtil.TruncateMillis((DateTime)monitor.LastDataTime))
-                            : OmnidotsApi.JAN1_1970;
+                            : DateTimeUtil.JAN1_1970;
                         double diffInSeconds = offlineDateTime.Subtract(lastDataTime).TotalSeconds;
                         if (lastDataTime < cutOff) // remove all with less 24 hours already
                         {

@@ -1,9 +1,10 @@
+using System.Globalization;
 using Rvt.Storage;
 using Svantek.Api.Db;
 using Svantek.Api.Ports;
 using Svantek.Api.Storage;
 using Svantek.Model.Http;
-using SvantekMonitor.model.dto;
+using Svantek.Model.Dto;
 
 namespace Svantek.Api.UseCases;
 
@@ -58,7 +59,7 @@ public sealed class CheckForSoundRecordingsHandler
 
                 ProjectFile audioFile = audioFiles.Count == 1
                     ? audioFiles[0]
-                    : audioFiles.MinBy(file => Math.Abs((file.triggerDate - alert.NotificationTime).TotalSeconds))!;
+                    : audioFiles.MinBy(file => Math.Abs((TriggerDate(file) - alert.NotificationTime).TotalSeconds))!;
                 byte[] content = await _gateway.GetSoundFileAsync(
                     alert.ProjectId,
                     alert.PointId,
@@ -108,8 +109,12 @@ public sealed class CheckForSoundRecordingsHandler
             pointId,
             cancellationToken).ConfigureAwait(false);
         return [.. files
-            .Where(file => file.triggerDate >= alertTime.AddSeconds(-averagePeriod) &&
-                           file.triggerDate <= alertTime)];
+            .Where(file =>
+            {
+                DateTime triggerDate = TriggerDate(file);
+                return triggerDate >= alertTime.AddSeconds(-averagePeriod) &&
+                       triggerDate <= alertTime;
+            })];
     }
 
     private async Task<List<ProjectFile>> FetchFilesAsync(
@@ -138,6 +143,32 @@ public sealed class CheckForSoundRecordingsHandler
         List<ProjectFile> soundFiles = [.. files.Where(file => file.filename.Contains(".WAV", StringComparison.Ordinal))];
         filesCache.Add(listId, soundFiles);
         return soundFiles;
+    }
+
+    // Derives the trigger timestamp from the sound file's name
+    // (yyyyMMdd_HHmmss...). A name that cannot yield one is malformed vendor
+    // data, so this fails explicitly - the per-alert failure collector records
+    // it, matching ValidateFileRow - instead of the old silent local
+    // DateTime.Now fallback that quietly excluded the file from matching.
+    private static DateTime TriggerDate(ProjectFile file)
+    {
+        string filename = file.filename;
+        if (filename.Length < 17)
+        {
+            throw new InvalidDataException(
+                $"Svantek sound file name '{filename}' is too short to contain a trigger timestamp.");
+        }
+
+        string filenameTime =
+            filename[..4] + "-" + filename[4..6] + "-" + filename[6..8] + " " +
+            filename[9..11] + ":" + filename[12..14] + ":" + filename[15..17];
+        if (!DateTime.TryParse(filenameTime, CultureInfo.InvariantCulture, out DateTime triggerDate))
+        {
+            throw new InvalidDataException(
+                $"Svantek sound file name '{filename}' does not contain a parseable trigger timestamp.");
+        }
+
+        return triggerDate;
     }
 
     private static void ValidateFileRow(ProjectFile file)

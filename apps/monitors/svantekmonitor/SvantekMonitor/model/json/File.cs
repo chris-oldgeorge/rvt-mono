@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 
 namespace Svantek.Model.Http
@@ -24,14 +23,5 @@ namespace Svantek.Model.Http
         public string modificationDate => this[6].GetString()!;
         public int status => this[7].GetInt32();
         public int index => this[8].GetInt32();
-
-        public DateTime triggerDate
-        {
-            get
-            {
-                string filenametime = filename[..4] + "-" + filename[4..6] + "-" + filename[6..8] + " " + filename[9..11] + ":" + filename[12..14] + ":" + filename[15..17];
-                return DateTime.TryParse(filenametime, CultureInfo.InvariantCulture, out DateTime dt) ? dt : DateTime.Now.AddDays(1);
-            }
-        }
     }
 }

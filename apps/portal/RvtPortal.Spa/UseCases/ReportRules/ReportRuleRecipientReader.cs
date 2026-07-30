@@ -11,6 +11,7 @@ using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Sites;
 using ReportRule = RVT.DataAccess.EntityModels.Models.ReportRule;
 
 namespace RvtPortal.Spa.UseCases.ReportRules;
@@ -34,18 +35,21 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
     private readonly RVTDbContext _domainContext;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ApplicationDbContext _applicationContext;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the report-rule recipient reader.
     public ReportRuleRecipientReader(
         RVTSearchContext searchContext,
         RVTDbContext domainContext,
         UserManager<ApplicationUser> userManager,
-        ApplicationDbContext applicationContext)
+        ApplicationDbContext applicationContext,
+        TimeProvider timeProvider)
     {
         _searchContext = searchContext;
         _domainContext = domainContext;
         _userManager = userManager;
         _applicationContext = applicationContext;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Loads each user's roles in one join instead of a UserManager round trip per user.
@@ -213,7 +217,8 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
     {
         List<Guid> activeSiteUserIds = await _domainContext.SiteUsers
             .AsNoTracking()
-            .Where(siteUser => siteUser.SiteId == siteId && siteUser.EndDate == null)
+            .Where(ActiveSiteAssignment.At(_timeProvider.GetUtcNow().UtcDateTime))
+            .Where(siteUser => siteUser.SiteId == siteId)
             .Select(siteUser => siteUser.UserId)
             .ToListAsync(cancellationToken);
         return [.. activeSiteUserIds
@@ -295,7 +300,8 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             ? []
             : await _domainContext.SiteUsers
                 .AsNoTracking()
-                .Where(siteUser => userIds.Contains(siteUser.UserId) && siteUser.EndDate == null)
+                .Where(ActiveSiteAssignment.At(_timeProvider.GetUtcNow().UtcDateTime))
+                .Where(siteUser => userIds.Contains(siteUser.UserId))
                 .GroupBy(siteUser => siteUser.UserId)
                 .Select(group => new { UserId = group.Key, Count = group.Count() })
                 .ToDictionaryAsync(item => item.UserId, item => item.Count, cancellationToken);
@@ -340,7 +346,8 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
     {
         List<Guid> activeSiteUserIds = await _domainContext.SiteUsers
             .AsNoTracking()
-            .Where(siteUser => siteUser.SiteId == rule.SiteId && siteUser.EndDate == null)
+            .Where(ActiveSiteAssignment.At(_timeProvider.GetUtcNow().UtcDateTime))
+            .Where(siteUser => siteUser.SiteId == rule.SiteId)
             .Select(siteUser => siteUser.UserId)
             .ToListAsync(cancellationToken);
         HashSet<Guid> visibleUserIds = [.. activeSiteUserIds, .. assignedUserIds];
@@ -396,7 +403,8 @@ public sealed class ReportRuleRecipientReader : IReportRuleRecipientReader
             ? []
             : await _domainContext.SiteUsers
                 .AsNoTracking()
-                .Where(siteUser => userIds.Contains(siteUser.UserId) && siteUser.EndDate == null)
+                .Where(ActiveSiteAssignment.At(_timeProvider.GetUtcNow().UtcDateTime))
+                .Where(siteUser => userIds.Contains(siteUser.UserId))
                 .GroupBy(siteUser => siteUser.UserId)
                 .Select(group => new { UserId = group.Key, Count = group.Count() })
                 .ToDictionaryAsync(item => item.UserId, item => item.Count, cancellationToken);

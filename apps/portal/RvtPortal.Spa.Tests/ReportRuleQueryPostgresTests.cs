@@ -37,7 +37,8 @@ public sealed class ReportRuleQueryPostgresTests
             searchContext,
             domainContext,
             new NotSupportedUserDirectory(),
-            new NotSupportedReportGenerationGateway());
+            new NotSupportedReportGenerationGateway(),
+            TimeProvider.System);
 
         UseCaseResult<PagedResult<ReportRuleListModel>> searched = await service.QueryAsync(
             new ReportRuleQuery(null, new PageRequest("weekly", 1, 10, "siteName", "asc")),
@@ -71,7 +72,8 @@ public sealed class ReportRuleQueryPostgresTests
             searchContext,
             domainContext,
             new NotSupportedUserDirectory(),
-            new NotSupportedReportGenerationGateway());
+            new NotSupportedReportGenerationGateway(),
+            TimeProvider.System);
 
         UseCaseResult<PagedResult<ReportRuleListModel>> secondPage = await service.QueryAsync(
             new ReportRuleQuery(null, new PageRequest(null, 2, 2, "siteName", "asc")),

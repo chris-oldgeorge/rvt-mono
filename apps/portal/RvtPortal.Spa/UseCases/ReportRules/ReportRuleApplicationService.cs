@@ -12,6 +12,7 @@ using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RvtPortal.Application.Common;
 using RvtPortal.Application.Identity;
+using RvtPortal.Spa.UseCases.Sites;
 
 namespace RvtPortal.Spa.UseCases.ReportRules;
 
@@ -69,18 +70,21 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     private readonly RVTDbContext _domainContext;
     private readonly IPortalUserDirectory _userDirectory;
     private readonly IReportGenerationGateway _reportGenerationGateway;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes this type with the data contexts needed for report-rule workflows.
     public ReportRuleApplicationService(
         RVTSearchContext searchContext,
         RVTDbContext domainContext,
         IPortalUserDirectory userDirectory,
-        IReportGenerationGateway reportGenerationGateway)
+        IReportGenerationGateway reportGenerationGateway,
+        TimeProvider timeProvider)
     {
         _searchContext = searchContext;
         _domainContext = domainContext;
         _userDirectory = userDirectory;
         _reportGenerationGateway = reportGenerationGateway;
+        _timeProvider = timeProvider;
     }
 
     public async Task<UseCaseResult<PagedResult<ReportRuleListModel>>> QueryAsync(ReportRuleQuery request, CancellationToken cancellationToken)
@@ -482,7 +486,8 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
     {
         List<Guid> activeSiteUserIds = await _domainContext.SiteUsers
             .AsNoTracking()
-            .Where(siteUser => siteUser.SiteId == rule.SiteId && siteUser.EndDate == null)
+            .Where(ActiveSiteAssignment.At(_timeProvider.GetUtcNow().UtcDateTime))
+            .Where(siteUser => siteUser.SiteId == rule.SiteId)
             .Select(siteUser => siteUser.UserId)
             .ToListAsync(cancellationToken);
         HashSet<Guid> visibleUserIds = [.. activeSiteUserIds, .. assignedUserIds];
@@ -522,7 +527,8 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             ? []
             : await _domainContext.SiteUsers
                 .AsNoTracking()
-                .Where(siteUser => userIds.Contains(siteUser.UserId) && siteUser.EndDate == null)
+                .Where(ActiveSiteAssignment.At(_timeProvider.GetUtcNow().UtcDateTime))
+                .Where(siteUser => userIds.Contains(siteUser.UserId))
                 .GroupBy(siteUser => siteUser.UserId)
                 .Select(group => new { UserId = group.Key, Count = group.Count() })
                 .ToDictionaryAsync(item => item.UserId, item => item.Count, cancellationToken);
@@ -576,11 +582,10 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             return errors;
         }
 
-        if (await _domainContext.SiteUsers.AsNoTracking().AnyAsync(siteUser =>
-            siteUser.SiteId == rule.SiteId &&
-            siteUser.UserId == userId &&
-            siteUser.EndDate == null,
-            cancellationToken))
+        if (await _domainContext.SiteUsers
+            .AsNoTracking()
+            .Where(ActiveSiteAssignment.ForUser(userId, _timeProvider.GetUtcNow().UtcDateTime))
+            .AnyAsync(siteUser => siteUser.SiteId == rule.SiteId, cancellationToken))
         {
             return errors;
         }

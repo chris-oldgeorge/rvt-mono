@@ -159,6 +159,29 @@ public sealed class TestMonitorApiEndpoints
     }
 
     [TestMethod]
+    public async Task Webhook_UnknownMonitorSerial_Returns422SoTheVendorStopsRetrying()
+    {
+        CapturingIngress ingress = new((signal, _) => throw new AlertUnknownMonitorException(signal.SerialId));
+        await using EndpointApp app = await EndpointApp.StartAsync(ingress: ingress);
+        byte[] body = ValidWebhookBody();
+        string signature = Signature(body);
+        using HttpRequestMessage request = CreateWebhookRequest(body, signature);
+
+        using HttpResponseMessage response = await app.Client.SendAsync(request, TestContext.CancellationToken);
+
+        string problem = await AssertProblemAsync(
+            response,
+            HttpStatusCode.UnprocessableEntity,
+            "Unknown monitor serial.");
+        using JsonDocument document = JsonDocument.Parse(problem);
+        Assert.AreEqual(
+            "Monitor serial '23423' is not registered with this service.",
+            document.RootElement.GetProperty("detail").GetString());
+        AssertNoLeakage(problem, app.Logs, _bodySentinel, signature, _webhookSecret);
+        Assert.AreEqual(1, ingress.AcceptCount);
+    }
+
+    [TestMethod]
     public async Task Webhook_TransientPersistenceFailure_Returns503WithoutLeakage()
     {
         CapturingIngress ingress = new((_, _) => throw new AlertTransientPersistenceException(

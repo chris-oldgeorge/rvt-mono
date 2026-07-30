@@ -129,7 +129,7 @@ public sealed class SvantekJobFailureSemanticsTests
     }
 
     [TestMethod]
-    public void FailureCollector_SnapshotsFailuresImmutably_AndNeverCapturesCancellation()
+    public void FailureCollector_SnapshotsFailuresImmutably_AndNeverCapturesRunCancellation()
     {
         using CancellationTokenSource cancellation = new();
         cancellation.Cancel();
@@ -139,15 +139,15 @@ public sealed class SvantekJobFailureSemanticsTests
         operational.Setup(commands => commands.HandleException("later", It.IsAny<InvalidOperationException>()));
         SvantekFailureCollector collector = new(operational.Object);
 
-        collector.Capture("first", new IOException("one"));
-        collector.Capture("second", new TimeoutException("two"));
+        collector.Capture("first", new IOException("one"), TestContext.CancellationToken);
+        collector.Capture("second", new TimeoutException("two"), TestContext.CancellationToken);
         SvantekJobAggregateException aggregate = Assert.ThrowsExactly<SvantekJobAggregateException>(
             () => collector.ThrowIfAny("job"));
-        collector.Capture("later", new InvalidOperationException("three"));
+        collector.Capture("later", new InvalidOperationException("three"), TestContext.CancellationToken);
         OperationCanceledException cancellationException = new(cancellation.Token);
 
         OperationCanceledException observedCancellation = Assert.ThrowsExactly<OperationCanceledException>(
-            () => collector.Capture("cancelled", cancellationException));
+            () => collector.Capture("cancelled", cancellationException, cancellation.Token));
 
         Assert.AreSame(cancellationException, observedCancellation);
         Assert.HasCount(2, aggregate.Failures);
@@ -156,6 +156,68 @@ public sealed class SvantekJobFailureSemanticsTests
         operational.Verify(
             commands => commands.HandleException("cancelled", It.IsAny<Exception>()),
             Times.Never);
+    }
+
+    [TestMethod]
+    public void FailureCollector_RecordsVendorTimeoutCancellation_WhenRunTokenIsNotCancelled()
+    {
+        // HttpClient.Timeout surfaces as a TaskCanceledException whose token is
+        // NOT the run token; it is a per-unit failure, not a fleet abort.
+        Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
+        operational.Setup(commands => commands.HandleException("timeout", It.IsAny<TaskCanceledException>()));
+        SvantekFailureCollector collector = new(operational.Object);
+        TaskCanceledException vendorTimeout = new("A task was canceled.");
+
+        collector.Capture("timeout", vendorTimeout, TestContext.CancellationToken);
+        SvantekJobAggregateException aggregate = Assert.ThrowsExactly<SvantekJobAggregateException>(
+            () => collector.ThrowIfAny("job"));
+
+        Assert.HasCount(1, aggregate.Failures);
+        Assert.AreEqual("timeout", aggregate.Failures[0].Message);
+        Assert.AreSame(vendorTimeout, aggregate.Failures[0].InnerException);
+        operational.VerifyAll();
+    }
+
+    [TestMethod]
+    public void FailureCollector_RethrowsCancellation_WhenRunTokenIsCancelled()
+    {
+        using CancellationTokenSource cancellation = new();
+        cancellation.Cancel();
+        Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
+        SvantekFailureCollector collector = new(operational.Object);
+        TaskCanceledException runAbort = new("A task was canceled.");
+
+        TaskCanceledException observed = Assert.ThrowsExactly<TaskCanceledException>(
+            () => collector.Capture("aborted", runAbort, cancellation.Token));
+
+        Assert.AreSame(runAbort, observed);
+        operational.Verify(
+            commands => commands.HandleException(It.IsAny<string>(), It.IsAny<Exception>()),
+            Times.Never);
+    }
+
+    [TestMethod]
+    public void FailureCollector_KeepsOriginalFailure_WhenRecordingWriteThrows()
+    {
+        // A database outage while writing the error row must not replace or
+        // swallow the original failure.
+        InvalidOperationException recordingFailure = new("error table unavailable");
+        Mock<ISvantekOperationalCommands> operational = new(MockBehavior.Strict);
+        operational.Setup(commands => commands.HandleException("unit", It.IsAny<IOException>()))
+            .Throws(recordingFailure);
+        SvantekFailureCollector collector = new(operational.Object);
+        IOException original = new("vendor failed");
+
+        collector.Capture("unit", original, TestContext.CancellationToken);
+        SvantekJobAggregateException aggregate = Assert.ThrowsExactly<SvantekJobAggregateException>(
+            () => collector.ThrowIfAny("job"));
+
+        Assert.HasCount(1, aggregate.Failures);
+        Assert.AreEqual("unit", aggregate.Failures[0].Message);
+        AggregateException combined = (AggregateException)aggregate.Failures[0].InnerException!;
+        Assert.AreSame(original, combined.InnerExceptions[0]);
+        Assert.AreSame(recordingFailure, combined.InnerExceptions[1]);
+        operational.VerifyAll();
     }
 
     public TestContext TestContext { get; set; } = null!;

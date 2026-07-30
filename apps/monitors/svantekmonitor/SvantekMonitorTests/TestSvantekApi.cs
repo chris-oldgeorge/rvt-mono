@@ -194,6 +194,41 @@ public class TestSvantekApi
     }
 
     [TestMethod]
+    public async Task TestNotifyBatteryLevels_IngressFailure_DoesNotLatchStatusAndProcessesNextMonitor()
+    {
+        SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,
+                                 out Mock<IMqttClient> mqttClient, out Mock<IAlertIngressPort> messageClient);
+
+        NoiseMonitorReadDto failing = SvantekFixture.ReadMonitorDto("Device1", batteryCharge: 5);
+        NoiseMonitorReadDto next = SvantekFixture.ReadMonitorDto("Device2", pointId: 2, batteryCharge: 5);
+        dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
+            ReturnsAsync([failing, next]);
+        messageClient.Setup(c => c.AcceptAsync(
+                It.Is<AlertSignal>(signal => signal.SerialId == "Device1"),
+                It.IsAny<CancellationToken>())).
+            ThrowsAsync(new IOException("durable ingress unavailable"));
+
+        SvantekJobAggregateException aggregate = await Assert.ThrowsExactlyAsync<SvantekJobAggregateException>(
+            () => testObj.NotifyBatteryLevelsAsync(TestContext.CancellationToken));
+
+        // The rejected signal must NOT latch the status gate, so the next
+        // run retries the alert instead of suppressing it forever.
+        dbClient.Verify(c => c.SetMonitorBatteryStatusAsync(failing.Id, It.IsAny<byte>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+
+        // The failure is isolated per monitor: the next monitor still signals and latches.
+        messageClient.Verify(c => c.AcceptAsync(
+            It.Is<AlertSignal>(signal => signal.SerialId == "Device2"),
+            It.IsAny<CancellationToken>()), Times.Exactly(1));
+        dbClient.Verify(c => c.SetMonitorBatteryStatusAsync(next.Id, 1, It.IsAny<CancellationToken>()), Times.Exactly(1));
+        dbClient.Verify(c => c.HandleException("NotifyBatteryLevels monitor Device1", It.IsAny<IOException>()), Times.Exactly(1));
+        Assert.HasCount(1, aggregate.Failures);
+
+        httpClient.VerifyNoOtherCalls();
+        mqttClient.VerifyNoOtherCalls();
+    }
+
+    [TestMethod]
     public async Task TestNotifyBatteryLevels_HealthyBatteryResetsStatusWithoutSignal_Success()
     {
         SvantekApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient, out Mock<IDBClient> dbClient,

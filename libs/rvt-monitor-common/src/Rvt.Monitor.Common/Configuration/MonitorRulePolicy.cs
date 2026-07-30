@@ -1,7 +1,7 @@
 namespace Rvt.Monitor.Common.Configuration;
 
 /// <summary>
-/// The monitor-specific behaviour of shared alert rules and notification text.
+/// The monitor-specific behaviour of shared alert rules.
 /// </summary>
 /// <remarks>
 /// These behaviours legitimately differ per monitor, but they used to be read
@@ -15,32 +15,19 @@ namespace Rvt.Monitor.Common.Configuration;
 /// and lets tests construct the variant they mean.
 /// </remarks>
 public sealed record MonitorRulePolicy(
-    bool AppliesActivityTimeWindow,
-    MonitorNotificationStyle NotificationStyle)
+    bool AppliesActivityTimeWindow)
 {
     /// <summary>
     /// The behaviour used when no monitor-specific policy is supplied:
-    /// alert windows are honoured and notification text is generic.
+    /// alert windows are honoured.
     /// </summary>
     public static MonitorRulePolicy Default { get; } =
-        new(AppliesActivityTimeWindow: true, MonitorNotificationStyle.Generic);
+        new(AppliesActivityTimeWindow: true);
 
     public static MonitorRulePolicy ForMonitorKind(string? monitorKind) => monitorKind switch
     {
         // MyAtm alert rules carry no time window, so only the day applies.
-        "myatm" => new MonitorRulePolicy(false, MonitorNotificationStyle.Generic),
-        "omnidots" => new MonitorRulePolicy(true, MonitorNotificationStyle.Vibration),
-        "airq" or "svantek" => new MonitorRulePolicy(true, MonitorNotificationStyle.Noise),
+        "myatm" => new MonitorRulePolicy(false),
         _ => Default,
     };
-}
-
-/// <summary>
-/// Selects the wording of alert notification messages.
-/// </summary>
-public enum MonitorNotificationStyle
-{
-    Generic,
-    Noise,
-    Vibration,
 }

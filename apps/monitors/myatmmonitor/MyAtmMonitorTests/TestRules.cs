@@ -66,8 +66,6 @@ public sealed class TestRules
 
         dbClient.Verify(client => client.InsertDustDtos(It.IsAny<List<DustDto>>()), Times.Never);
         dbClient.Verify(client => client.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<Period>()), Times.Never);
-        dbClient.Verify(client => client.WriteNotification(It.IsAny<Rvt.Monitor.Common.Notifications.NotificationDto>()), Times.Never);
-        dbClient.Verify(client => client.UpdateAlertRule(It.IsAny<RvtAlertRuleDto>()), Times.Never);
         mqttClient.VerifyNoOtherCalls();
     }
 

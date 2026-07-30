@@ -11,7 +11,6 @@ using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 
 namespace MyAtmMonitorTests;
@@ -173,8 +172,6 @@ public sealed class ProcessDustLevelsAlertCommitTests
         Assert.IsEmpty(commit.Occurrences);
         dbClient.Verify(client => client.ReadMonitor(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
         dbClient.Verify(client => client.GetAverageDustLevel(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()), Times.Never);
-        dbClient.Verify(client => client.UpdateAlertRule(It.IsAny<RvtAlertRuleDto>()), Times.Never);
-        dbClient.Verify(client => client.WriteNotification(It.IsAny<NotificationDto>()), Times.Never);
     }
 
     private static MonitorDeliveryPayloadV1 Decode(MonitorDeliveryRequest request) =>

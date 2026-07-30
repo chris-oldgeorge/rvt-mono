@@ -132,10 +132,7 @@ namespace Omnidots.Model.Json
                  closedByUser: null,
                  alertType: alertType,
                  alertField: string.Format(fieldStr, axis),
-                 monitorId: monitorId)
-            {
-                ApiMessage = Text
-            };
+                 monitorId: monitorId);
 
             return notification;
         }

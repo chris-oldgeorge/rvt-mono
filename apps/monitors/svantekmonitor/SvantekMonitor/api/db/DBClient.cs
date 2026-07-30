@@ -13,8 +13,6 @@ using Svantek.Api.Db.Mapping;
 using Svantek.Model.Dto;
 using SvantekMonitor.model.dto;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace Svantek.Api.Db
 {
 
@@ -284,83 +282,6 @@ namespace Svantek.Api.Db
                 .Select(rule => ToRuleDto(rule, serialNumber))];
         }
 
-        public List<RvtContactDto> ReadAlertContacts(Guid monitorId, out Guid siteId)
-        {
-            using SvantekMonitorContext context = CreateContext();
-
-            var contactRows = (from deployment in context.Deployments.AsNoTracking()
-                               join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
-                               join siteUser in context.SiteUsers.AsNoTracking() on contract.SiteId equals siteUser.SiteId
-                               join setting in context.NotificationSettings.AsNoTracking() on siteUser.Id equals setting.SiteUserId
-                               where deployment.MonitorId == monitorId &&
-                                     deployment.EndDate == null &&
-                                     (setting.Email || setting.SMS)
-                               select new
-                               {
-                                   siteUser.UserId,
-                                   siteUser.SiteId,
-                                   setting.Email,
-                                   setting.SMS,
-                                   setting.StartTime,
-                                   setting.EndTime
-                               }).ToList();
-
-            siteId = contactRows.FirstOrDefault()?.SiteId ?? Guid.Empty;
-
-            HashSet<string> userIds = contactRows
-                .Select(row => row.UserId.ToString())
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, AspNetUserEntity> usersById = context.Users
-                .AsNoTracking()
-                .Where(user => userIds.Contains(user.Id))
-                .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
-
-            return [.. contactRows
-                .Where(row => usersById.ContainsKey(row.UserId.ToString()))
-                .Select(row =>
-                {
-                    AspNetUserEntity user = usersById[row.UserId.ToString()];
-                    return new RvtContactDto(
-                        useEmail: row.Email,
-                        useSms: row.SMS,
-                        emailAddress: user.Email,
-                        phoneNumber: user.PhoneNumber,
-                        sendStartTime: row.StartTime,
-                        sendEndTime: row.EndTime);
-                })];
-        }
-
-        public void WriteNotification(NotificationDto dto)
-        {
-            using SvantekMonitorContext context = CreateContext();
-            context.Notifications.Add(new NotificationEntity
-            {
-                Id = dto.Id,
-                NotificationTime = dto.NotificationTime,
-                LimitOn = dto.LimitOn,
-                AveragingPeriod = dto.AveragingPeriod,
-                Level = dto.Level,
-                ClosedTime = dto.ClosedTime,
-                ClosedByUser = dto.ClosedByUser,
-                MonitorId = dto.MonitorId,
-                AlertType = (int)dto.AlertType,
-                AlertField = dto.AlertField
-            });
-            context.SaveChanges();
-        }
-
-        public bool HasOpenNotification(Guid monitorId, string alertField, AlertType alertType)
-        {
-            using SvantekMonitorContext context = CreateContext();
-
-            return context.Notifications
-                .AsNoTracking()
-                .Any(row => row.MonitorId == monitorId &&
-                            row.AlertField == alertField &&
-                            row.AlertType == (int)alertType &&
-                            row.ClosedTime == null);
-        }
-
         public void UpdateAlertRule(RvtAlertRuleDto dto)
         {
             using SvantekMonitorContext context = CreateContext();
@@ -386,26 +307,6 @@ namespace Svantek.Api.Db
                 .Where(row => row.SampleTime > normalizedStart && row.SampleTime <= normalizedEnd);
 
             return (field.UseMaximum ? query.Max(field.Selector) : query.Average(field.Selector)) ?? 0.0;
-        }
-
-        public void WriteNotificationAudit(Guid notificationId, string address, string message)
-        {
-            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
-            {
-                RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
-                    SensitiveLogRedactor.Redact(address), message);
-            }
-
-            using SvantekMonitorContext context = CreateContext();
-            context.NotificationAudits.Add(new NotificationSentEntity
-            {
-                Id = Guid.NewGuid(),
-                SendTime = DateTime.UtcNow,
-                Address = address,
-                ErrorMessage = message,
-                NotificationId = notificationId
-            });
-            context.SaveChanges();
         }
 
         public void SetMonitorOffline(Guid monitorId, bool offline)
@@ -446,22 +347,6 @@ namespace Svantek.Api.Db
 
             context.SvantekErrorMessages.RemoveRange(messages);
             context.SaveChanges();
-        }
-
-        public SiteInfoDto ReadSiteInfo(Guid siteId)
-        {
-            using SvantekMonitorContext context = CreateContext();
-            SiteEntity site = context.Sites.AsNoTracking().FirstOrDefault(row => row.Id == siteId)
-                ?? throw AdapterException.Of($"No site info for site Id={siteId}");
-
-            return new SiteInfoDto(
-                siteId: siteId,
-                startTime: site.StartTime,
-                endTime: site.EndTime,
-                satStartTime: site.SatStartTime,
-                satEndTime: site.SatEndTime,
-                sunStartTime: site.SunStartTime,
-                sunEndTime: site.SunEndTime);
         }
 
         public List<SiteMonitorsWithSiteHoursDto> ReadSiteMonitorsWithSiteHours(DateTime Day)
@@ -836,14 +721,14 @@ namespace Svantek.Api.Db
                 {
                     SerialId = Convert.ToString(row["SerialId"]) ?? string.Empty,
                     SampleTime = Convert.ToDateTime(row["SampleTime"]),
-                    LAeq = Convert.ToDouble(row["LAeq"]),
-                    LAmax = Convert.ToDouble(row["LAmax"]),
-                    LA90 = Convert.ToDouble(row["LA90"]),
-                    LA10 = Convert.ToDouble(row["LA10"]),
-                    LCeq = Convert.ToDouble(row["LCeq"]),
-                    LCmax = Convert.ToDouble(row["LCmax"]),
-                    LC90 = Convert.ToDouble(row["LC90"]),
-                    LC10 = Convert.ToDouble(row["LC10"])
+                    LAeq = row.Field<double?>("LAeq"),
+                    LAmax = row.Field<double?>("LAmax"),
+                    LA90 = row.Field<double?>("LA90"),
+                    LA10 = row.Field<double?>("LA10"),
+                    LCeq = row.Field<double?>("LCeq"),
+                    LCmax = row.Field<double?>("LCmax"),
+                    LC90 = row.Field<double?>("LC90"),
+                    LC10 = row.Field<double?>("LC10")
                 })];
 
         private static void InsertNoiseDtos(SvantekMonitorContext context, IEnumerable<NoiseDto> dtos)

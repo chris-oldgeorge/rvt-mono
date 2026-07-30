@@ -54,11 +54,11 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
             ?? throw new InvalidOperationException(
                 $"The local object target directory for resource '{resourceName}' could not be determined.");
 
-        EnsureNoExistingReparsePoints(localRoot, targetPath);
-        EnsureNoExistingReparsePoints(localRoot, metadataPath);
+        EnsureNoExistingReparsePoints(localRoot, targetPath, request.Key);
+        EnsureNoExistingReparsePoints(localRoot, metadataPath, request.Key);
         Directory.CreateDirectory(targetDirectory);
-        EnsureNoExistingReparsePoints(localRoot, targetPath);
-        EnsureNoExistingReparsePoints(localRoot, metadataPath);
+        EnsureNoExistingReparsePoints(localRoot, targetPath, request.Key);
+        EnsureNoExistingReparsePoints(localRoot, metadataPath, request.Key);
 
         string? objectTemporaryPath = null;
         string? metadataTemporaryPath = null;
@@ -81,8 +81,8 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
             }
 
             cancellationToken.ThrowIfCancellationRequested();
-            EnsureNoExistingReparsePoints(localRoot, targetPath);
-            EnsureNoExistingReparsePoints(localRoot, metadataPath);
+            EnsureNoExistingReparsePoints(localRoot, targetPath, request.Key);
+            EnsureNoExistingReparsePoints(localRoot, metadataPath, request.Key);
 
             File.Move(objectTemporaryPath, targetPath, overwrite: true);
             objectTemporaryPath = null;
@@ -130,8 +130,8 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         string localRoot = GetLocalRootPath();
         string targetPath = GetTargetPath(localRoot, key);
         string metadataPath = GetContentTypeMetadataPath(targetPath);
-        EnsureNoExistingReparsePoints(localRoot, targetPath);
-        EnsureNoExistingReparsePoints(localRoot, metadataPath);
+        EnsureNoExistingReparsePoints(localRoot, targetPath, key);
+        EnsureNoExistingReparsePoints(localRoot, metadataPath, key);
 
         if (!File.Exists(targetPath))
         {
@@ -189,8 +189,8 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
         string localRoot = GetLocalRootPath();
         string targetPath = GetTargetPath(localRoot, key);
         string metadataPath = GetContentTypeMetadataPath(targetPath);
-        EnsureNoExistingReparsePoints(localRoot, targetPath);
-        EnsureNoExistingReparsePoints(localRoot, metadataPath);
+        EnsureNoExistingReparsePoints(localRoot, targetPath, key);
+        EnsureNoExistingReparsePoints(localRoot, metadataPath, key);
 
         bool existed = File.Exists(targetPath);
         if (existed)
@@ -336,7 +336,7 @@ public sealed class LocalObjectStorageClient : IObjectStorageClient
     private void EnsureNoExistingReparsePoints(
         string localRoot,
         string targetPath,
-        StorageObjectKey? key = null)
+        StorageObjectKey key)
     {
         string relativeTargetPath = Path.GetRelativePath(localRoot, targetPath);
         string pathComponent = localRoot;

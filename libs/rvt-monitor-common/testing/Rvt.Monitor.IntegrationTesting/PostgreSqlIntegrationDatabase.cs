@@ -52,9 +52,24 @@ public sealed class PostgreSqlIntegrationDatabase : IAsyncDisposable
             await database.ExecuteScopedAsync(resetSql, cancellationToken);
             return database;
         }
-        catch
+        catch (Exception setupFailure)
         {
-            await database.DropSchemaAsync(CancellationToken.None);
+            // Cleanup must never replace the real setup failure: it used to
+            // throw over it, hiding the cause and leaving the schema behind
+            // with no name in the message to drop it by hand.
+            try
+            {
+                await database.DropSchemaAsync(CancellationToken.None);
+            }
+            catch (Exception cleanupFailure)
+            {
+                throw new AggregateException(
+                    $"PostgreSQL integration setup failed and schema '{schemaName}' could not be dropped; " +
+                    "drop it by hand.",
+                    setupFailure,
+                    cleanupFailure);
+            }
+
             throw;
         }
     }

@@ -88,6 +88,32 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
         return true;
     }
 
+    public async Task<bool> DeferAsync(
+        Guid id,
+        Guid leaseId,
+        DateTime nextAttemptAt,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        await using TContext context = contextFactory.CreateDbContext();
+        int affected = await context.AlertDeliveryOutbox
+            .Where(row => row.Id == id && row.Status == LeasedStatus && row.LeaseId == leaseId)
+            .ExecuteUpdateAsync(
+                updates => updates
+                    .SetProperty(row => row.Status, PendingStatus)
+                    .SetProperty(row => row.NextAttemptAt, nextAttemptAt)
+                    .SetProperty(row => row.LeaseId, (Guid?)null)
+                    .SetProperty(row => row.LeaseUntil, (DateTime?)null)
+                    // The claim charged an attempt; waiting for a send window
+                    // is not one, so give it back rather than letting a long
+                    // quiet period exhaust MaxAttempts and dead-letter.
+                    .SetProperty(
+                        row => row.AttemptCount,
+                        row => row.AttemptCount > 0 ? row.AttemptCount - 1 : 0),
+                cancellationToken);
+        return affected > 0;
+    }
+
     public async Task<bool> RetryAsync(
         Guid id,
         Guid leaseId,

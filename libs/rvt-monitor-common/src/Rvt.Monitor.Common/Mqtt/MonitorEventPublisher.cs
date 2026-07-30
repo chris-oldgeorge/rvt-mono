@@ -1,8 +1,4 @@
 using System.Text.Json;
-using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Monitor.Common.Mqtt;
 
 namespace Rvt.Monitor.Common.Mqtt;
 

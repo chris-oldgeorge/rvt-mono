@@ -33,6 +33,32 @@ public sealed class LocalObjectStorageFailureContractTests
     }
 
     [TestMethod]
+    public async Task WriteAsync_WhenTheTargetIsAReparsePoint_NamesTheKeyInTheFailure()
+    {
+        // The guard took an optional key that no call site passed, so every
+        // reparse-point rejection reported a null key and the operator could
+        // not tell which object had been redirected.
+        using TemporaryDirectory temporary = new();
+        string containerPath = Path.Combine(temporary.Path, "container");
+        Directory.CreateDirectory(containerPath);
+        string decoyPath = Path.Combine(temporary.Path, "decoy.bin");
+        await File.WriteAllTextAsync(decoyPath, "decoy", TestContext.CancellationToken);
+        File.CreateSymbolicLink(Path.Combine(containerPath, "sample.bin"), decoyPath);
+        LocalObjectStorageClient client = new(
+            "recordings",
+            new LocalStorageOptions { RootPath = temporary.Path, Container = "container" });
+
+        ObjectStorageException failure = await Assert.ThrowsExactlyAsync<ObjectStorageException>(() =>
+            client.WriteAsync(new StorageWriteRequest(
+                StorageObjectKey.Parse("sample.bin"),
+                new MemoryStream([1, 2, 3], writable: false),
+                "application/octet-stream"), TestContext.CancellationToken));
+
+        Assert.AreEqual(StorageFailureKind.InvalidRequest, failure.Kind);
+        Assert.AreEqual(StorageObjectKey.Parse("sample.bin"), failure.Key);
+    }
+
+    [TestMethod]
     public void GetObjectUri_ReturnsAFileUriUnderTheConfiguredRoot()
     {
         using TemporaryDirectory temporary = new();

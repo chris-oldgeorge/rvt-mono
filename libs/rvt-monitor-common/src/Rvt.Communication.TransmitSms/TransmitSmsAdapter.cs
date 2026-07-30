@@ -82,7 +82,7 @@ public sealed class TransmitSmsAdapter : ISmsDeliveryPort
         catch (TransmitSmsException exception)
         {
             throw Failure(
-                Classify(exception.StatusCode),
+                Classify(exception),
                 exception.Code,
                 exception.RetryAfter);
         }
@@ -102,6 +102,15 @@ public sealed class TransmitSmsAdapter : ISmsDeliveryPort
             throw Failure(DeliveryFailureKind.Configuration, "missing-settings");
         }
     }
+
+    // A successful-but-unparseable HTTP 200 is not a rejection. Dead-lettering
+    // it on attempt 1 wrote a failure audit for a message the provider had
+    // already accepted, so an empty body or a provider schema change silently
+    // turned every SMS into a permanent failure.
+    private static DeliveryFailureKind Classify(TransmitSmsException exception) =>
+        exception.IsUnparseableSuccessBody
+            ? DeliveryFailureKind.Transient
+            : Classify(exception.StatusCode);
 
     private static DeliveryFailureKind Classify(HttpStatusCode? statusCode)
     {

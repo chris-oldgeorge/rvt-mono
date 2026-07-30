@@ -234,8 +234,12 @@ public sealed class OmnidotsAlertCommitStoreTests
     }
 
     [TestMethod]
-    public async Task CommitAsync_ContactOutsideEventTimeSchedule_IsExcluded()
+    public async Task CommitAsync_ContactOutsideEventTimeSchedule_StillPlansRowsCarryingTheWindow()
     {
+        // Product ruling 2026-07-30: quiet hours gate on the send time, not
+        // the event time, so planning no longer drops the contact. The window
+        // rides with the row and the dispatcher defers it if it is still
+        // closed when the row comes due.
         await ExecuteAsync(
             "UPDATE notification_setting SET start_time = @start, end_time = @end;",
             command =>
@@ -248,9 +252,23 @@ public sealed class OmnidotsAlertCommitStoreTests
             AlertType.Alert,
             AlertDeliveryChannels.Mqtt | AlertDeliveryChannels.Email | AlertDeliveryChannels.Sms), TestContext.CancellationToken);
 
-        CollectionAssert.AreEqual(
-            _mqttOnlyKinds,
-            await ReadStringsAsync("SELECT kind FROM alert_delivery_outbox ORDER BY kind"));
+        CollectionAssert.AreEquivalent(
+            _allDeliveryKinds,
+            await ReadStringsAsync("SELECT kind FROM alert_delivery_outbox"));
+        AlertDeliveryEnvelope[] envelopes =
+        [
+            .. (await ReadStringsAsync("SELECT payload FROM alert_delivery_outbox"))
+                .Select(payload => JsonSerializer.Deserialize<AlertDeliveryEnvelope>(payload)!)
+        ];
+        // The two contact rows carry the window; the MQTT row has no recipient.
+        Assert.HasCount(
+            2,
+            envelopes.Where(envelope =>
+                envelope.SendWindowStart == new TimeSpan(11, 0, 0) &&
+                envelope.SendWindowEnd == new TimeSpan(12, 0, 0)).ToList());
+        Assert.HasCount(
+            1,
+            envelopes.Where(envelope => envelope.SendWindowStart is null).ToList());
     }
 
     [TestMethod]

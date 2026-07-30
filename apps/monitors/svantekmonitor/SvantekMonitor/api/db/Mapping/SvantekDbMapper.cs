@@ -1,3 +1,4 @@
+using System.Globalization;
 using Riok.Mapperly.Abstractions;
 using Rvt.Monitor.Common.Data.Entities;
 using Svantek.Api.Db.EntityFramework;
@@ -147,8 +148,19 @@ public static partial class SvantekDbMapper
     [MapperIgnoreSource(nameof(NoiseDto.SerialId))]
     private static partial SvantekNoiseLevelEntity ToNoiseLevelEntity(NoiseDto dto);
 
+    // The vendor's last-status-timestamp is invariant-formatted UTC, and it
+    // gates the request window: a culture-flipped day/month (or a failed parse
+    // under a non-invariant culture) silently stops imports for the monitor,
+    // with no error. Parsed the same way as the sibling vendor timestamp in
+    // StoreNoiseLevelsHandler.
     private static DateTime? ParseDateTime(string? value)
     {
-        return DateTime.TryParse(value, out DateTime parsed) ? parsed : null;
+        return DateTime.TryParse(
+            value,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+            out DateTime parsed)
+            ? parsed
+            : null;
     }
 }

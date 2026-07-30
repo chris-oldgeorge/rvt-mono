@@ -1,6 +1,6 @@
 using Rvt.Monitor.Common.Diagnostics;
 using Svantek.Api.Db;
-using SvantekMonitor.model.dto;
+using Svantek.Model.Dto;
 
 namespace Svantek.Api
 {

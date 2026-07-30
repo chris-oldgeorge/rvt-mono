@@ -293,7 +293,7 @@ public static class MonitorModelBuilderExtensions
             ConfigureGuid(entity.Property(row => row.LeaseId), "lease_id");
             ConfigureInstant(entity.Property(row => row.LeaseUntil), "lease_until");
             ConfigureInstant(entity.Property(row => row.CompletedAt), "completed_at");
-            ConfigureString(entity.Property(row => row.LastError), "last_error", 256);
+            ConfigureString(entity.Property(row => row.LastError), "last_error", 1024);
             ConfigureInstant(entity.Property(row => row.CreatedAt), "created_at");
             entity.HasIndex(row => row.DeliveryKey)
                 .IsUnique()

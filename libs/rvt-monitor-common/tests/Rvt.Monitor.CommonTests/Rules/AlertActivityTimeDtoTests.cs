@@ -141,24 +141,6 @@ public sealed class AlertActivityTimeDtoTests
         Assert.IsTrue(rule.IsActive(_weekday));
     }
 
-    [TestMethod]
-    public void NotificationsTwin_InheritsTheSameBehaviour()
-    {
-        TimeSpan utcTime = _weekday.TimeOfDay;
-        Rvt.Monitor.Common.Notifications.AlertActivityTimeDto twin = new()
-        {
-            Weekdays = true,
-            Saturdays = false,
-            Sundays = false,
-            StartTime = utcTime.Add(TimeSpan.FromMinutes(-1)),
-            EndTime = utcTime.Add(TimeSpan.FromMinutes(1)),
-            Policy = MonitorRulePolicy.Default
-        };
-
-        Assert.IsTrue(twin.IsActive(_weekday));
-        Assert.IsInstanceOfType<AlertActivityTimeDto>(twin);
-    }
-
     private static AlertActivityTimeDto WindowedRule(DateTime moment, int startOffsetMinutes, int endOffsetMinutes)
     {
         // Windows are UTC wall-clock, so they are built straight from the

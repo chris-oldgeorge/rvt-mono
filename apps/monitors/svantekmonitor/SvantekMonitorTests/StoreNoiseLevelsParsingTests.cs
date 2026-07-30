@@ -117,7 +117,7 @@ public sealed class StoreNoiseLevelsParsingTests
             null,
             utcNow.AddMinutes(-10),
             false,
-            SvantekApi.BatteryAlertType.Off,
+            BatteryAlertType.Off,
             100);
         Mock<ISvantekMonitorQueries> monitorQueries = new(MockBehavior.Strict);
         monitorQueries.Setup(queries => queries.ReadMonitorListAsync(null, It.IsAny<CancellationToken>()))

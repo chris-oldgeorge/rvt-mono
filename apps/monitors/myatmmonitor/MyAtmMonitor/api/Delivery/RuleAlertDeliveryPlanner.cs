@@ -1,12 +1,8 @@
-// The namespace is retained from the shared-kernel folder this file moved out
-// of, so its consumers keep compiling; IDE0130 would force a rename ripple.
-#pragma warning disable IDE0130
 using System.Text.Json;
-using Rvt.Monitor.Common.Rules;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 
-namespace Rvt.Monitor.Common.Delivery;
+namespace MyAtm.Delivery;
 
 public sealed record RuleAlertDeliveryPlan(
     NotificationDto Notification,

@@ -12,21 +12,13 @@ namespace Svantek.Api;
 // Summary: Async facade over the Svantek scheduled use-case handlers.
 public class SvantekApi
 {
-    public static readonly DateTime JAN1_1970 = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-    public enum BatteryAlertType
-    {
-        Off = 0,
-        BatteryAlert = 1,
-        BatteryCaution = 2
-    }
-
     private readonly StoreMonitorsHandler _storeMonitors;
     private readonly StoreNoiseLevelsHandler _storeNoiseLevels;
     private readonly NotifySiteAveragesHandler _notifySiteAverages;
     private readonly CheckForOfflineMonitorsHandler _checkForOfflineMonitors;
     private readonly NotifyBatteryLevelsHandler _notifyBatteryLevels;
     private readonly CheckForSoundRecordingsHandler _checkForSoundRecordings;
+    private readonly ClearOlderErrorMessagesHandler _clearOlderErrorMessages;
 
     public SvantekApi(
         IHttpClient httpClient,
@@ -122,6 +114,7 @@ public class SvantekApi
             dbClient,
             gateway,
             storageFactory);
+        _clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
     }
 
     public Task StoreMonitorsAsync(CancellationToken cancellationToken = default) =>
@@ -143,6 +136,9 @@ public class SvantekApi
 
     public Task CheckForSoundRecordingsAsync(CancellationToken cancellationToken = default) =>
         _checkForSoundRecordings.RunAsync(cancellationToken);
+
+    public Task ClearOlderErrorMessagesAsync(CancellationToken cancellationToken = default) =>
+        _clearOlderErrorMessages.RunAsync(cancellationToken);
 
     private sealed class MissingObjectStorageClientFactory : IObjectStorageClientFactory
     {

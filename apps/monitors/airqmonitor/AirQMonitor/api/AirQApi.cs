@@ -13,8 +13,6 @@ namespace AirQ.Api
     // - 2026-07-12 God-class split: logic moved to AirQHttpGateway, AirQRuleProcessor, and api/UseCases handlers.
     public class AirQApi
     {
-        public static readonly DateTime JAN1_1970 = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
         private readonly StoreMonitorsHandler _storeMonitors;
         private readonly CheckForOfflineMonitorsHandler _checkForOfflineMonitors;
         private readonly StoreNoiseLevelsHandler _storeNoiseLevels;

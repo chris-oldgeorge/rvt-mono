@@ -21,6 +21,7 @@ internal static class SvantekMonitorJobs
             ["CheckForOfflineMonitors"] = (service, cancellationToken) => service.CheckForOfflineMonitorsAsync(cancellationToken),
             ["NotifyBatteryLevels"] = (service, cancellationToken) => service.NotifyBatteryLevelsAsync(cancellationToken),
             ["CheckForSoundRecordings"] = (service, cancellationToken) => service.CheckForSoundRecordingsAsync(cancellationToken),
+            ["ClearOlderErrorMessages"] = (service, cancellationToken) => service.ClearOlderErrorMessagesAsync(cancellationToken),
             ["DispatchAlerts"] = (service, cancellationToken) => service.DispatchAlertsAsync(cancellationToken),
             ["CleanupAlerts"] = (service, cancellationToken) => service.CleanupAlertsAsync(cancellationToken)
         });

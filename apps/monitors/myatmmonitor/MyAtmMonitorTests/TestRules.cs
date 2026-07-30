@@ -3,11 +3,11 @@ using Moq;
 using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
+using MyAtm.Delivery;
 using MyAtm.Model;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -65,8 +65,6 @@ public sealed class TestRules
         Assert.AreEqual(rule.RuleId, commit.AlertOccurrences[0].RuleId);
         Assert.HasCount(1, commit.AlertOccurrences[0].Contacts);
 
-        dbClient.Verify(client => client.InsertDustDtos(It.IsAny<List<DustDto>>()), Times.Never);
-        dbClient.Verify(client => client.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<Period>()), Times.Never);
         mqttClient.VerifyNoOtherCalls();
     }
 

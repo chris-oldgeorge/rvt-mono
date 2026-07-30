@@ -90,7 +90,7 @@ public class TestLocalMonitorFilterTests
             monitorStatus: status,
             sensor: null,
             offline: false,
-            batteryStatus: OmnidotsApi.BatteryAlertType.Off,
+            batteryStatus: BatteryAlertType.Off,
             lastSeen: null,
             deployDate: DateTime.UtcNow);
     }

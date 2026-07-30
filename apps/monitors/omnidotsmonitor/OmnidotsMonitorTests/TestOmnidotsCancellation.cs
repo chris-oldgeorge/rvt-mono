@@ -132,7 +132,7 @@ public class TestOmnidotsCancellation
                 MaxMonitorsPerRun = 1
             });
         dbClient
-            .Setup(client => client.ReadMonitorList(It.IsAny<DateTime?>()))
+            .Setup(client => client.ReadMonitorList())
             .Returns(OmnidotsFixture.MonitorsList(1));
         httpClient
             .Setup(client => client.PostAsync(

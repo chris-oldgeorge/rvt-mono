@@ -1,13 +1,9 @@
-// The namespace is retained from the shared-kernel folder this file moved out
-// of, so its consumers keep compiling; IDE0130 would force a rename ripple.
-#pragma warning disable IDE0130
 using System.Reflection;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.Common.Notifications;
-using Rvt.Monitor.Common.Rules;
 using RulesContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 
-namespace Rvt.Monitor.CommonTests.Delivery;
+namespace MyAtmMonitorTests.Delivery;
 
 [TestClass]
 public sealed class RuleAlertDeliveryPlannerTests
@@ -43,14 +39,14 @@ public sealed class RuleAlertDeliveryPlannerTests
         RuleAlertDeliveryPlan plan = planner.Plan(
             request,
             contacts,
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey,
             _createdAt);
         RuleAlertDeliveryPlan replay = planner.Plan(
             request,
             contacts,
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey,
             _createdAt);
@@ -93,7 +89,7 @@ public sealed class RuleAlertDeliveryPlannerTests
             plan.Deliveries.Select(delivery => delivery.Id).ToArray());
 
         Assert.HasCount(1, plan.Deliveries.Where(delivery => delivery.Kind == MonitorDeliveryKind.MqttAlert));
-        Assert.IsTrue(plan.Deliveries.All(delivery => delivery.Producer == MonitorDeliveryProducers.Svantek));
+        Assert.IsTrue(plan.Deliveries.All(delivery => delivery.Producer == MonitorDeliveryProducers.MyAtm));
         Assert.IsTrue(plan.Deliveries.All(delivery => delivery.NotificationId == expectedNotificationId));
         Assert.IsTrue(plan.Deliveries.All(delivery => delivery.CorrelationKey == correlationKey));
         Assert.IsTrue(plan.Deliveries.All(delivery => delivery.PayloadVersion == 1));
@@ -151,7 +147,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             contacts,
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: "svantek:duplicate-email",
             _createdAt);
@@ -178,7 +174,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             contacts,
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: "svantek:duplicate-sms",
             _createdAt);
@@ -211,7 +207,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         Assert.ThrowsExactly<ArgumentException>(() => new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             [],
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey,
             _createdAt));
@@ -227,7 +223,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         Assert.ThrowsExactly<ArgumentException>(() => new RuleAlertDeliveryPlanner().Plan(
             request,
             [],
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: "svantek:fixture",
             _createdAt));
@@ -246,7 +242,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         Assert.ThrowsExactly<ArgumentException>(() => new RuleAlertDeliveryPlanner().Plan(
             request,
             [],
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: "svantek:fixture",
             _createdAt));
@@ -262,7 +258,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         Assert.ThrowsExactly<ArgumentException>(() => new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             [],
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: "svantek:fixture",
             createdAt));

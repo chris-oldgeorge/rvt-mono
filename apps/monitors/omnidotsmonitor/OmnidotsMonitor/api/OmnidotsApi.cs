@@ -16,14 +16,6 @@ namespace Omnidots.Api
     // - 2026-07-15 Durable alerts: API configuration and webhook ingress resolve focused handlers directly.
     public class OmnidotsApi
     {
-        public static readonly DateTime JAN1_1970 = new(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-        public enum BatteryAlertType
-        {
-            Off = 0,
-            BatteryAlert = 1,
-            BatteryCaution = 2
-        }
 
         private readonly IOmnidotsVendorGateway _gateway;
         private readonly StoreMonitorsHandler _storeMonitors;

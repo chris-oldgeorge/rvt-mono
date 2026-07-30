@@ -9,6 +9,7 @@ public sealed partial class MyAtmSharedOutboxMigrationContractTests
     private const string AddDurableOutbox = "2026-07-14-add-durable-outbox.postgres.sql";
     private const string AddHardening = "2026-07-14-add-myatm-hardening.postgres.sql";
     private const string RemoveHardening = "2026-07-14-remove-myatm-hardening.postgres.sql";
+    private const string _addSharedOutbox = "2026-07-15-add-monitor-delivery-outbox.postgres.sql";
     private const string ForwardSharedOutbox = "2026-07-15-migrate-myatm-outbox-to-shared.postgres.sql";
     private const string RollbackSharedOutbox = "2026-07-15-rollback-myatm-outbox-to-local.postgres.sql";
 
@@ -17,6 +18,7 @@ public sealed partial class MyAtmSharedOutboxMigrationContractTests
         AddDurableOutbox,
         AddHardening,
         RemoveHardening,
+        _addSharedOutbox,
         ForwardSharedOutbox,
         RollbackSharedOutbox
     ];
@@ -47,6 +49,7 @@ public sealed partial class MyAtmSharedOutboxMigrationContractTests
     [DataRow(AddDurableOutbox, "CREATE TABLE IF NOT EXISTS", "CREATE INDEX IF NOT EXISTS")]
     [DataRow(AddHardening, "ADD COLUMN IF NOT EXISTS", "CREATE INDEX IF NOT EXISTS")]
     [DataRow(RemoveHardening, "DROP INDEX IF EXISTS", "DROP COLUMN IF EXISTS")]
+    [DataRow(_addSharedOutbox, "CREATE TABLE IF NOT EXISTS", "CREATE INDEX IF NOT EXISTS")]
     [DataRow(ForwardSharedOutbox, "ON CONFLICT (producer, delivery_key) DO UPDATE", "BEGIN;")]
     [DataRow(RollbackSharedOutbox, "ON CONFLICT (delivery_key) DO UPDATE", "BEGIN;")]
     public void PostgreSqlMigrations_AreRerunnable(

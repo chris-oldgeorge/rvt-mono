@@ -1,4 +1,4 @@
-using SvantekMonitor.model.dto;
+using Svantek.Model.Dto;
 
 namespace Svantek.Api.Db;
 
@@ -9,8 +9,6 @@ public interface ISvantekMonitorQueries
     Task<List<NoiseMonitorReadDto>> ReadMonitorListAsync(
         DateTime? lastDataTime,
         CancellationToken cancellationToken = default);
-
-    List<SiteMonitorsWithSiteHoursDto> ReadSiteMonitorsWithSiteHours(DateTime day);
 
     Task<List<SiteMonitorsWithSiteHoursDto>> ReadSiteMonitorsWithSiteHoursAsync(
         DateTime day,

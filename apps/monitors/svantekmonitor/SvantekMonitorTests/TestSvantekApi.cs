@@ -8,7 +8,6 @@ using Rvt.Monitor.Common.Rules;
 using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
-using Svantek.Model.Dto;
 namespace SvantekMonitorTests;
 
 // Summary: Facade-level tests for the scheduled Svantek jobs; handler-driven alerts are
@@ -237,7 +236,7 @@ public class TestSvantekApi
         NoiseMonitorReadDto monitor = SvantekFixture.ReadMonitorDto(
             "Device1",
             batteryCharge: 80,
-            batteryStatus: SvantekApi.BatteryAlertType.BatteryAlert);
+            batteryStatus: BatteryAlertType.BatteryAlert);
         dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
             ReturnsAsync([monitor]);
 
@@ -262,7 +261,7 @@ public class TestSvantekApi
         NoiseMonitorReadDto monitor = SvantekFixture.ReadMonitorDto(
             "Device1",
             batteryCharge: 5,
-            batteryStatus: SvantekApi.BatteryAlertType.BatteryAlert);
+            batteryStatus: BatteryAlertType.BatteryAlert);
         dbClient.Setup(c => c.ReadMonitorListAsync(null, It.IsAny<CancellationToken>())).
             ReturnsAsync([monitor]);
 

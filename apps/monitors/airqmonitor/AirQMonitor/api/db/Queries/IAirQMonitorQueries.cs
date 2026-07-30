@@ -1,5 +1,4 @@
 using AirQ.Model.Dto;
-using AirQMonitor.model.dto;
 
 namespace AirQ.Api.Db;
 

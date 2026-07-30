@@ -44,11 +44,10 @@ public sealed class SvantekDependencyBoundaryTests
         [
             _monitorDirectory + "/api/SvantekApi.cs",
             _monitorDirectory + "/api/SvantekMonitorServices.cs"
-        ],
-        // The frozen M7 baseline: NoiseMonitorReadDto still static-imports the
-        // api facade for JAN1_1970. Retargeting it to DateTimeUtil (P3) should
-        // remove this entry; no file may join it.
-        ModelApiImportAllowlist = [_monitorDirectory + "/model/dto/NoiseMonitorReadDto.cs"]
+        ]
+        // The M7 baseline is empty: BatteryAlertType lives in Svantek.Model.Dto
+        // and JAN1_1970 comes from DateTimeUtil, so no model file may import
+        // the api layer.
     };
 
     [TestMethod]

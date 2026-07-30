@@ -1,7 +1,7 @@
 using Omnidots.Api.Ports;
 using Rvt.Monitor.IntegrationTesting;
 
-namespace OmnidotsMonitorTests.Architecture;
+namespace OmnidotsAdapterTests.Architecture;
 
 // Summary: Asserts this host honors the shared monitor dependency-boundary contract.
 // Major updates:
@@ -48,11 +48,10 @@ public sealed class OmnidotsDependencyBoundaryTests
         [
             _monitorDirectory + "/api/OmnidotsApi.cs",
             _monitorDirectory + "/api/OmnidotsMonitorServices.cs"
-        ],
-        // The frozen M7 baseline: VibrationMonitorDto still static-imports the
-        // api facade for JAN1_1970. Retargeting it to DateTimeUtil (P3) should
-        // remove this entry; no file may join it.
-        ModelApiImportAllowlist = [_monitorDirectory + "/model/dto/VibrationMonitorDto.cs"]
+        ]
+        // The M7 baseline is empty: BatteryAlertType lives in
+        // Omnidots.Model.Dto and JAN1_1970 comes from DateTimeUtil, so no
+        // model file may import the api layer.
     };
 
     [TestMethod]

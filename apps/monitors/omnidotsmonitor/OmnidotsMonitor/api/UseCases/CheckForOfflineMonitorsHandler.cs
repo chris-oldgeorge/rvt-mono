@@ -50,13 +50,16 @@ namespace Omnidots.Api.UseCases
                 {
                     DateTime cutOff = utcNow.Subtract(new TimeSpan(hours: 0, minutes: 0, seconds: rule.AveragingPeriod));
                     DateTime offlineDateTime = DateTimeUtil.TruncateMillis(utcNow.AddSeconds(-rule.AveragingPeriod));
-                    List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors(offlineDateTime);
+                    // ReadMonitors returns the full deployed fleet; the offline
+                    // cutoff is applied in memory below (the reader never
+                    // filtered by last-data time).
+                    List<VibrationMonitorDto> monitors = _monitorReader.ReadMonitors();
 
                     foreach (VibrationMonitorDto monitor in monitors!)
                     {
                         DateTime lastDataTime = monitor.LastDataTime != null
                             ? AsUtc(DateTimeUtil.TruncateMillis((DateTime)monitor.LastDataTime))
-                            : OmnidotsApi.JAN1_1970;
+                            : DateTimeUtil.JAN1_1970;
                         double diffInSeconds = offlineDateTime.Subtract(lastDataTime).TotalSeconds;
                         if (lastDataTime < cutOff) // remove all with less 24 hours already
                         {

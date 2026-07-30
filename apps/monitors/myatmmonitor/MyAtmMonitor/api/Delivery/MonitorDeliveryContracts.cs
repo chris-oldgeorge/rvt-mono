@@ -1,18 +1,13 @@
-// The namespace is retained from the shared-kernel folder this file moved out
-// of, so its consumers keep compiling; IDE0130 would force a rename ripple.
-#pragma warning disable IDE0130
 using Rvt.Monitor.Common.Notifications;
 
-namespace Rvt.Monitor.Common.Delivery;
+namespace MyAtm.Delivery;
 
 public static class MonitorDeliveryProducers
 {
     public const string MyAtm = "MyAtm";
-    public const string Svantek = "Svantek";
 
     public static bool IsKnown(string producer) =>
-        string.Equals(producer, MyAtm, StringComparison.Ordinal) ||
-        string.Equals(producer, Svantek, StringComparison.Ordinal);
+        string.Equals(producer, MyAtm, StringComparison.Ordinal);
 }
 
 public enum MonitorDeliveryKind

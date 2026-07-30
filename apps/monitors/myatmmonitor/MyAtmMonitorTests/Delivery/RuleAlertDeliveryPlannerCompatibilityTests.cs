@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -44,7 +44,7 @@ public sealed class RuleAlertDeliveryPlannerCompatibilityTests
         RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             request,
             contacts,
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: $"compatibility:{alertType}",
             createdAt: request.AlertTime);

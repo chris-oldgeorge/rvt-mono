@@ -83,8 +83,21 @@ public static class SvantekMonitorServices
             }
             catch (Exception e)
             {
-                IDBClient dbClient = provider.GetRequiredService<IDBClient>();
-                dbClient.HandleException("failed to start monitor application", e);
+                // Best-effort: the startup failure may itself be a database
+                // outage, and a failed audit write must not mask the original
+                // exception below.
+                try
+                {
+                    IDBClient dbClient = provider.GetRequiredService<IDBClient>();
+                    dbClient.HandleException("failed to start monitor application", e);
+                }
+                catch (Exception auditFailure)
+                {
+                    RvtLogger.Logger.LogError(
+                        auditFailure,
+                        "Failed to record the startup failure in the database.");
+                }
+
                 throw; // Need this to kill the instance.
             }
         });

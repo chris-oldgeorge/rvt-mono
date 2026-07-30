@@ -7,15 +7,6 @@ namespace Rvt.Monitor.CommonTests.Configuration;
 public sealed class RvtConfigTests
 {
     [TestMethod]
-    public void RuntimeDefaultsResolver_UsesTheExplicitMonitorKind()
-    {
-        MonitorRuntimeDefaultsResolver resolver = new("SvantekMonitor");
-
-        Assert.AreEqual("svantek", resolver.Defaults.Kind);
-        Assert.AreEqual("https://svannet.com/api/v2.3/", resolver.Defaults.BaseUrl);
-    }
-
-    [TestMethod]
     [DataRow("AirQ", "AirQMonitor noise monitor data collector running ", "https://datacollector.airqweb.com", "rvt/noise/inserted", "rvt/noise/alerted")]
     [DataRow("MyAtm", "MyAtmMonitor dust monitor data collector running ", "https://api.my-atmosphere.cloud/api/", "rvt/dust/inserted", "rvt/dust/alerted")]
     [DataRow("Omnidots", "OmnidotsMonitor vibration monitor data collector running ", "https://honeycomb.omnidots.com", "rvt/vibration/inserted", "rvt/vibration/alerted")]

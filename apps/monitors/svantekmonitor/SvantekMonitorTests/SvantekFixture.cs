@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using Svantek.Api;
 using Svantek.Model.Http;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 namespace SvantekMonitorTests
@@ -47,7 +46,7 @@ namespace SvantekMonitorTests
             int pointId = 1,
             DateTime? lastDataTime = null,
             int batteryCharge = 100,
-            SvantekApi.BatteryAlertType batteryStatus = SvantekApi.BatteryAlertType.Off)
+            BatteryAlertType batteryStatus = BatteryAlertType.Off)
         {
             DateTime deployedStart = (lastDataTime ?? DateTime.UtcNow).AddDays(-1);
             return new NoiseMonitorReadDto(

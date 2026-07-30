@@ -1,11 +1,8 @@
-// The namespace is retained from the shared-kernel folder this file moved out
-// of, so its consumers keep compiling; IDE0130 would force a rename ripple.
-#pragma warning disable IDE0130
 using System.Security.Cryptography;
 using System.Text;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 
-namespace Rvt.Monitor.CommonTests.Delivery;
+namespace MyAtmMonitorTests.Delivery;
 
 [TestClass]
 public sealed class MonitorDeliveryIdentityTests

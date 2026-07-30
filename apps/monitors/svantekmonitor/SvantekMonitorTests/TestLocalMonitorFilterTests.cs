@@ -1,6 +1,5 @@
 
 using Svantek.Api;
-using Svantek.Model.Dto;
 namespace SvantekMonitorTests;
 
 [TestClass]
@@ -62,7 +61,7 @@ public class TestLocalMonitorFilterTests
             LastStatusTimestamp: DateTime.UtcNow,
             DeployedStart: DateTime.UtcNow.AddDays(-1),
             Offline: false,
-            BatteryStatus: SvantekApi.BatteryAlertType.Off,
+            BatteryStatus: BatteryAlertType.Off,
             BatteryCharge: 100);
 
     private static NoiseMonitorDto CatalogMonitor(string serialId) =>

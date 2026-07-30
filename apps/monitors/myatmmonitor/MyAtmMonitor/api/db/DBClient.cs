@@ -2,9 +2,11 @@ using System.Data;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
 using MyAtm.Api.Db.EntityFramework;
 using MyAtm.Api.Db.Mapping;
 using MyAtm.Api.Rules;
+using MyAtm.Delivery;
 using MyAtm.Model;
 using MyAtm.Model.Config;
 using MyAtm.Model.Dto;
@@ -12,7 +14,6 @@ using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Data.Queries;
-using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -236,6 +237,10 @@ namespace MyAtm.Api.Db
 
         public void HandleException(string message, Exception exception)
         {
+            // The logger sink gets the full exception (type + stack); the DB
+            // sink keeps its message-column semantics below.
+            RvtLogger.Logger.LogError(exception, "DBClient HandleException message={Value1}", message);
+
             using MyAtmMonitorContext context = CreateContext();
             string error = exception.ToString();
             if (error.Length > 1023)
@@ -249,93 +254,6 @@ namespace MyAtm.Api.Db
                 Error = error,
                 ErrorTime = DateTime.UtcNow
             });
-            context.SaveChanges();
-        }
-
-        public void WriteLatestTimestamp(string serialNumber, DateTime lastDataTime, Period period)
-        {
-            using MyAtmMonitorContext context = CreateContext();
-            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.SerialId == serialNumber);
-            if (monitor == null)
-            {
-                return;
-            }
-
-            DateTime utcLastDataTime = DateTimeUtil.AsUtc(lastDataTime);
-            switch (period)
-            {
-                case Period.Minutes1:
-                    monitor.LastDataTime1Min = utcLastDataTime;
-                    break;
-                case Period.Minutes15:
-                    monitor.LastDataTime15Min = utcLastDataTime;
-                    break;
-                case Period.Hours1:
-                    monitor.LastDataTime1Hour = utcLastDataTime;
-                    break;
-                case Period.Hours24:
-                    monitor.LastDataTime24Hour = utcLastDataTime;
-                    break;
-
-                default:
-                    throw AdapterException.Of("WriteLatestTimestamp Unknown Period " + period);
-            }
-
-            context.SaveChanges();
-        }
-
-        public void WriteFleetNr(string serialNumber, string fleetNr)
-        {
-            using MyAtmMonitorContext context = CreateContext();
-            MonitorEntity? monitor = context.Monitors.FirstOrDefault(row => row.SerialId == serialNumber);
-            if (monitor == null)
-            {
-                return;
-            }
-
-            monitor.FleetNr = fleetNr;
-            context.SaveChanges();
-        }
-
-        public void InsertDustDtos(List<DustDto> dtos)
-        {
-            if (dtos.Count == 0)
-            {
-                return;
-            }
-
-            using MyAtmMonitorContext context = CreateContext();
-            Dictionary<(string SerialId, DateTime SampleTime, int Avrg), DustDto> pendingDtos = [];
-
-            foreach (DustDto dto in dtos)
-            {
-                pendingDtos.TryAdd((dto.SerialId, DateTimeUtil.AsUtc(dto.SampleTime), dto.Avrg), dto);
-            }
-
-            HashSet<string> serialIds = pendingDtos.Keys
-                .Select(key => key.SerialId)
-                .ToHashSet(StringComparer.Ordinal);
-            DateTime earliest = pendingDtos.Keys.Min(key => key.SampleTime);
-            DateTime latest = pendingDtos.Keys.Max(key => key.SampleTime);
-
-            HashSet<(string SerialId, DateTime, int Avrg)> existingKeys = [.. context.DustLevels
-                .AsNoTracking()
-                .Where(row => serialIds.Contains(row.SerialId))
-                .Where(row => row.SampleTime >= earliest && row.SampleTime <= latest)
-                .Select(row => new { row.SerialId, row.SampleTime, row.Avrg })
-                .AsEnumerable()
-                .Select(row => (row.SerialId, DateTimeUtil.AsUtc(row.SampleTime), row.Avrg))];
-
-            foreach (((string SerialId, DateTime SampleTime, int Avrg) key, DustDto? dto) in pendingDtos)
-            {
-                if (existingKeys.Contains(key))
-                {
-                    continue;
-                }
-
-                context.DustLevels.Add(ToDustLevelEntityUtc(dto));
-            }
-
             context.SaveChanges();
         }
 
@@ -638,23 +556,6 @@ namespace MyAtm.Api.Db
 
             await transaction.CommitAsync(cancellationToken);
             return true;
-        }
-
-        public void InsertAccessoryDto(AccessoryInfoDto dto)
-        {
-            using MyAtmMonitorContext context = CreateContext();
-            DateTime sampleTime = DateTimeUtil.AsUtc(dto.SampleTime);
-
-            bool exists = context.AccessoryInfo.Any(row =>
-                row.SerialId == dto.SerialId &&
-                row.SampleTime == sampleTime);
-            if (exists)
-            {
-                return;
-            }
-
-            context.AccessoryInfo.Add(ToAccessoryInfoEntityUtc(dto));
-            context.SaveChanges();
         }
 
         public async Task InsertAccessoryPageAsync(

@@ -1,4 +1,4 @@
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 
 namespace MyAtm.Api.Db
 {
@@ -9,7 +9,6 @@ namespace MyAtm.Api.Db
         IMyAtmHealthQueries,
         IMyAtmSiteScheduleQueries,
         IMyAtmMonitorCommands,
-        IMyAtmMeasurementCommands,
         IMyAtmOperationalCommands,
         IMyAtmDustImportCommands,
         IMyAtmAlertCommitCommands,

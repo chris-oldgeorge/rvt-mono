@@ -1,4 +1,4 @@
-namespace AirQMonitor.model.dto
+namespace AirQ.Model.Dto
 {
     public class SiteMonitorsWithSiteHoursDto
     {

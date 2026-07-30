@@ -19,7 +19,6 @@ using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
-using static Omnidots.Api.OmnidotsApi;
 namespace OmnidotsAdapterTests
 {
 
@@ -219,7 +218,7 @@ namespace OmnidotsAdapterTests
 
             List<RvtAlertRuleDto> rules = OmnidotsFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
-            dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).
+            dbClient.Setup(c => c.ReadMonitorList()).
                 Returns([]);
 
             await testObj.CheckForOfflineMonitorsAsync(TestContext.CancellationToken);
@@ -227,7 +226,7 @@ namespace OmnidotsAdapterTests
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadRules(null), Times.Exactly(1));
-            dbClient.Verify(c => c.ReadMonitorList(It.IsAny<DateTime?>()), Times.Exactly(1));
+            dbClient.Verify(c => c.ReadMonitorList(), Times.Exactly(1));
 
             dbClient.VerifyNoOtherCalls();
 
@@ -250,7 +249,7 @@ namespace OmnidotsAdapterTests
                 DateTime.UtcNow.AddMinutes(-minutesOffline),
                 timeZone: "Europe/London");
 
-            dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>())).
+            dbClient.Setup(c => c.ReadMonitorList()).
                 Returns(monitors);
             dbClient.Setup(c => c.ReadSiteTimes(It.IsAny<Guid>())).Returns(OmnidotsFixture.AlwaysOpenSiteTimes());
 
@@ -259,7 +258,7 @@ namespace OmnidotsAdapterTests
             httpClient.VerifyNoOtherCalls();
 
             dbClient.Verify(c => c.ReadRules(null), Times.Exactly(1));
-            dbClient.Verify(c => c.ReadMonitorList(It.IsAny<DateTime?>()), Times.Exactly(1));
+            dbClient.Verify(c => c.ReadMonitorList(), Times.Exactly(1));
 
             foreach (VibrationMonitorDto m in monitors)
             {
@@ -307,7 +306,7 @@ namespace OmnidotsAdapterTests
                 timeZone: "Europe/London")[0];
 
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
-            dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>()))
+            dbClient.Setup(c => c.ReadMonitorList())
                 .Returns([invalidMonitor, validMonitor]);
             dbClient.Setup(c => c.ReadSiteTimes(It.IsAny<Guid>()))
                 .Returns(OmnidotsFixture.AlwaysOpenSiteTimes());
@@ -363,7 +362,7 @@ namespace OmnidotsAdapterTests
             };
 
             dbClient.Setup(c => c.ReadRules(null)).Returns(OmnidotsFixture.OfflineRules());
-            dbClient.Setup(c => c.ReadMonitorList(It.IsAny<DateTime?>()))
+            dbClient.Setup(c => c.ReadMonitorList())
                 .Returns([invalidMonitor, validMonitor]);
             dbClient.Setup(c => c.ReadSiteTimes(invalidMonitor.Id)).Returns(invalidSchedule);
             dbClient.Setup(c => c.ReadSiteTimes(validMonitor.Id))
@@ -413,7 +412,7 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.PeakRecordsJson()));
 
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
-            dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns([]);
 
@@ -425,7 +424,7 @@ namespace OmnidotsAdapterTests
                 c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>()), Times.Exactly(2));
             httpClient.VerifyNoOtherCalls();
 
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
+            dbClient.Verify(c => c.ReadMonitorList(), Times.Exactly(1));
             DateTime expectedLatest = DateTime.Parse("2023-11-14T11:24:59");
             Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportPeakRecords("1",
@@ -468,7 +467,7 @@ namespace OmnidotsAdapterTests
                     url.StartsWith("/api/v1/get_peak_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
                 .Callback<string, CancellationToken>((url, _) => requestedUrl = url)
                 .Returns(OmnidotsFixture.StringTask(OmnidotsFixture.PeakRecordsJson()));
-            dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(monitors);
             cursorQueries.Setup(c => c.ReadImportCursor("1", OmnidotsMeasurementSeries.Peak))
                 .Returns(cursor);
 
@@ -486,8 +485,6 @@ namespace OmnidotsAdapterTests
                 Times.Once);
             cursorQueries.Verify(c => c.ReadImportCursor("1", OmnidotsMeasurementSeries.Peak), Times.Once);
             cursorQueries.Verify(c => c.ReadLatestMeasurementTime(It.IsAny<string>(), It.IsAny<OmnidotsMeasurementSeries>()), Times.Never);
-            dbClient.Verify(c => c.InsertPeakRecordsTable(It.IsAny<DataTable>()), Times.Never);
-            dbClient.Verify(c => c.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>()), Times.Never);
             mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Once);
             messageClient.VerifyNoOtherCalls();
         }
@@ -512,7 +509,7 @@ namespace OmnidotsAdapterTests
                     url.StartsWith("/api/v1/get_veff_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
                 .Callback<string, CancellationToken>((url, _) => requestedUrl = url)
                 .Returns(OmnidotsFixture.StringTask("{\"ok\":true,\"samples\":[]}"));
-            dbClient.Setup(c => c.ReadMonitorList(null)).Returns([monitor]);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns([monitor]);
 
             await testObj.StoreVeffRecordsAsync(TimeSpan.FromHours(2), TestContext.CancellationToken);
             DateTime after = DateTime.UtcNow;
@@ -527,7 +524,6 @@ namespace OmnidotsAdapterTests
             cursorQueries.Verify(c => c.ReadLatestMeasurementTime("1", OmnidotsMeasurementSeries.Veff), Times.Once);
             importCommands.Verify(c => c.ImportVeffRecords(
                 It.IsAny<string>(), It.IsAny<IReadOnlyCollection<VeffRecordDto>>(), It.IsAny<DateTime>()), Times.Never);
-            dbClient.Verify(c => c.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>()), Times.Never);
             dbClient.Verify(c => c.SetMonitorOffline(It.IsAny<Guid>(), It.IsAny<bool>()), Times.Never);
             mqttClient.VerifyNoOtherCalls();
             messageClient.VerifyNoOtherCalls();
@@ -553,7 +549,7 @@ namespace OmnidotsAdapterTests
                     url.StartsWith("/api/v1/get_vdv_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
                 .Callback<string, CancellationToken>((url, _) => requestedUrl = url)
                 .Returns(OmnidotsFixture.StringTask(OmnidotsFixture.VdvRecordsJson()));
-            dbClient.Setup(c => c.ReadMonitorList(null)).Returns([monitor]);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns([monitor]);
             cursorQueries.Setup(c => c.ReadLatestMeasurementTime("1", OmnidotsMeasurementSeries.Vdv))
                 .Returns(storedMeasurement);
 
@@ -570,8 +566,6 @@ namespace OmnidotsAdapterTests
                     records.Select(record => record.SampleTime).SequenceEqual(records.Select(record => record.SampleTime).OrderBy(time => time))),
                 It.Is<DateTime>(time => time == DateTimeOffset.FromUnixTimeMilliseconds(1692282419999).DateTime)),
                 Times.Once);
-            dbClient.Verify(c => c.InsertVdvRecords(It.IsAny<string>(), It.IsAny<List<VdvRecordDto>>()), Times.Never);
-            dbClient.Verify(c => c.WriteLatestTimestamp(It.IsAny<string>(), It.IsAny<DateTime>()), Times.Never);
             dbClient.Verify(c => c.SetMonitorOffline(monitor.Id, false), Times.Once);
             mqttClient.Verify(c => c.PublishAsync(RvtConfig.INSERT_TOPIC, It.IsAny<string>(), TestContext.CancellationToken), Times.Once);
             messageClient.VerifyNoOtherCalls();
@@ -595,7 +589,7 @@ namespace OmnidotsAdapterTests
             httpClient.Setup(c => c.GetAsync(It.Is<string>(url =>
                     url.StartsWith("/api/v1/get_veff_records", StringComparison.Ordinal)), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.StringTask(OmnidotsFixture.VeffRecordsJson()));
-            dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(monitors);
             importCommands.Setup(c => c.ImportVeffRecords(
                     "1", It.IsAny<IReadOnlyCollection<VeffRecordDto>>(), It.IsAny<DateTime>()))
                 .Throws(importFailure);
@@ -634,7 +628,7 @@ namespace OmnidotsAdapterTests
             // mark first monitor as having recent data, second has not reported for delay period
             monitors[0].LastDataTime = latestTime;
             monitors[1].LastDataTime = latestTime.AddHours(-13);
-            dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(monitors);
 
             // mock sample data to have latestTime in Timestamp
             string json = OmnidotsFixture.PeakRecordsJson();
@@ -655,7 +649,7 @@ namespace OmnidotsAdapterTests
                 c.GetAsync(It.Is<string>(s => s.StartsWith(peakRecordsUrl)), It.IsAny<CancellationToken>()), Times.Exactly(2));
             httpClient.VerifyNoOtherCalls();
 
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
+            dbClient.Verify(c => c.ReadMonitorList(), Times.Exactly(1));
 
             Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportPeakRecords(
@@ -697,7 +691,7 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.VdvRecordsJson()));
 
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
-            dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns([]);
 
@@ -709,7 +703,7 @@ namespace OmnidotsAdapterTests
                 c.GetAsync(It.Is<string>(s => s.StartsWith(vdvRecordsUrl)), It.IsAny<CancellationToken>()), Times.Exactly(2));
             httpClient.VerifyNoOtherCalls();
 
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
+            dbClient.Verify(c => c.ReadMonitorList(), Times.Exactly(1));
             DateTime expectedLatest = DateTime.Parse("2023-8-17T14:26:59");
             Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportVdvRecords("1", It.IsAny<IReadOnlyCollection<VdvRecordDto>>(),
@@ -751,7 +745,7 @@ namespace OmnidotsAdapterTests
                 Returns(OmnidotsFixture.StringTask(OmnidotsFixture.VeffRecordsJson()));
 
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(2);
-            dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(monitors);
             dbClient.Setup(c => c.ReadRules(It.IsAny<string>())).
                 Returns([]);
 
@@ -763,7 +757,7 @@ namespace OmnidotsAdapterTests
                 c.GetAsync(It.Is<string>(s => s.StartsWith(veffRecordsUrl)), It.IsAny<CancellationToken>()), Times.Exactly(2));
             httpClient.VerifyNoOtherCalls();
 
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
+            dbClient.Verify(c => c.ReadMonitorList(), Times.Exactly(1));
             DateTime expectedLatest = DateTime.Parse("2023-11-14T11:19:59");
             Mock<IOmnidotsMeasurementImportCommands> importCommands = dbClient.As<IOmnidotsMeasurementImportCommands>();
             importCommands.Verify(c => c.ImportVeffRecords("1", It.IsAny<IReadOnlyCollection<VeffRecordDto>>(),
@@ -800,7 +794,7 @@ namespace OmnidotsAdapterTests
                     AllowedSerialIds = [],
                     MaxMonitorsPerRun = 1
                 });
-            dbClient.Setup(client => client.ReadMonitorList(It.IsAny<DateTime?>()))
+            dbClient.Setup(client => client.ReadMonitorList())
                 .Returns(OmnidotsFixture.MonitorsList(1));
             httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
                 .Returns(OmnidotsFixture.AuthenticateTask("trace-token"));
@@ -835,7 +829,7 @@ namespace OmnidotsAdapterTests
                 mqttClient.Object,
                 messageClient.Object);
             dbClient
-                .Setup(client => client.ReadMonitorList(It.IsAny<DateTime?>()))
+                .Setup(client => client.ReadMonitorList())
                 .Returns(OmnidotsFixture.MonitorsList(1));
             httpClient
                 .Setup(client => client.PostAsync(
@@ -882,7 +876,7 @@ namespace OmnidotsAdapterTests
                     Enabled = false,
                     MaxMonitorsPerRun = 1
                 });
-            dbClient.Setup(client => client.ReadMonitorList(It.IsAny<DateTime?>()))
+            dbClient.Setup(client => client.ReadMonitorList())
                 .Returns(OmnidotsFixture.MonitorsList(1));
 
             await testObj.StoreTracesAsync(DateTime.UtcNow.AddMinutes(-5), TestContext.CancellationToken);
@@ -915,10 +909,10 @@ namespace OmnidotsAdapterTests
                                                         serialIdIn: 23422,
                                                         batteryLevel: batteryLevel,
                                                         batteryStatus: initialBatteryStatus);
-            dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(monitors);
             await testObj.NotifyBatteryLevelsAsync(TestContext.CancellationToken);
             httpClient.VerifyNoOtherCalls();
-            dbClient.Verify(c => c.ReadMonitorList(null), Times.Exactly(1));
+            dbClient.Verify(c => c.ReadMonitorList(), Times.Exactly(1));
             if (expectNotification)
             {
                 dbClient.Verify(c => c.SetMonitorBatteryStatus(monitors[0].Id, (byte)expectedBatteryStatus),
@@ -959,7 +953,7 @@ namespace OmnidotsAdapterTests
                                                         alwaysMakeSensor: true,
                                                         serialIdIn: 100,
                                                         batteryLevel: 5);
-            dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
+            dbClient.Setup(c => c.ReadMonitorList()).Returns(monitors);
             messageClient.Setup(c => c.AcceptAsync(
                     It.Is<AlertSignal>(signal => signal.SerialId == monitors[0].SerialId),
                     It.IsAny<CancellationToken>())).

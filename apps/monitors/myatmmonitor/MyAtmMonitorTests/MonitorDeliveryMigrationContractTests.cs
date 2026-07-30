@@ -1,16 +1,17 @@
 using System.Text.RegularExpressions;
+using Rvt.Monitor.IntegrationTesting;
 
-namespace Rvt.Monitor.CommonTests.Data.EntityFramework;
+namespace MyAtmMonitorTests;
 
 [TestClass]
 public sealed partial class MonitorDeliveryMigrationContractTests
 {
-    private const string PostgreSqlMigration = "2026-07-15-add-monitor-delivery-outbox.postgres.sql";
+    private const string _postgreSqlMigration = "2026-07-15-add-monitor-delivery-outbox.postgres.sql";
 
     [TestMethod]
     public void PostgreSqlMigration_CreatesSharedDeliveryOutboxContract()
     {
-        string sql = ReadMigration(PostgreSqlMigration);
+        string sql = ReadMigration(_postgreSqlMigration);
 
         Assert.Contains("CREATE TABLE IF NOT EXISTS monitor_delivery_outbox", sql);
         Assert.Contains("UNIQUE (producer, delivery_key)", sql);
@@ -29,29 +30,12 @@ public sealed partial class MonitorDeliveryMigrationContractTests
 
     private static string ReadMigration(string fileName)
     {
-        string repositoryRoot = FindRepositoryRoot();
-        string path = Path.Combine(repositoryRoot, "database", "migrations", fileName);
+        string path = Path.Combine(
+            RepositoryLayout.GetPath("apps", "monitors", "myatmmonitor", "database", "migrations"),
+            fileName);
 
         Assert.IsTrue(File.Exists(path), $"Expected migration file '{path}' to exist.");
         return File.ReadAllText(path);
-    }
-
-    private static string FindRepositoryRoot()
-    {
-        DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            string gitPath = Path.Combine(directory.FullName, ".git");
-            if (Directory.Exists(gitPath) || File.Exists(gitPath))
-            {
-                return Path.Combine(directory.FullName, "libs", "rvt-monitor-common");
-            }
-
-            directory = directory.Parent;
-        }
-
-        Assert.Fail("Could not find repository root from test output directory.");
-        return string.Empty;
     }
 
     [GeneratedRegex(@"\bCREATE\s+TABLE\b", RegexOptions.IgnoreCase)]

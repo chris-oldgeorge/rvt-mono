@@ -33,7 +33,7 @@ public sealed class MonitoringHandlerTests
 
         await handler.RunAsync(TestContext.CancellationToken);
 
-        monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
+        monitorQueries.Verify(x => x.ReadMonitorList(), Times.Once);
         notifier.Verify(x => x.SendNoDataWarningAsync(
             Recipient,
             utcNow.UtcDateTime,
@@ -57,7 +57,7 @@ public sealed class MonitoringHandlerTests
 
         await handler.RunAsync(TestContext.CancellationToken);
 
-        monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
+        monitorQueries.Verify(x => x.ReadMonitorList(), Times.Once);
         monitorQueries.VerifyNoOtherCalls();
         notifier.VerifyNoOtherCalls();
     }
@@ -75,7 +75,7 @@ public sealed class MonitoringHandlerTests
 
         await handler.RunAsync(TestContext.CancellationToken);
 
-        monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
+        monitorQueries.Verify(x => x.ReadMonitorList(), Times.Once);
         monitorQueries.VerifyNoOtherCalls();
         notifier.VerifyNoOtherCalls();
     }
@@ -99,7 +99,7 @@ public sealed class MonitoringHandlerTests
 
         await handler.RunAsync(TestContext.CancellationToken);
 
-        monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
+        monitorQueries.Verify(x => x.ReadMonitorList(), Times.Once);
         notifier.Verify(x => x.SendNoDataWarningAsync(
             Recipient,
             clockNow.UtcDateTime,
@@ -124,7 +124,7 @@ public sealed class MonitoringHandlerTests
 
         await handler.RunAsync(TestContext.CancellationToken);
 
-        monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
+        monitorQueries.Verify(x => x.ReadMonitorList(), Times.Once);
         notifier.Verify(x => x.SendNoDataWarningAsync(
             Recipient,
             utcNow.UtcDateTime,
@@ -170,7 +170,7 @@ public sealed class MonitoringHandlerTests
 
         await handler.RunAsync(TestContext.CancellationToken);
 
-        monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
+        monitorQueries.Verify(x => x.ReadMonitorList(), Times.Once);
         notifier.Verify(x => x.SendNoDataWarningAsync(
             Recipient,
             utcNow.UtcDateTime,
@@ -187,7 +187,7 @@ public sealed class MonitoringHandlerTests
 
         await handler.RunAsync(TestContext.CancellationToken);
 
-        monitorQueries.Verify(x => x.ReadMonitorList(null), Times.Once);
+        monitorQueries.Verify(x => x.ReadMonitorList(), Times.Once);
         monitorQueries.VerifyNoOtherCalls();
         notifier.VerifyNoOtherCalls();
     }
@@ -343,7 +343,7 @@ public sealed class MonitoringHandlerTests
     {
         Mock<IOmnidotsMonitorQueries> monitorQueries = new(MockBehavior.Strict);
         monitorQueries
-            .Setup(x => x.ReadMonitorList(null))
+            .Setup(x => x.ReadMonitorList())
             .Returns(monitors);
         Mock<IOmnidotsMonitoringNotifier> notifier = new(MockBehavior.Strict);
         MonitoringHandler handler = new(

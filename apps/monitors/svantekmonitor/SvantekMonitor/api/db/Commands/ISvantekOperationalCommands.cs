@@ -6,9 +6,9 @@ public interface ISvantekOperationalCommands
 {
     void HandleException(string message, Exception exception);
 
-    void UpdateAlertRule(RvtAlertRuleDto dto);
+    Task ClearErrorMessagesAsync(DateTime before, CancellationToken cancellationToken = default);
 
-    bool WriteSoundFile(Guid notificationId, string fileName);
+    void UpdateAlertRule(RvtAlertRuleDto dto);
 
     Task<bool> WriteSoundFileAsync(
         Guid notificationId,

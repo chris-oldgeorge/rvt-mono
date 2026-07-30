@@ -16,7 +16,8 @@ public sealed partial class OmnidotsMigrationContractTests
         _forwardScript,
         _rollbackScript,
         "2026-07-15-add-common-durable-alerts.sql",
-        "2026-07-15-rollback-common-durable-alerts.sql"
+        "2026-07-15-rollback-common-durable-alerts.sql",
+        "2026-07-30-widen-alert-outbox-last-error.sql"
     ];
 
     [TestMethod]

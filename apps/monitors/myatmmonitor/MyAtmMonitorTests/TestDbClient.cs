@@ -3,6 +3,7 @@ using System.Globalization;
 using Microsoft.Extensions.Logging;
 using MyAtm.Api.Db;
 using MyAtm.Api.Rules;
+using MyAtm.Delivery;
 using MyAtm.Model;
 using MyAtm.Model.Config;
 using MyAtm.Model.Dto;
@@ -10,7 +11,6 @@ using MyAtm.Model.Json;
 using Npgsql;
 using NpgsqlTypes;
 using Rvt.Monitor.Common.Data;
-using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
@@ -180,7 +180,7 @@ namespace MyAtmMonitorTests
 
             foreach (DustMonitorDto monitorIn in monitorsIn)
             {
-                _testObj.WriteFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
+                SetFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
             }
 
             if (lastDataTime != null)
@@ -188,7 +188,7 @@ namespace MyAtmMonitorTests
                 for (int i = 0; i < monitorsIn.Count; i++)
                 {
                     DateTime dt = ((DateTime)lastDataTime!).AddHours(i);
-                    _testObj.WriteLatestTimestamp(monitorsIn[i].SerialId, dt, Period.Minutes1);
+                    SetLastDataTime(monitorsIn[i].SerialId, dt, "last_data_time_1_min");
                 }
             }
 
@@ -259,7 +259,7 @@ namespace MyAtmMonitorTests
 
             foreach (DustMonitorDto monitorIn in monitorsIn)
             {
-                _testObj.WriteFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
+                SetFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
             }
 
             List<DustMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
@@ -321,7 +321,7 @@ namespace MyAtmMonitorTests
 
             foreach (DustMonitorDto monitorIn in monitorsIn)
             {
-                _testObj.WriteFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
+                SetFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
             }
 
             List<DustMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
@@ -399,7 +399,7 @@ namespace MyAtmMonitorTests
         }
 
         [TestMethod]
-        public void TestWriteLatestTimestamp()
+        public async Task TestWriteLatestTimestamp()
         {
             int customerId = 851;
 
@@ -410,18 +410,18 @@ namespace MyAtmMonitorTests
 
             foreach (DustMonitorDto monitorIn in monitors)
             {
-                _testObj.WriteFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
+                SetFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
             }
 
             DateTime lastDataTimeMin = ParseUtc("2023-10-18T14:35:42");
             DateTime lastDataTime15Min = ParseUtc("2023-10-18T14:29:00");
             DateTime lastDataTimeHour = ParseUtc("2023-10-18T14:46:42");
             DateTime lastDataTime24Hour = ParseUtc("2023-10-17T00:01:00");
-            string serialId = "wrst_monitor0";
-            _testObj.WriteLatestTimestamp(serialId, lastDataTimeMin, Period.Minutes1);
-            _testObj.WriteLatestTimestamp(serialId, lastDataTime15Min, Period.Minutes15);
-            _testObj.WriteLatestTimestamp(serialId, lastDataTimeHour, Period.Hours1);
-            _testObj.WriteLatestTimestamp(serialId, lastDataTime24Hour, Period.Hours24);
+            DustMonitorDto monitorIn0 = monitors[0];
+            await CommitWatermarkAsync(monitorIn0, lastDataTimeMin, Period.Minutes1);
+            await CommitWatermarkAsync(monitorIn0, lastDataTime15Min, Period.Minutes15);
+            await CommitWatermarkAsync(monitorIn0, lastDataTimeHour, Period.Hours1);
+            await CommitWatermarkAsync(monitorIn0, lastDataTime24Hour, Period.Hours24);
 
             monitors = _testObj.ReadMonitorList(null);
             Assert.HasCount(1, monitors);
@@ -744,7 +744,7 @@ namespace MyAtmMonitorTests
                 0,
                 null,
                 null,
-                MonitorDeliveryProducers.Svantek);
+                "OtherProducer");
             InsertOutboxMessage(connection, pendingId, "Pending", utcNow.AddMinutes(-5), 0, null, null);
             InsertOutboxMessage(connection, expiredId, "InProgress", utcNow.AddMinutes(-4), 7, expiredLeaseId, utcNow.AddSeconds(-1));
 
@@ -971,7 +971,7 @@ namespace MyAtmMonitorTests
 
             foreach (DustMonitorDto m in monitorsIn)
             {
-                _testObj.WriteFleetNr(m.SerialId, m.FleetNr!);
+                SetFleetNr(m.SerialId, m.FleetNr!);
                 Assert.IsFalse(m.Offline);
                 _testObj.SetMonitorOffline(m.Id, true);
             }
@@ -990,7 +990,7 @@ namespace MyAtmMonitorTests
             string serialId = "17239";
             DateTime sampleTime = ParseUtc("2023-10-17T14:37:42");
 
-            _testObj!.InsertDustDtos([ new DustDto(serialId: serialId, avrg: 60, sampleTime: sampleTime,
+            await InsertDustDtosAsync(serialId, [ new DustDto(serialId: serialId, avrg: 60, sampleTime: sampleTime,
                                                pm1: 1.0, pm2_5: 2.5, pm10: 10, pmTotal: 13.5,
                                                weather_t: 3.1234, weather_p: 5.5678, weather_rh: 99.87654) ]);
 
@@ -1007,7 +1007,7 @@ namespace MyAtmMonitorTests
         }
 
         [TestMethod]
-        public void InsertDustDto_IgnoresDuplicateRowsInSingleBatch()
+        public async Task InsertDustDto_IgnoresDuplicateRowsInSingleBatch()
         {
             string serialId = "17239";
             DateTime sampleTime = ParseUtc("2023-10-17T14:37:42");
@@ -1015,7 +1015,7 @@ namespace MyAtmMonitorTests
                 pm1: 1.0, pm2_5: 2.5, pm10: 10, pmTotal: 13.5,
                 weather_t: 3.1234, weather_p: 5.5678, weather_rh: 99.87654);
 
-            _testObj!.InsertDustDtos([dto, dto]);
+            await InsertDustDtosAsync(serialId, [dto, dto]);
 
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
@@ -1025,7 +1025,7 @@ namespace MyAtmMonitorTests
         }
 
         [TestMethod]
-        public void InsertDustDto_IgnoresRowsAlreadyPresentInDatabase()
+        public async Task InsertDustDto_IgnoresRowsAlreadyPresentInDatabase()
         {
             string serialId = "17239";
             DateTime sampleTime = ParseUtc("2023-10-17T14:37:42");
@@ -1033,8 +1033,8 @@ namespace MyAtmMonitorTests
                 pm1: 1.0, pm2_5: 2.5, pm10: 10, pmTotal: 13.5,
                 weather_t: 3.1234, weather_p: 5.5678, weather_rh: 99.87654);
 
-            _testObj!.InsertDustDtos([dto]);
-            _testObj.InsertDustDtos([dto]);
+            await InsertDustDtosAsync(serialId, [dto]);
+            await InsertDustDtosAsync(serialId, [dto]);
 
             string connectionString = _database!.ConnectionString;
             using NpgsqlConnection connection = new(connectionString);
@@ -1045,7 +1045,7 @@ namespace MyAtmMonitorTests
         }
 
         [TestMethod]
-        public void TestGetAverageDustLevel()
+        public async Task TestGetAverageDustLevel()
         {
             string serialId = "98231";
             DateTime startTime = ParseUtc("2023-10-17T14:37:42");
@@ -1061,7 +1061,7 @@ namespace MyAtmMonitorTests
                 int pm10 = 10 * i;
                 double pmTotal = 13.5 * i;
 
-                _testObj!.InsertDustDtos([ new DustDto(serialId: serialId, avrg: 60, sampleTime: startTime.AddMinutes(i).AddSeconds(1),
+                await InsertDustDtosAsync(serialId, [ new DustDto(serialId: serialId, avrg: 60, sampleTime: startTime.AddMinutes(i).AddSeconds(1),
                                    pm1: pm1, pm2_5: pm2_5, pm10: pm10, pmTotal: pmTotal,
                                    weather_t: .0, weather_p: .0, weather_rh: .0) ]);
                 pm1Total += pm1;
@@ -1107,6 +1107,63 @@ namespace MyAtmMonitorTests
                 value,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+
+        // Fixture shortcut for columns the production surface only writes
+        // through CommitDustImportAsync/catalogue refresh.
+        private static void SetFleetNr(string serialId, string fleetNr)
+        {
+            using NpgsqlConnection connection = _database!.OpenConnection();
+            connection.Open();
+            using NpgsqlCommand command = new(
+                "UPDATE monitor SET fleet_row_count = $1 WHERE serial_id = $2;",
+                connection);
+            command.Parameters.AddWithValue(fleetNr);
+            command.Parameters.AddWithValue(serialId);
+            Assert.AreEqual(1, command.ExecuteNonQuery());
+        }
+
+        private static void SetLastDataTime(string serialId, DateTime lastDataTime, string column)
+        {
+            using NpgsqlConnection connection = _database!.OpenConnection();
+            connection.Open();
+            using NpgsqlCommand command = new(
+                $"UPDATE monitor SET {column} = $1 WHERE serial_id = $2;",
+                connection);
+            command.Parameters.AddWithValue(lastDataTime);
+            command.Parameters.AddWithValue(serialId);
+            Assert.AreEqual(1, command.ExecuteNonQuery());
+        }
+
+        // Commits a watermark-only dust import — the production async path that
+        // replaced the deleted sync WriteLatestTimestamp.
+        private Task<DustImportCommitResult> CommitWatermarkAsync(DustMonitorDto monitor, DateTime watermark, Period period) =>
+            _testObj!.CommitDustImportAsync(
+                new MyAtmDustImportCommit(monitor, period, [], watermark, [], [], DateTime.UtcNow),
+                TestContext.CancellationToken);
+
+        private readonly Dictionary<string, DustMonitorDto> _dustMonitors = new(StringComparer.Ordinal);
+
+        // Inserts dust measurements through the production async path
+        // (CommitDustImportAsync), creating the owning monitor on first use.
+        private async Task InsertDustDtosAsync(string serialId, List<DustDto> dtos)
+        {
+            if (!_dustMonitors.TryGetValue(serialId, out DustMonitorDto? monitor))
+            {
+                DateTime dt = DateTime.UtcNow;
+                monitor = new DustMonitorDto(id: Guid.NewGuid(), customerId: 861, listedAtTime: dt, serialId: serialId,
+                    model: "model", 0, latitude: 44.4f, longitude: 55.5f, address: "address",
+                    timeZone: "timezone", customerDisplayName: "customerDisplayName", lastDataTime1Min: dt,
+                    lastDataTime15Min: null, lastDataTime1Hour: null, lastDataTime24Hour: null,
+                    manufacturer: "Palas GmbH", firmwareVersion: "0.0.1", fleetNr: "fleetNr", offline: false);
+                _testObj!.WriteMonitorList([monitor]);
+                _dustMonitors[serialId] = monitor;
+            }
+
+            DateTime watermark = dtos.Max(dto => dto.SampleTime);
+            await _testObj!.CommitDustImportAsync(
+                new MyAtmDustImportCommit(monitor, Period.Minutes1, dtos, watermark, [], [], DateTime.UtcNow),
+                TestContext.CancellationToken);
+        }
 
         private static AlertOccurrenceProposal CreateOccurrence(
             string key,

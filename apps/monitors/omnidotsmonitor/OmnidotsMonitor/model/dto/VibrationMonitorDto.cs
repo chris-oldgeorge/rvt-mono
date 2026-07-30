@@ -1,6 +1,5 @@
 using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Utilities;
-using static Omnidots.Api.OmnidotsApi;
 
 namespace Omnidots.Model.Dto
 {

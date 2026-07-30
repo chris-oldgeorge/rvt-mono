@@ -1,15 +1,12 @@
-// The namespace is retained from the shared-kernel folder this file moved out
-// of, so its consumers keep compiling; IDE0130 would force a rename ripple.
-#pragma warning disable IDE0130
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
+using MyAtm.Delivery;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 
-namespace Rvt.Monitor.CommonTests.Delivery;
+namespace MyAtmMonitorTests.Delivery;
 
 [TestClass]
 public sealed class MonitorDeliveryDispatcherTests
@@ -25,7 +22,7 @@ public sealed class MonitorDeliveryDispatcherTests
         await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
         Assert.HasCount(1, harness.Queries.Claims);
-        Assert.AreEqual(MonitorDeliveryProducers.Svantek, harness.Queries.Claims.Single().Producer);
+        Assert.AreEqual(MonitorDeliveryProducers.MyAtm, harness.Queries.Claims.Single().Producer);
         Assert.AreEqual(TimeSpan.FromMinutes(2), harness.Queries.Claims.Single().LeaseDuration);
         Assert.IsEmpty(harness.Commands.Outcomes);
         Assert.IsEmpty(harness.FailureSink.Failures);
@@ -75,7 +72,7 @@ public sealed class MonitorDeliveryDispatcherTests
     }
 
     [TestMethod]
-    public async Task DispatchDueAsync_FormatsSvantekAlertMqttWithNoisePrefixAndCustomerId()
+    public async Task DispatchDueAsync_FormatsAlertMqttWithCustomerId()
     {
         DispatcherHarness harness = new();
         MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with { CustomerId = 41 };
@@ -90,7 +87,7 @@ public sealed class MonitorDeliveryDispatcherTests
 
         using JsonDocument document = JsonDocument.Parse(json!);
         Assert.AreEqual(41, document.RootElement.GetProperty("CustomerId").GetInt32());
-        Assert.AreEqual("Noise Alert LAeq level=75", document.RootElement.GetProperty("Message").GetString());
+        Assert.AreEqual("Dust Alert LAeq level=75", document.RootElement.GetProperty("Message").GetString());
     }
 
     [TestMethod]
@@ -184,7 +181,7 @@ public sealed class MonitorDeliveryDispatcherTests
     }
 
     [TestMethod]
-    public async Task DispatchDueAsync_SvantekOfflineContactHasNoNotificationUrlOrAuditWhenRowReferenceIsMissing()
+    public async Task DispatchDueAsync_OfflineContactHasNoAuditWhenRowReferenceIsMissing()
     {
         DispatcherHarness harness = new();
         MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with { AlertType = AlertType.Offline };
@@ -200,7 +197,9 @@ public sealed class MonitorDeliveryDispatcherTests
 
         await harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken);
 
-        Assert.AreEqual(string.Empty, request!.CallbackUrl);
+        Assert.AreEqual(
+            $"https://portal.example.test/Notification/View/{payload.NotificationId}",
+            request!.CallbackUrl);
         Assert.IsNull(harness.Commands.Completions.Single().Audit);
     }
 
@@ -496,7 +495,7 @@ public sealed class MonitorDeliveryDispatcherTests
     public async Task DispatchDueAsync_ProducerMismatchDeadLettersImmediately()
     {
         DispatcherHarness harness = new();
-        harness.Queries.Enqueue(Message(producer: MonitorDeliveryProducers.MyAtm));
+        harness.Queries.Enqueue(Message(producer: "OtherProducer"));
 
         await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
             () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));
@@ -624,7 +623,7 @@ public sealed class MonitorDeliveryDispatcherTests
 
     private static MonitorDeliveryMessage Message(
         MonitorDeliveryKind kind = MonitorDeliveryKind.MqttAlert,
-        string producer = MonitorDeliveryProducers.Svantek,
+        string producer = MonitorDeliveryProducers.MyAtm,
         int attemptCount = 1,
         string destination = "alerts@example.test",
         MonitorDeliveryPayloadV1? payload = null) =>
@@ -637,7 +636,7 @@ public sealed class MonitorDeliveryDispatcherTests
 
     private static MonitorDeliveryOptions ValidOptions() => new()
     {
-        Producer = MonitorDeliveryProducers.Svantek,
+        Producer = MonitorDeliveryProducers.MyAtm,
         InsertTopic = "rvt/inserted",
         AlertTopic = "rvt/alerts",
         PortalBaseUrl = "https://portal.example.test/"

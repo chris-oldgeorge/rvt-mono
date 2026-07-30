@@ -5,7 +5,6 @@ using Svantek.Api;
 using Svantek.Api.Db;
 using Svantek.Api.Http;
 using Svantek.Api.UseCases;
-using Svantek.Model.Dto;
 
 namespace SvantekMonitorTests;
 

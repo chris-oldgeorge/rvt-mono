@@ -7,13 +7,13 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Api.Ports;
 using MyAtm.Api.UseCases;
+using MyAtm.Delivery;
 using MyAtm.Model.Config;
 using Rvt.Communication;
 using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
 using Rvt.Communication.TransmitSms;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 
@@ -67,7 +67,6 @@ public static class MyAtmMonitorServices
         services.AddSingleton<IMyAtmMeasurementQueries>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton<IMyAtmSiteScheduleQueries>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton<IMyAtmMonitorCommands>(provider => provider.GetRequiredService<IDBClient>());
-        services.AddSingleton<IMyAtmMeasurementCommands>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton<IMyAtmOperationalCommands>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton<IMyAtmHealthQueries>(provider => provider.GetRequiredService<IDBClient>());
         services.AddSingleton<IMyAtmDustImportCommands>(provider => provider.GetRequiredService<IDBClient>());
@@ -151,8 +150,21 @@ public static class MyAtmMonitorServices
             }
             catch (Exception e)
             {
-                IDBClient dbClient = provider.GetRequiredService<IDBClient>();
-                dbClient.HandleException("failed to start monitor application", e);
+                // Best-effort: the startup failure may itself be a database
+                // outage, and a failed audit write must not mask the original
+                // exception below.
+                try
+                {
+                    IDBClient dbClient = provider.GetRequiredService<IDBClient>();
+                    dbClient.HandleException("failed to start monitor application", e);
+                }
+                catch (Exception auditFailure)
+                {
+                    RvtLogger.Logger.LogError(
+                        auditFailure,
+                        "Failed to record the startup failure in the database.");
+                }
+
                 throw; // Need this to kill the instance.
             }
         });

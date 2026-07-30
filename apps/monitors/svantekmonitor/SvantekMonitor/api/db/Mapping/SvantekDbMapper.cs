@@ -2,8 +2,6 @@ using Riok.Mapperly.Abstractions;
 using Rvt.Monitor.Common.Data.Entities;
 using Svantek.Api.Db.EntityFramework;
 using Svantek.Model.Dto;
-using SvantekMonitor.model.dto;
-using static Svantek.Api.SvantekApi;
 
 namespace Svantek.Api.Db.Mapping;
 

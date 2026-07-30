@@ -1,2 +1,2 @@
 global using Microsoft.VisualStudio.TestTools.UnitTesting;
-global using SvantekMonitor.model.dto;
+global using Svantek.Model.Dto;

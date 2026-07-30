@@ -302,7 +302,7 @@ CREATE TABLE alert_delivery_outbox (
     lease_id uuid NULL,
     lease_until timestamp with time zone NULL,
     completed_at timestamp with time zone NULL,
-    last_error varchar(256) NULL,
+    last_error varchar(1024) NULL,
     created_at timestamp with time zone NOT NULL,
     CONSTRAINT uq_alert_delivery_outbox_delivery_key UNIQUE (delivery_key)
 );

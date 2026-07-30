@@ -48,7 +48,7 @@ namespace AirQ.Api.UseCases
                     {
                         if (!monitor.Offline)
                         {
-                            DateTime lastDataTime = monitor.LastDataTime != null ? DateTimeUtil.TruncateMillis((DateTime)monitor.LastDataTime!).ToUniversalTime() : AirQApi.JAN1_1970;
+                            DateTime lastDataTime = monitor.LastDataTime != null ? DateTimeUtil.TruncateMillis((DateTime)monitor.LastDataTime!).ToUniversalTime() : DateTimeUtil.JAN1_1970;
                             double diffInSeconds = monitor.LastDataTime != null ? offlineDateTime.Subtract(lastDataTime).TotalSeconds : 0;
 
                             if (lastDataTime < cutOff)

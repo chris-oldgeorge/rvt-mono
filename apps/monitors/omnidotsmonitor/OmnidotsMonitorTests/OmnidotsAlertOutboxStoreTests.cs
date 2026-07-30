@@ -362,7 +362,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
         ClaimedAlertDelivery? claim = await _store.ClaimNextDueAsync(_utcNow, TimeSpan.FromMinutes(2), TestContext.CancellationToken);
         Assert.IsNotNull(claim);
         DateTime nextAttemptAt = _utcNow.AddMinutes(1);
-        string oversizedSafeError = new('x', 300);
+        string oversizedSafeError = new('x', 1100);
 
         bool retried = await _store.RetryAsync(
             id,
@@ -378,7 +378,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
         Assert.AreEqual(nextAttemptAt, await ReadDateTimeAsync(
             "SELECT next_attempt_at FROM alert_delivery_outbox WHERE id = @id;",
             id));
-        Assert.AreEqual(new string('x', 256), await ReadStringAsync(
+        Assert.AreEqual(new string('x', 1024), await ReadStringAsync(
             "SELECT last_error FROM alert_delivery_outbox WHERE id = @id;",
             id));
         Assert.AreEqual(0, await CountAsync("SELECT COUNT(*) FROM notification_sent;"));

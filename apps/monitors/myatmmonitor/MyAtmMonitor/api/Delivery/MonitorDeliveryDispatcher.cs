@@ -1,14 +1,12 @@
-// The namespace is retained from the shared-kernel folder this file moved out
-// of, so its consumers keep compiling; IDE0130 would force a rename ripple.
-#pragma warning disable IDE0130
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Rvt.Communication.Abstractions;
+using Rvt.Monitor.Common.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 
-namespace Rvt.Monitor.Common.Delivery;
+namespace MyAtm.Delivery;
 
 public sealed class MonitorDeliveryDispatcher
 {
@@ -140,8 +138,9 @@ public sealed class MonitorDeliveryDispatcher
                     .ConfigureAwait(false);
                 return null;
             case MonitorDeliveryKind.MqttAlert:
-                string prefix = message.Producer == MonitorDeliveryProducers.MyAtm ? "Dust" : "Noise";
-                string text = $"{prefix} {payload.AlertType} {payload.Field} level={payload.Level}";
+                // MyAtm is the only remaining delivery producer (Svantek
+                // stopped producing deliveries at legacy-retirement step 4).
+                string text = $"Dust {payload.AlertType} {payload.Field} level={payload.Level}";
                 await PublishMqttAsync(_options.AlertTopic, payload, text, cancellationToken)
                     .ConfigureAwait(false);
                 return null;
@@ -152,7 +151,7 @@ public sealed class MonitorDeliveryDispatcher
                         NotificationChannel.Email,
                         message.Destination,
                         payload.FleetNr,
-                        NotificationUrl(message.Producer, payload)),
+                        NotificationUrl(payload)),
                     cancellationToken).ConfigureAwait(false);
                 return CreateAudit(message, payload, NotificationConstants.SENT_OK, DateTime.UtcNow);
             case MonitorDeliveryKind.Sms:
@@ -162,7 +161,7 @@ public sealed class MonitorDeliveryDispatcher
                         NotificationChannel.Sms,
                         message.Destination,
                         payload.FleetNr,
-                        NotificationUrl(message.Producer, payload)),
+                        NotificationUrl(payload)),
                     cancellationToken).ConfigureAwait(false);
                 return CreateAudit(message, payload, NotificationConstants.SENT_OK, DateTime.UtcNow);
             default:
@@ -281,16 +280,8 @@ public sealed class MonitorDeliveryDispatcher
             sentAt);
     }
 
-    private string NotificationUrl(string producer, MonitorDeliveryPayloadV1 payload)
-    {
-        if (producer == MonitorDeliveryProducers.Svantek &&
-            payload.AlertType is not (AlertType.Alert or AlertType.Caution))
-        {
-            return string.Empty;
-        }
-
-        return $"{_options.PortalBaseUrl.TrimEnd('/')}/Notification/View/{payload.NotificationId}";
-    }
+    private string NotificationUrl(MonitorDeliveryPayloadV1 payload) =>
+        $"{_options.PortalBaseUrl.TrimEnd('/')}/Notification/View/{payload.NotificationId}";
 
     private static NotificationMessageKind ToNotificationKind(AlertType alertType) =>
         alertType switch

@@ -127,7 +127,7 @@ public sealed class TestMonitorJobScheduling
         VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(
             1,
             lastDataTime: new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc)).Single();
-        DateTime cursor = new(2026, 7, 13, 6, 30, 0, DateTimeKind.Utc);
+        DateTime cursor = RecentUtc(TimeSpan.FromMinutes(30));
         string? requestedUrl = null;
 
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
@@ -172,7 +172,7 @@ public sealed class TestMonitorJobScheduling
         VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(
             1,
             lastDataTime: new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc)).Single();
-        DateTime latestMeasurement = new(2026, 7, 12, 4, 20, 0, DateTimeKind.Utc);
+        DateTime latestMeasurement = RecentUtc(TimeSpan.FromMinutes(45));
         string? requestedUrl = null;
 
         httpClient.Setup(client => client.PostAsync("/api/v1/user/authenticate", It.IsAny<HttpContent>(), It.IsAny<CancellationToken>()))
@@ -207,7 +207,7 @@ public sealed class TestMonitorJobScheduling
             out Mock<IAlertIngressPort>? messageService,
             out Mock<IOmnidotsImportCursorQueries>? cursorQueries,
             out Mock<IOmnidotsMeasurementImportCommands>? importCommands);
-        DateTime bootstrap = new(2026, 7, 2, 9, 45, 0, DateTimeKind.Utc);
+        DateTime bootstrap = RecentUtc(TimeSpan.FromMinutes(90));
         VibrationMonitorDto monitor = OmnidotsFixture.MonitorsList(1, lastDataTime: bootstrap).Single();
         string? requestedUrl = null;
 
@@ -520,4 +520,14 @@ public sealed class TestMonitorJobScheduling
     }
 
     public TestContext TestContext { get; set; } = null!;
+
+    // A healthy monitor's resolved start is minutes old, so the request is a
+    // single window; these tests are about which start is resolved, not about
+    // how far back it reaches. Truncated to whole seconds so the millisecond
+    // round-trip through the query string is exact.
+    private static DateTime RecentUtc(TimeSpan ago)
+    {
+        DateTime value = DateTime.UtcNow - ago;
+        return new DateTime(value.Ticks - (value.Ticks % TimeSpan.TicksPerSecond), DateTimeKind.Utc);
+    }
 }

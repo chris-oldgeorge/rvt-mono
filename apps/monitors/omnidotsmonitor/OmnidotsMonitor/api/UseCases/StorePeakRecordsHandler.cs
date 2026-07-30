@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.Extensions.Logging;
 using Omnidots.Api.Db;
 using Omnidots.Api.Ports;
+using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
@@ -21,6 +22,7 @@ namespace Omnidots.Api.UseCases
         private readonly IOmnidotsMeasurementImportCommands _importCommands;
         private readonly IOmnidotsOperationalCommands _operationalCommands;
         private readonly IMonitorEventPublisher _eventPublisher;
+        private readonly OmnidotsImportOptions _importOptions;
 
         public StorePeakRecordsHandler(
             IOmnidotsVendorGateway gateway,
@@ -29,7 +31,8 @@ namespace Omnidots.Api.UseCases
             IOmnidotsImportCursorQueries cursorQueries,
             IOmnidotsMeasurementImportCommands importCommands,
             IOmnidotsOperationalCommands operationalCommands,
-            IMonitorEventPublisher eventPublisher)
+            IMonitorEventPublisher eventPublisher,
+            OmnidotsImportOptions? importOptions = null)
         {
             _gateway = gateway;
             _monitorReader = monitorReader;
@@ -38,6 +41,8 @@ namespace Omnidots.Api.UseCases
             _importCommands = importCommands;
             _operationalCommands = operationalCommands;
             _eventPublisher = eventPublisher;
+            _importOptions = importOptions ?? new OmnidotsImportOptions();
+            _importOptions.Validate();
         }
 
         public async Task RunAsync(CancellationToken cancellationToken = default)
@@ -52,16 +57,25 @@ namespace Omnidots.Api.UseCases
                 _operationalCommands,
                 async monitor =>
                 {
-                    DateTime startTime = ResolvePeakStart(monitor);
-                    await StorePeakRecordsAsync(monitor: monitor, startTime: startTime, endTime: utcNow, token: token,
-                        cancellationToken: cancellationToken);
+                    DateTime startTime = ResolvePeakStart(monitor, utcNow);
+                    // One request per bounded window instead of one unbounded
+                    // request against the client's 4 MB / 30 s limits.
+                    foreach ((DateTime windowStart, DateTime windowEnd) in SampleFetchWindow.Split(
+                        startTime,
+                        utcNow,
+                        _importOptions.MaximumRequestWindow))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await StorePeakRecordsAsync(monitor: monitor, startTime: windowStart, endTime: windowEnd, token: token,
+                            cancellationToken: cancellationToken);
+                    }
                 },
                 cancellationToken);
 
             OmnidotsFleetImport.ThrowIfAny("StorePeakRecords", failures);
         }
 
-        private DateTime ResolvePeakStart(VibrationMonitorDto monitor)
+        private DateTime ResolvePeakStart(VibrationMonitorDto monitor, DateTime utcNow)
         {
             DateTime? cursor = _cursorQueries.ReadImportCursor(
                 monitor.SerialId,
@@ -83,7 +97,13 @@ namespace Omnidots.Api.UseCases
             DateTime fallback = monitor.LastDataTime.HasValue && monitor.LastDataTime.Value > deployDate
                 ? monitor.LastDataTime.Value
                 : deployDate;
-            return fallback.AddMinutes(-5);
+            // Only the bootstrap path is capped: a deployment date can be
+            // arbitrarily far back, and such a monitor never imported anything
+            // anyway because the single unbounded request always exceeded the
+            // 4 MB response cap. A monitor with a cursor or stored samples
+            // still catches up in full, one window at a time.
+            DateTime earliest = utcNow - _importOptions.MaximumInitialBackfill;
+            return fallback > earliest ? fallback.AddMinutes(-5) : earliest;
         }
 
 

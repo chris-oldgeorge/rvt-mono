@@ -25,7 +25,8 @@ import {
   logout,
   updateProfile,
 } from './api/client';
-import { CompaniesPanel, UsersPanel } from './admin/AdminPanels';
+import { CompaniesPanel } from './admin/CompanyPanels';
+import { UsersPanel } from './admin/UserPanels';
 import { HelpAdminPanel } from './admin/HelpAdminPanel';
 import { ContractsPanel } from './operations/ContractPanels';
 import { SitesPanel } from './operations/SitePanels';
@@ -48,10 +49,10 @@ import type { NavigationItem, ProtectedRoute } from './routes';
 import type { AuthStateResponse, AuthUser, GetHealthResponse, ProfileResponse } from './dtos';
 
 const LazyMapPanel = lazy(() =>
-  import('./operations/DashboardRoutePanels').then((module) => ({ default: module.MapPanel })),
+  import('./operations/MapCalendarPanels').then((module) => ({ default: module.MapPanel })),
 );
 const LazyCalendarPanel = lazy(() =>
-  import('./operations/DashboardRoutePanels').then((module) => ({ default: module.CalendarPanel })),
+  import('./operations/MapCalendarPanels').then((module) => ({ default: module.CalendarPanel })),
 );
 const LazyDataViewsPanel = lazy(() =>
   import('./operations/DataViewPanels').then((module) => ({ default: module.DataViewsPanel })),

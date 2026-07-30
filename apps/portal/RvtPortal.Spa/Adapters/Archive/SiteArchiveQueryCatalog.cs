@@ -1,5 +1,6 @@
 // File summary: Provides canonical PostgreSQL SQL definitions for site archive CSV and report exports.
 // Major updates:
+// - 2026-07-30 pending Resolved archive tables through SearchPath instead of pinning the public schema.
 // - 2026-07-30 pending Normalized the date-only off-hire end.
 // - 2026-07-25 pending Made public-schema PostgreSQL SQL canonical.
 // - 2026-07-09 pending Moved site archive SQL into a dedicated provider-aware query catalog.
@@ -293,9 +294,13 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
             + "ELSE c.off_hire_date END";
     }
 
-    // Function summary: Returns a quoted public-schema PostgreSQL table reference.
+    /// <summary>
+    /// Returns a quoted, unqualified PostgreSQL table reference. Unqualified on purpose: these queries run on the
+    /// portal's own <c>RVTDbContext</c> connection, so they must resolve through the same <c>SearchPath</c> as
+    /// every EF read and the raw-SQL site writes, rather than pinning a schema of their own.
+    /// </summary>
     private static string Table(string name)
     {
-        return $"\"public\".\"{name}\"";
+        return $"\"{name}\"";
     }
 }

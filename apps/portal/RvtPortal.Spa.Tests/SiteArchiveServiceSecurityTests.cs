@@ -1,5 +1,6 @@
 // File summary: Covers canonical PostgreSQL SQL and parameterization behavior for site archive exports.
 // Major updates:
+// - 2026-07-30 pending Replaced the public-schema pin with the SearchPath-resolution contract.
 // - 2026-07-30 pending Replaced the timing-based no-request race with a deterministic completed-task assertion.
 // - 2026-07-25 pending Replaced provider-dialect coverage with canonical PostgreSQL archive and site-write guards.
 // - 2026-07-25 pending Added stable URL canonicalization and effective-port cleanup coverage.
@@ -234,18 +235,25 @@ public sealed class SiteArchiveServiceSecurityTests
     }
 
     [Fact]
-    // Function summary: Verifies the archive catalog supplies one canonical public-schema PostgreSQL SQL definition.
+    /// <summary>
+    /// Table references are quoted but unqualified, so the exports resolve through the connection's SearchPath
+    /// exactly as every EF read and the raw-SQL site writes do. This test used to assert the opposite - that the
+    /// SQL pinned <c>public</c> - which made the archive the one portal read that ignored the configured schema.
+    /// </summary>
+    // Function summary: Verifies the archive catalog supplies canonical PostgreSQL SQL that resolves through SearchPath.
     public void SiteArchiveQueryCatalog_ProvidesCanonicalPostgresArchiveSql()
     {
         SiteArchiveQueryCatalog catalog = new();
 
         string sql = FirstExportSql(catalog);
         string allSql = AllExportSql(catalog);
+        string everySql = allSql + Environment.NewLine + catalog.ReportLinksSql;
 
-        Assert.Contains("\"public\".\"deployment\"", sql, StringComparison.Ordinal);
+        Assert.Contains("FROM \"deployment\" d", sql, StringComparison.Ordinal);
         Assert.Contains("s.id = @SiteId", sql, StringComparison.Ordinal);
         Assert.Contains("now()", allSql, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("\"public\".\"report\"", catalog.ReportLinksSql, StringComparison.Ordinal);
+        Assert.Contains("FROM \"report\"", catalog.ReportLinksSql, StringComparison.Ordinal);
+        Assert.DoesNotContain("public", everySql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("dbo", allSql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("getdate()", allSql, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain('[', allSql);

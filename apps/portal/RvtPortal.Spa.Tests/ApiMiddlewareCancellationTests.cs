@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
@@ -44,8 +43,10 @@ public sealed class ApiMiddlewareCancellationTests
 
     private static DefaultHttpContext CreateAbortedContext()
     {
-        DefaultHttpContext context = new();
-        context.RequestAborted = new CancellationToken(canceled: true);
+        DefaultHttpContext context = new()
+        {
+            RequestAborted = new CancellationToken(canceled: true)
+        };
         context.Response.Body = new MemoryStream();
         return context;
     }

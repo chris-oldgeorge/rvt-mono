@@ -31,7 +31,7 @@ atomic in every branch, and the invariant that makes it possible is asserted.
 2. **Reconcile retry with manual transactions.** `EnableRetryOnFailure` forbids
    user-initiated `BeginTransaction` outside an execution strategy. Wrap the transactional
    block in `EfCoreUnitOfWork.ExecuteInTransactionAsync`
-   (`RvtPortal.Spa/Application/Common/EfCoreUnitOfWork.cs`) with
+   (`RvtPortal.Spa/UseCases/Common/EfCoreUnitOfWork.cs`) with
    `domainContext.Database.CreateExecutionStrategy().ExecuteAsync(...)`.
 3. **Close the two atomicity escape hatches** in `EfCoreUnitOfWork`:
    - `HasActiveTransaction()` branch: enlist `searchContext` and `applicationContext` in the
@@ -75,7 +75,7 @@ change-tracking cost.
      full T4 fix in Step 5).
 3. **Propagate async through the call chain**: `GenericRepository.ReadFiltered`,
    `SearchQueryReader`, the four repo wrappers, and their callers in
-   `RvtPortal.Spa/Application` (CompanyService.Search, MonitorService Omnidots reads, etc.).
+   `RvtPortal.Spa/UseCases` (CompanyService.Search, MonitorService Omnidots reads, etc.).
    Thread `CancellationToken` from the controllers' `HttpContext.RequestAborted` where not
    already present.
 4. **Sweep the trivial waste flagged in the review** while touching each file:

@@ -18,9 +18,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RvtPortal.Application.Identity;
 using RvtPortal.Spa.Api.Mappers;
-using RvtPortal.Spa.Application.Installers;
-using RvtPortal.Spa.Application.Monitors;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Installers;
+using RvtPortal.Spa.UseCases.Monitors;
 
 namespace RvtPortal.Spa.Api;
 
@@ -92,6 +92,7 @@ public class InstallerApiController : ControllerBase
         {
             return ValidationProblem(ModelState);
         }
+
         if (result.NotFound)
         {
             return MonitorNotFound(deploymentId);

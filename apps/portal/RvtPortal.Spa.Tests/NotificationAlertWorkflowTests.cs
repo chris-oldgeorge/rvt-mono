@@ -1,5 +1,6 @@
 // File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
+// - 2026-07-31 pending Covered the batch-close notification-id cap at and above its boundary.
 // - 2026-07-23 pending Seeded fixed-clock authorization scenarios from the same deterministic instant.
 // - 2026-07-22 pending Covered inactive and exact-boundary alert-level and notification-close authorization.
 // - 2026-06-26 pending Added moved-monitor contract-window notification isolation regressions.
@@ -97,6 +98,45 @@ public class NotificationAlertWorkflowTests
         Assert.Contains(ids.OtherAlertNotificationId, batchResult!.ClosedIds);
         Assert.Contains(ids.CautionNotificationId, batchResult.InvalidIds);
         Assert.Single(batchResult.NotFoundIds);
+    }
+
+    [RequiresPostgresFact]
+    /// <summary>
+    /// Batch close used to accept any number of ids: one authenticated caller could post two hundred thousand
+    /// of them and have them turned into a single `IN (…)` inside a write transaction. The cap is a rejection,
+    /// not a silent truncation - the boundary itself is still accepted.
+    /// </summary>
+    public async Task BatchClose_RejectsMoreIdsThanTheCapAndAcceptsTheBoundary()
+    {
+        using SpaTestApplicationFactory factory = new();
+        NotificationAlertIds ids = await SeedNotificationAlertScenarioAsync(factory);
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        HttpClient client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        HttpResponseMessage overCap = await client.PostAsJsonAsync("/api/notifications/batch-close", new NotificationBatchCloseRequest
+        {
+            NotificationIds = [.. Enumerable.Range(0, NotificationsController.MaximumBatchCloseIds + 1).Select(_ => Guid.NewGuid())],
+            Note = "Batch close"
+        });
+        HttpResponseMessage atCap = await client.PostAsJsonAsync("/api/notifications/batch-close", new NotificationBatchCloseRequest
+        {
+            NotificationIds =
+            [
+                ids.OtherAlertNotificationId,
+                .. Enumerable.Range(0, NotificationsController.MaximumBatchCloseIds - 1).Select(_ => Guid.NewGuid())
+            ],
+            Note = "Batch close"
+        });
+        NotificationBatchCloseResponse? atCapResult = await atCap.Content.ReadFromJsonAsync<NotificationBatchCloseResponse>();
+
+        Assert.Equal(HttpStatusCode.BadRequest, overCap.StatusCode);
+        Assert.Contains(
+            $"Close at most {NotificationsController.MaximumBatchCloseIds} notifications at a time.",
+            await overCap.Content.ReadAsStringAsync(),
+            StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.OK, atCap.StatusCode);
+        Assert.Contains(ids.OtherAlertNotificationId, atCapResult!.ClosedIds);
     }
 
     [RequiresPostgresFact]

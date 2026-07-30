@@ -9,8 +9,8 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RvtPortal.Spa.Application.Companies;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Companies;
 
 namespace RvtPortal.Spa.Api;
 
@@ -47,6 +47,7 @@ public class CompaniesController : ControllerBase
         {
             return InvalidSort(result.InvalidSort, result.AllowedSortFields);
         }
+
         return result.Response!;
     }
 

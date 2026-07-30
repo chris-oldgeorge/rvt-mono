@@ -5,7 +5,7 @@ using RvtPortal.Spa.Tests.Support;
 namespace RvtPortal.Spa.Tests;
 
 /// <summary>
-/// The in-host application layer under <c>RvtPortal.Spa/Application</c> still
+/// The in-host application layer under <c>RvtPortal.Spa/UseCases</c> still
 /// imports <c>RvtPortal.Spa.Api</c>, which inverts the intended dependency: the
 /// API layer is a driving adapter and must depend on the application layer, not
 /// the other way round. The extracted <c>RvtPortal.Application</c> project is
@@ -55,7 +55,7 @@ public sealed class HostApplicationLayerBoundaryTests
     ];
 
     private static string HostApplicationRoot =>
-        Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa", "Application");
+        Path.Combine(RepositoryLayout.Root, "RvtPortal.Spa", "UseCases");
 
     [Fact]
     public void HostApplicationLayer_ImportsTheApiLayerOnlyWhereTheBaselineRecordsIt()

@@ -323,8 +323,11 @@ public partial class CutoverReadinessTests
         // A migration's .Designer.cs is a generated model snapshot, not DDL. Like RVTDbContextModelSnapshot.cs it
         // records CLR property names ("Archived"), which say nothing about the physical schema. The rule this test
         // enforces - no retired physical names in migration DDL - applies to the migration body only.
-        static bool IsGeneratedModelSnapshot(string path) =>
-            Path.GetFileName(path).EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase);
+        static bool IsGeneratedModelSnapshot(string path)
+        {
+            return Path.GetFileName(path).EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase);
+        }
+
         string[] retiredTokens = new[]
         {
             "MonitorsList",
@@ -521,7 +524,10 @@ public partial class CutoverReadinessTests
 
         foreach (string? identifier in ExtractRegexMatches(source, @"\[(?<identifier>[A-Za-z_][A-Za-z0-9_]*)\]", "identifier")
             .Concat(ExtractRegexMatches(source, @"\bpublic\.(?<identifier>[A-Za-z_][A-Za-z0-9_]*)\b", "identifier"))
-            .Concat(ExtractRegexMatches(source, @"\bCONSTRAINT\s+(?<identifier>[A-Za-z_][A-Za-z0-9_]*)\b", "identifier"))
+            // IF [NOT] EXISTS is skipped the same way the INDEX pattern below already skips it, and the
+            // lookahead stops the engine backtracking into reading "IF" as the constraint name when what
+            // follows EXISTS is a quoted legacy identifier this migration only drops.
+            .Concat(ExtractRegexMatches(source, @"\bCONSTRAINT\s+(?:IF\s+(?:NOT\s+)?EXISTS\s+)?(?!IF\b)(?<identifier>[A-Za-z_][A-Za-z0-9_]*)\b", "identifier"))
             .Concat(ExtractRegexMatches(source, @"\bINDEX\s+(?:IF\s+NOT\s+EXISTS\s+)?(?<identifier>[A-Za-z_][A-Za-z0-9_]*)\b", "identifier")))
         {
             if (!DatabaseNamingRules.IsCanonicalIdentifier(identifier))
@@ -549,5 +555,4 @@ public partial class CutoverReadinessTests
             sql.Split(["\r\n", "\n"], StringSplitOptions.None)
                 .Where(line => !line.TrimStart().StartsWith("--", StringComparison.Ordinal)));
     }
-
 }

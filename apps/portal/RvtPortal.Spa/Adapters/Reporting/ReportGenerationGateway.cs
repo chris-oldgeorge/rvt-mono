@@ -6,7 +6,7 @@
 
 using RvtPortal.Application.Common;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.ReportRules;
+using RvtPortal.Spa.UseCases.ReportRules;
 
 namespace RvtPortal.Spa.Adapters.Reporting;
 

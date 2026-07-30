@@ -3,12 +3,11 @@
 // - 2026-07-30 pending Moved the parity test onto PostgreSQL after the InMemory view fallback was deleted.
 // - 2026-07-30 pending Added with the batched unattached-monitors impact path (N+1 removal).
 
-using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using RVT.DataAccess.Context;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.Monitors;
 using RvtPortal.Spa.Tests.Support;
+using RvtPortal.Spa.UseCases.Monitors;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -89,22 +88,22 @@ public sealed class MonitorRemovalImpactReaderTests
     }
 
     /// <summary>
-    /// A throwaway PostgreSQL schema holding only the relations the impact reader queries. The reader never
+    /// A throwaway PostgreSQL _schema holding only the relations the impact reader queries. The reader never
     /// selects beyond the monitor-id and impact-count columns, so the tables carry just those; the
     /// monitor_measurement_removal_impact view is stood in by a table of the same shape, letting the test seed
     /// per-serial counts directly instead of loading the fourteen measurement tables the real view aggregates.
     /// </summary>
     private sealed class RemovalImpactFixture : IAsyncDisposable
     {
-        private readonly string baseConnectionString;
-        private readonly string schema;
-        private readonly string scopedConnectionString;
+        private readonly string _baseConnectionString;
+        private readonly string _schema;
+        private readonly string _scopedConnectionString;
 
         private RemovalImpactFixture(string baseConnectionString, string schema)
         {
-            this.baseConnectionString = baseConnectionString;
-            this.schema = schema;
-            scopedConnectionString = new NpgsqlConnectionStringBuilder(baseConnectionString)
+            _baseConnectionString = baseConnectionString;
+            _schema = schema;
+            _scopedConnectionString = new NpgsqlConnectionStringBuilder(baseConnectionString)
             {
                 SearchPath = schema
             }.ConnectionString;
@@ -155,7 +154,7 @@ public sealed class MonitorRemovalImpactReaderTests
             IReadOnlyList<Guid> alertRuleMonitorIds,
             IReadOnlyList<(string SerialId, int TableCount, int RowCount)> measurementImpacts)
         {
-            await using NpgsqlConnection connection = new(scopedConnectionString);
+            await using NpgsqlConnection connection = new(_scopedConnectionString);
             await connection.OpenAsync();
             foreach ((string table, IReadOnlyList<Guid> monitorIds) in new (string, IReadOnlyList<Guid>)[]
             {
@@ -190,17 +189,17 @@ public sealed class MonitorRemovalImpactReaderTests
         }
 
         public RVTDbContext CreateDomainContext() =>
-            new(TestDbContexts.Npgsql<RVTDbContext>(scopedConnectionString));
+            new(TestDbContexts.Npgsql<RVTDbContext>(_scopedConnectionString));
 
         public RVTSearchContext CreateSearchContext() =>
-            new(TestDbContexts.Npgsql<RVTSearchContext>(scopedConnectionString));
+            new(TestDbContexts.Npgsql<RVTSearchContext>(_scopedConnectionString));
 
         public async ValueTask DisposeAsync()
         {
-            await using NpgsqlConnection connection = new(baseConnectionString);
+            await using NpgsqlConnection connection = new(_baseConnectionString);
             await connection.OpenAsync();
             await using NpgsqlCommand command = connection.CreateCommand();
-            command.CommandText = $"""DROP SCHEMA IF EXISTS "{schema}" CASCADE;""";
+            command.CommandText = $"""DROP SCHEMA IF EXISTS "{_schema}" CASCADE;""";
             await command.ExecuteNonQueryAsync();
         }
     }

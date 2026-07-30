@@ -54,21 +54,26 @@ using RvtPortal.Spa.Adapters.Sites;
 using RvtPortal.Spa.Adapters.Storage;
 using RvtPortal.Spa.Adapters.Vendors;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.AlertLevels;
-using RvtPortal.Spa.Application.Auth;
-using RvtPortal.Spa.Application.Common;
-using RvtPortal.Spa.Application.Companies;
-using RvtPortal.Spa.Application.Contracts;
-using RvtPortal.Spa.Application.Dashboard;
-using RvtPortal.Spa.Application.Data;
-using RvtPortal.Spa.Application.Installers;
-using RvtPortal.Spa.Application.Lookups;
-using RvtPortal.Spa.Application.Monitors;
-using RvtPortal.Spa.Application.Notifications;
-using RvtPortal.Spa.Application.ReportContent;
-using RvtPortal.Spa.Application.ReportRules;
-using RvtPortal.Spa.Application.Reports;
-using RvtPortal.Spa.Application.Users;
+using RvtPortal.Spa.UseCases.AlertLevels;
+using RvtPortal.Spa.UseCases.Auth;
+using RvtPortal.Spa.UseCases.Common;
+using RvtPortal.Spa.UseCases.Companies;
+using RvtPortal.Spa.UseCases.Contracts;
+using RvtPortal.Spa.UseCases.Dashboard;
+using RvtPortal.Spa.UseCases.Data;
+using RvtPortal.Spa.UseCases.Installers;
+using RvtPortal.Spa.UseCases.Lookups;
+using RvtPortal.Spa.UseCases.Monitors;
+using RvtPortal.Spa.UseCases.Notifications;
+using RvtPortal.Spa.UseCases.ReportContent;
+using RvtPortal.Spa.UseCases.ReportRules;
+using RvtPortal.Spa.UseCases.Reports;
+using RvtPortal.Spa.UseCases.Users;
+// Aliased rather than imported wholesale: these two use cases live in the standalone BCL-only
+// RvtPortal.Application project, and a bare "Application.Sites" here would read as this host's own layer
+// (RvtPortal.Spa.UseCases) to anyone skimming the registrations.
+using PortalHelpUseCases = RvtPortal.Application.Help;
+using PortalSiteUseCases = RvtPortal.Application.Sites;
 
 namespace RvtPortal.Spa;
 
@@ -124,8 +129,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICurrentUserContextFactory, CurrentUserContextFactory>();
         services.AddScoped<IPortalUserDirectory, PortalUserDirectory>();
         services.AddScoped<
-            RvtPortal.Application.Sites.ISiteApplicationService,
-            RvtPortal.Application.Sites.SiteApplicationService>();
+            PortalSiteUseCases.ISiteApplicationService,
+            PortalSiteUseCases.SiteApplicationService>();
         services.AddScoped<ISiteReadPort, EfSiteReadAdapter>();
         services.AddScoped<ISiteWritePort, EfSiteWriteAdapter>();
         services.AddScoped<ISiteArchivePort, SiteArchiveAdapter>();
@@ -144,8 +149,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IContractApplicationService, ContractApplicationService>();
         services.AddScoped<IReportApplicationService, ReportApplicationService>();
         services.AddScoped<
-            RvtPortal.Application.Help.IHelpApplicationService,
-            RvtPortal.Application.Help.HelpApplicationService>();
+            PortalHelpUseCases.IHelpApplicationService,
+            PortalHelpUseCases.HelpApplicationService>();
         services.AddScoped<IHelpReadPort, EfHelpReadAdapter>();
         services.AddScoped<IHelpWritePort, EfHelpWriteAdapter>();
         services.AddScoped<IUserAccountWorkflowService, UserAccountWorkflowService>();
@@ -167,6 +172,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMonitorDetailReader, MonitorDetailReader>();
         services.AddScoped<IMonitorListReader, MonitorListReader>();
         services.AddScoped<IMonitorRemovalImpactReader, MonitorRemovalImpactReader>();
+        services.AddScoped<IDeploymentMeasurementProbe, DeploymentMeasurementProbe>();
         services.AddScoped<IMonitorReadAuthorizationService, MonitorReadAuthorizationService>();
         services.AddScoped<IReportRuleRecipientReader, ReportRuleRecipientReader>();
         services.AddOptions<ReportGenerationServiceOptions>().BindConfiguration("ReportGenerationService");

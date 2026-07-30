@@ -8,8 +8,8 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RvtPortal.Spa.Application.Reports;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Reports;
 
 namespace RvtPortal.Spa.Api;
 

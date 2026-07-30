@@ -45,11 +45,11 @@ using RvtPortal.Spa.Adapters.Archive;
 using RvtPortal.Spa.Adapters.Reporting;
 using RvtPortal.Spa.Adapters.Storage;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.Common;
-using RvtPortal.Spa.Application.Companies;
-using RvtPortal.Spa.Application.Lookups;
-using RvtPortal.Spa.Application.ReportRules;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Common;
+using RvtPortal.Spa.UseCases.Companies;
+using RvtPortal.Spa.UseCases.Lookups;
+using RvtPortal.Spa.UseCases.ReportRules;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -104,7 +104,7 @@ public class CqrsArchitectureTests
     // brittle source-text scan of LookupService.cs to reflection over the compiled type and its interface.
     public void LookupService_ExposesAsyncSearchesAndDoesNotCacheWholeTables()
     {
-        Type? lookupService = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Lookups.LookupService");
+        Type? lookupService = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Lookups.LookupService");
         Assert.NotNull(lookupService);
 
         // No whole-table caching: the service must not take an IMemoryCache dependency.
@@ -171,8 +171,8 @@ public class CqrsArchitectureTests
     }
 
     [Theory]
-    [InlineData(typeof(UsersController), "RvtPortal.Spa.Application.Users.IUserListApplicationService")]
-    [InlineData(typeof(DashboardController), "RvtPortal.Spa.Application.Dashboard.IDashboardBreachApplicationService")]
+    [InlineData(typeof(UsersController), "RvtPortal.Spa.UseCases.Users.IUserListApplicationService")]
+    [InlineData(typeof(DashboardController), "RvtPortal.Spa.UseCases.Dashboard.IDashboardBreachApplicationService")]
     // Function summary: Verifies high-volume list endpoints enter application services instead of owning query pipelines in controllers.
     public void ListControllers_DependOnApplicationQueryServices(Type controllerType, string serviceInterfaceName)
     {
@@ -187,7 +187,7 @@ public class CqrsArchitectureTests
     public void DashboardController_DelegatesOverviewWorkflowsToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(DashboardController));
-        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Dashboard.IDashboardApplicationService");
+        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Dashboard.IDashboardApplicationService");
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
@@ -200,7 +200,7 @@ public class CqrsArchitectureTests
     public void UsersController_DelegatesDetailAndSiteAssignmentReadsToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(UsersController));
-        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Users.IUserAdministrationReadService");
+        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Users.IUserAdministrationReadService");
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
@@ -213,7 +213,7 @@ public class CqrsArchitectureTests
     public void UsersController_DelegatesAccountWorkflowsToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(UsersController));
-        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Users.IUserAccountWorkflowService");
+        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Users.IUserAccountWorkflowService");
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
@@ -221,7 +221,7 @@ public class CqrsArchitectureTests
         Assert.DoesNotContain(typeof(ICompanyService), constructorParameters);
         Assert.DoesNotContain(typeof(ILookupService), constructorParameters);
         Assert.DoesNotContain(typeof(IConfiguration), constructorParameters);
-        Assert.DoesNotContain(typeof(RvtPortal.Application.Notifications.IAccountMessenger), constructorParameters);
+        Assert.DoesNotContain(typeof(Application.Notifications.IAccountMessenger), constructorParameters);
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public class CqrsArchitectureTests
     public void AuthController_DelegatesIdentityWorkflowsToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(AuthController));
-        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Auth.IAuthApplicationService");
+        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Auth.IAuthApplicationService");
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
@@ -237,7 +237,7 @@ public class CqrsArchitectureTests
         Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
         Assert.DoesNotContain(typeof(ICompanyService), constructorParameters);
         Assert.DoesNotContain(typeof(IConfiguration), constructorParameters);
-        Assert.DoesNotContain(typeof(RvtPortal.Application.Notifications.IAccountMessenger), constructorParameters);
+        Assert.DoesNotContain(typeof(Application.Notifications.IAccountMessenger), constructorParameters);
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public class CqrsArchitectureTests
     public void DataController_DelegatesMonitorDataWorkflowsToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(DataController));
-        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Data.IDataApplicationService");
+        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Data.IDataApplicationService");
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
@@ -258,8 +258,8 @@ public class CqrsArchitectureTests
     public void MonitorsController_DelegatesAdministrationReadsToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(MonitorsController));
-        Type? readServiceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Monitors.IMonitorAdministrationReadService");
-        Type? workflowServiceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Monitors.IMonitorAdministrationWorkflowService");
+        Type? readServiceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Monitors.IMonitorAdministrationReadService");
+        Type? workflowServiceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Monitors.IMonitorAdministrationWorkflowService");
 
         Assert.NotNull(readServiceInterface);
         Assert.NotNull(workflowServiceInterface);
@@ -269,9 +269,9 @@ public class CqrsArchitectureTests
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
         Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
         Assert.DoesNotContain(typeof(IMonitorPictureStorage), constructorParameters);
-        Assert.DoesNotContain(typeof(Application.Monitors.IMonitorDetailReader), constructorParameters);
-        Assert.DoesNotContain(typeof(Application.Monitors.IMonitorListReader), constructorParameters);
-        Assert.DoesNotContain(typeof(Application.Monitors.IMonitorRemovalImpactReader), constructorParameters);
+        Assert.DoesNotContain(typeof(UseCases.Monitors.IMonitorDetailReader), constructorParameters);
+        Assert.DoesNotContain(typeof(UseCases.Monitors.IMonitorListReader), constructorParameters);
+        Assert.DoesNotContain(typeof(UseCases.Monitors.IMonitorRemovalImpactReader), constructorParameters);
         Assert.DoesNotContain(typeof(IMediator), constructorParameters);
     }
 
@@ -280,7 +280,7 @@ public class CqrsArchitectureTests
     public void NotificationsController_DelegatesReadsToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(NotificationsController));
-        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Notifications.INotificationApplicationService");
+        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Notifications.INotificationApplicationService");
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
@@ -295,14 +295,14 @@ public class CqrsArchitectureTests
     public void InstallerApiController_DelegatesReadsToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(InstallerApiController));
-        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Installers.IInstallerApplicationService");
+        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Installers.IInstallerApplicationService");
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
         Assert.Contains(typeof(ICurrentUserContextFactory), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
         Assert.DoesNotContain(typeof(Microsoft.AspNetCore.Identity.UserManager<ApplicationUser>), constructorParameters);
-        Assert.DoesNotContain(typeof(Application.Monitors.IMonitorDetailReader), constructorParameters);
+        Assert.DoesNotContain(typeof(UseCases.Monitors.IMonitorDetailReader), constructorParameters);
         Assert.DoesNotContain(typeof(IConfiguration), constructorParameters);
         Assert.DoesNotContain(typeof(IHttpClientFactory), constructorParameters);
         Assert.DoesNotContain(typeof(IMediator), constructorParameters);
@@ -313,7 +313,7 @@ public class CqrsArchitectureTests
     public void AlertLevelsController_DelegatesReadsToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(AlertLevelsController));
-        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.AlertLevels.IAlertLevelApplicationService");
+        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.AlertLevels.IAlertLevelApplicationService");
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
@@ -328,9 +328,9 @@ public class CqrsArchitectureTests
     public void CompanyAndContractControllers_DelegateReadsToApplicationServices()
     {
         IReadOnlyCollection<Type> companyParameters = ConstructorParameters(typeof(CompaniesController));
-        Type? companyServiceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Companies.ICompanyApplicationService");
+        Type? companyServiceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Companies.ICompanyApplicationService");
         IReadOnlyCollection<Type> contractParameters = ConstructorParameters(typeof(ContractsController));
-        Type? contractServiceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Contracts.IContractApplicationService");
+        Type? contractServiceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Contracts.IContractApplicationService");
 
         Assert.NotNull(companyServiceInterface);
         Assert.Contains(companyServiceInterface, companyParameters);
@@ -350,7 +350,7 @@ public class CqrsArchitectureTests
     public void ReportsController_DelegatesReadsToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(ReportsController));
-        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.Reports.IReportApplicationService");
+        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.Reports.IReportApplicationService");
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
@@ -362,7 +362,7 @@ public class CqrsArchitectureTests
     public void ReportContentController_DelegatesAssetFetchesToApplicationService()
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(ReportContentController));
-        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.Application.ReportContent.IReportContentApplicationService");
+        Type? serviceInterface = typeof(Program).Assembly.GetType("RvtPortal.Spa.UseCases.ReportContent.IReportContentApplicationService");
 
         Assert.NotNull(serviceInterface);
         Assert.Contains(serviceInterface, constructorParameters);
@@ -377,7 +377,7 @@ public class CqrsArchitectureTests
     {
         IReadOnlyCollection<Type> constructorParameters = ConstructorParameters(typeof(HelpController));
         Type serviceInterface =
-            typeof(RvtPortal.Application.Help.IHelpApplicationService);
+            typeof(Application.Help.IHelpApplicationService);
 
         Assert.Contains(serviceInterface, constructorParameters);
         Assert.Contains(typeof(ICurrentUserContextFactory), constructorParameters);
@@ -385,10 +385,10 @@ public class CqrsArchitectureTests
         Assert.DoesNotContain(typeof(IMediator), constructorParameters);
         Assert.DoesNotContain(typeof(RVT.DataAccess.Context.RVTDbContext), constructorParameters);
         Assert.DoesNotContain(
-            typeof(RvtPortal.Application.Help.Ports.IHelpReadPort),
+            typeof(Application.Help.Ports.IHelpReadPort),
             constructorParameters);
         Assert.DoesNotContain(
-            typeof(RvtPortal.Application.Help.Ports.IHelpWritePort),
+            typeof(Application.Help.Ports.IHelpWritePort),
             constructorParameters);
     }
 
@@ -505,7 +505,7 @@ public class CqrsArchitectureTests
         return typeof(Program).Assembly
             .GetTypes()
             .Where(type => type is { IsClass: true, IsAbstract: false })
-            .Where(type => type.Namespace?.StartsWith("RvtPortal.Spa.Application.", StringComparison.Ordinal) == true)
+            .Where(type => type.Namespace?.StartsWith("RvtPortal.Spa.UseCases.", StringComparison.Ordinal) == true)
             .Where(type => type.Name.EndsWith("Command", StringComparison.Ordinal))
             .OrderBy(type => type.FullName, StringComparer.Ordinal);
     }

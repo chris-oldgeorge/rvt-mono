@@ -6,7 +6,7 @@ using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Querying;
 using RvtPortal.Application.Time;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 using Monitor = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Tests;

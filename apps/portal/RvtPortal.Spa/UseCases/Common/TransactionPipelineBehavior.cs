@@ -1,0 +1,40 @@
+// File summary: Provides the MediatR transaction pipeline used by command handlers that opt into Unit of Work persistence.
+// Major updates:
+// - 2026-06-25 pending Added transactional pipeline behavior for command handlers implementing ITransactionalRequest.
+
+using MediatR;
+
+namespace RvtPortal.Spa.UseCases.Common;
+
+public sealed class TransactionPipelineBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : notnull
+{
+    private readonly IUnitOfWork _unitOfWork;
+
+    // Function summary: Initializes the transaction behavior with the configured Unit of Work.
+    public TransactionPipelineBehavior(IUnitOfWork unitOfWork)
+    {
+        _unitOfWork = unitOfWork;
+    }
+
+    // Function summary: Wraps transactional MediatR requests in one save-and-commit boundary.
+    public Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        if (request is not ITransactionalRequest)
+        {
+            return next(cancellationToken);
+        }
+
+        return _unitOfWork.ExecuteInTransactionAsync(
+            async token =>
+            {
+                TResponse? response = await next(token);
+                await _unitOfWork.SaveChangesAsync(token);
+                return response;
+            },
+            cancellationToken);
+    }
+}

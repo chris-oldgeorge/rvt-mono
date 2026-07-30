@@ -5,7 +5,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 
 namespace RvtPortal.Spa.Tests;
 

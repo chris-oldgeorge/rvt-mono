@@ -1,5 +1,6 @@
 // File summary: Implements PostgreSQL site mutation persistence with atomic claim and upsert writes.
 // Major updates:
+// - 2026-07-30 pending Dropped the provider-name guard: the ON CONFLICT upserts are the only implementation.
 // - 2026-07-30 pending Removed the InMemory fallbacks once the Spa test host moved onto PostgreSQL.
 // - 2026-07-25 pending Made PostgreSQL ON CONFLICT the canonical concurrency path.
 
@@ -121,11 +122,6 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         DateTime createDateUtc = DateTime.SpecifyKind(
             archivedUtc,
             DateTimeKind.Utc);
-        if (!IsPostgres() && !IsSqlite())
-        {
-            throw UnsupportedRelationalProvider();
-        }
-
         int affected = await domainContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
             INSERT INTO "site_archived"
@@ -164,11 +160,6 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
         CancellationToken cancellationToken)
     {
         Guid settingId = Guid.NewGuid();
-        if (!IsPostgres() && !IsSqlite())
-        {
-            throw UnsupportedRelationalProvider();
-        }
-
         await domainContext.Database.ExecuteSqlInterpolatedAsync(
             $"""
             INSERT INTO "notification_setting"
@@ -184,20 +175,4 @@ public sealed class EfSiteWriteAdapter(RVTDbContext domainContext)
             """,
             cancellationToken);
     }
-
-    private bool IsPostgres() =>
-        string.Equals(
-            domainContext.Database.ProviderName,
-            "Npgsql.EntityFrameworkCore.PostgreSQL",
-            StringComparison.Ordinal);
-
-    private bool IsSqlite() =>
-        string.Equals(
-            domainContext.Database.ProviderName,
-            "Microsoft.EntityFrameworkCore.Sqlite",
-            StringComparison.Ordinal);
-
-    private InvalidOperationException UnsupportedRelationalProvider() =>
-        new(
-            $"Provider '{domainContext.Database.ProviderName}' does not have an atomic Sites write implementation.");
 }

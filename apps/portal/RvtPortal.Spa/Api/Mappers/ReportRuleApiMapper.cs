@@ -5,7 +5,7 @@
 // - 2026-07-05 pending Added report-recipient and manual-generation mapping.
 
 using RvtPortal.Application.Common;
-using RvtPortal.Spa.Application.ReportRules;
+using RvtPortal.Spa.UseCases.ReportRules;
 
 namespace RvtPortal.Spa.Api.Mappers;
 

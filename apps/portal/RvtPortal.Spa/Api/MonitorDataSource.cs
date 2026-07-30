@@ -1,5 +1,6 @@
 // File summary: Exposes API endpoints used by the React portal for monitor data source workflows.
 // Major updates:
+// - 2026-07-30 pending Threaded cancellation into the trace-index reads and bounded the range read.
 // - 2026-07-09 pending Injected the business date-time provider into legacy monitor data range calculations.
 // - 2026-07-09 pending Refined generated data-source comments after controller workflow cleanup.
 // - 2026-06-26 pending Made trace range reads half-open for ownership-window boundaries.
@@ -11,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RvtPortal.Application.Time;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 
 namespace RvtPortal.Spa.Api;
 
@@ -19,9 +20,13 @@ public interface IMonitorDataSource
 {
     Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(string serialId, DateTime fromDate, DateTime toDate);
+    Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
+        string serialId,
+        DateTime fromDate,
+        DateTime toDate,
+        CancellationToken cancellationToken = default);
 
-    Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId);
+    Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default);
 }
 
 
@@ -58,8 +63,19 @@ public sealed class MonitorDataSource : IMonitorDataSource
             cancellationToken);
     }
 
+    /// <summary>
+    /// The most trace indexes one request may read. A wide date range on a busy vibration monitor is otherwise
+    /// unbounded; the sibling sample read (<c>MonitorService.GetVibrationTraces</c>) has always carried the same
+    /// bound. Newest first, so the bound drops the oldest traces rather than the ones a caller is looking at.
+    /// </summary>
+    internal const int MaximumTraceIndexes = 1000000;
+
     // Function summary: Returns trace indexes for one serial number over a half-open time range.
-    public async Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(string serialId, DateTime fromDate, DateTime toDate)
+    public async Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
+        string serialId,
+        DateTime fromDate,
+        DateTime toDate,
+        CancellationToken cancellationToken = default)
     {
         DateTime databaseFromDate = SearchTimestampPolicy.ToDatabase(fromDate);
         DateTime databaseToDate = SearchTimestampPolicy.ToDatabase(toDate);
@@ -70,14 +86,15 @@ public sealed class MonitorDataSource : IMonitorDataSource
                 trace.StartTime >= databaseFromDate &&
                 trace.StartTime < databaseToDate)
             .OrderByDescending(trace => trace.StartTime)
-            .ToListAsync();
+            .Take(MaximumTraceIndexes)
+            .ToListAsync(cancellationToken);
     }
 
     // Function summary: Returns one trace index by id.
-    public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
+    public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default)
     {
         return searchContext.OmnidotsTracesIndices
             .AsNoTracking()
-            .SingleOrDefaultAsync(trace => trace.Id == traceId);
+            .SingleOrDefaultAsync(trace => trace.Id == traceId, cancellationToken);
     }
 }

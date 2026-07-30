@@ -2,7 +2,7 @@
 // Major updates:
 // - 2026-07-09 pending Added installer read-service mappers for controller cleanup.
 
-using RvtPortal.Spa.Application.Installers;
+using RvtPortal.Spa.UseCases.Installers;
 
 namespace RvtPortal.Spa.Api.Mappers;
 

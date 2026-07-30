@@ -4,7 +4,7 @@
 // - 2026-07-14 pending Added equivalence and SQL-translation coverage for MonitorOwnershipWindowResolver.OwnsAt.
 
 using RVT.Entities;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 
 namespace RvtPortal.Spa.Tests;
 

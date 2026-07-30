@@ -5,7 +5,7 @@ using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 using MonitorEntity = RVT.Entities.Monitor;
 
 namespace RvtPortal.Spa.Tests;
@@ -25,7 +25,8 @@ public sealed class MonitorDetailSummaryServiceTests
             searchContext,
             new ThrowingMonitorDataSource(
                 new OperationCanceledException(cancellation.Token)),
-            new RecordingLogger<MonitorDetailSummaryService>());
+            new RecordingLogger<MonitorDetailSummaryService>(),
+            TimeProvider.System);
         Deployment deployment = new()
         {
             Id = Guid.NewGuid(),
@@ -52,7 +53,8 @@ public sealed class MonitorDetailSummaryServiceTests
         MonitorDetailSummaryService subject = new(
             searchContext,
             new ThrowingMonitorDataSource(failure),
-            logger);
+            logger,
+            TimeProvider.System);
         Guid deploymentId = Guid.NewGuid();
         Deployment deployment = new()
         {
@@ -96,7 +98,8 @@ public sealed class MonitorDetailSummaryServiceTests
         MonitorDetailSummaryService subject = new(
             searchContext,
             dataSource,
-            new RecordingLogger<MonitorDetailSummaryService>());
+            new RecordingLogger<MonitorDetailSummaryService>(),
+            TimeProvider.System);
         Deployment deployment = new()
         {
             Id = Guid.NewGuid(),
@@ -126,10 +129,11 @@ public sealed class MonitorDetailSummaryServiceTests
         public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
             string serialId,
             DateTime fromDate,
-            DateTime toDate) =>
+            DateTime toDate,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId) =>
+        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }
 
@@ -148,10 +152,11 @@ public sealed class MonitorDetailSummaryServiceTests
         public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
             string serialId,
             DateTime fromDate,
-            DateTime toDate) =>
+            DateTime toDate,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId) =>
+        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }
 }

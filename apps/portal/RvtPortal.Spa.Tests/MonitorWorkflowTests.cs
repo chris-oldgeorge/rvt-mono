@@ -1,5 +1,6 @@
 // File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
+// - 2026-07-31 pending Covered both branches of the data-conditioned deployment removal ruling.
 // - 2026-07-22 pending Covered shared-site contract isolation in installer monitor options.
 // - 2026-06-26 pending Added moved-monitor monitor list/detail ownership-window regressions.
 // - 2026-06-26 pending Added latest-reading request ownership-window coverage.
@@ -17,8 +18,11 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
+using NpgsqlTypes;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
@@ -436,6 +440,44 @@ public class MonitorWorkflowTests
     }
 
     [RequiresPostgresFact]
+    /// <summary>
+    /// PRODUCT RULING (§4.2, 2026-07-30): removing a monitor from a contract deletes the deployment row only
+    /// while no measurement has arrived inside its ownership window; otherwise it is soft-ended like every
+    /// other path. Both deployments here are five days old, so the rule this replaced - "delete if under an
+    /// hour old" - would have soft-ended both, and would have hard-deleted either one had it been newer,
+    /// stranding its data.
+    /// </summary>
+    public async Task ContractRemoval_DeletesOnlyTheDeploymentThatOwnsNoMeasurements()
+    {
+        using SpaTestApplicationFactory factory = new();
+        MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        // One sample inside the dust deployment's ownership window. The window starts at the later of the
+        // deployment start (five days ago) and the contract's on-hire (today's midnight), so the sample is
+        // timed off the on-hire; the window is open-ended. The vibration deployment beside it owns nothing.
+        await SeedDustSampleAsync(factory, "SER-ONLINE", ids.ContractStart.AddMinutes(1));
+        HttpClient client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        HttpResponseMessage removeWithData = await client.DeleteAsync($"/api/monitors/{ids.OnlineMonitorId}/contract-assignment");
+        HttpResponseMessage removeWithoutData = await client.DeleteAsync($"/api/monitors/{ids.OfflineMonitorId}/contract-assignment");
+
+        using IServiceScope scope = factory.Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        Deployment? softEnded = context.Deployments.SingleOrDefault(item => item.Id == ids.OnlineDeploymentId);
+        Deployment? deleted = context.Deployments.SingleOrDefault(item => item.Id == ids.OfflineDeploymentId);
+
+        Assert.Multiple(
+            () => Assert.Equal(HttpStatusCode.OK, removeWithData.StatusCode),
+            () => Assert.Equal(HttpStatusCode.OK, removeWithoutData.StatusCode),
+            // The data stays attributable: the row survives and only gains an end date.
+            () => Assert.NotNull(softEnded),
+            () => Assert.NotNull(softEnded!.EndDate),
+            // Nothing was ever attributed to this one, so the undo affordance still applies.
+            () => Assert.Null(deleted));
+    }
+
+    [RequiresPostgresFact]
     // Function summary: Handles the installer can update deployment and read status workflow for this module.
     public async Task InstallerCanUpdateDeploymentAndReadStatus()
     {
@@ -552,6 +594,27 @@ public class MonitorWorkflowTests
     }
 
     // Function summary: Initializes monitor scenario state required by the application.
+    /// <summary>
+    /// Inserts one dust measurement. The measurement relations are keyless, so EF cannot track them; the
+    /// timestamp parameter is typed explicitly because the column is timestamp-without-zone and Npgsql would
+    /// otherwise send a bare DateTime as timestamptz.
+    /// </summary>
+    private static async Task SeedDustSampleAsync(SpaTestApplicationFactory factory, string serialId, DateTime sampleTimeUtc)
+    {
+        using IServiceScope scope = factory.Services.CreateScope();
+        RVTDbContext context = scope.ServiceProvider.GetRequiredService<RVTDbContext>();
+        await context.Database.ExecuteSqlRawAsync(
+            """
+            INSERT INTO my_atm_dust_level (serial_id, avrg, sample_time, pm_1, pm_2_5, pm_10, pm_total)
+            VALUES (@serialId, 900, @sampleTime, 1, 2, 3, 6)
+            """,
+            new NpgsqlParameter("serialId", NpgsqlDbType.Varchar) { Value = serialId },
+            new NpgsqlParameter("sampleTime", NpgsqlDbType.Timestamp)
+            {
+                Value = DateTime.SpecifyKind(sampleTimeUtc, DateTimeKind.Unspecified)
+            });
+    }
+
     private static async Task<MonitorWorkflowIds> SeedMonitorScenarioAsync(SpaTestApplicationFactory factory)
     {
         Guid companyId = Guid.NewGuid();

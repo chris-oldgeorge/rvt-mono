@@ -7,14 +7,14 @@ using RVT.DataAccess.Context;
 using RVT.Entities;
 using RvtPortal.Application.Common;
 using RvtPortal.Application.Identity;
-using RvtPortal.Spa.Application.ReportRules;
 using RvtPortal.Spa.Tests.Support;
+using RvtPortal.Spa.UseCases.ReportRules;
 
 namespace RvtPortal.Spa.Tests;
 
 /// <summary>
 /// The rules list reads the report_rule_search SQL view, which the InMemory suite cannot populate (keyless
-/// view entities cannot be seeded). Each test builds a throwaway schema with a table standing in for the view,
+/// view entities cannot be seeded). Each test builds a throwaway _schema with a table standing in for the view,
 /// seeds rows directly, and exercises <see cref="ReportRuleApplicationService.QueryAsync"/> through Npgsql so
 /// the search, sort, and paging translation is proven against the real provider.
 /// </summary>
@@ -37,7 +37,8 @@ public sealed class ReportRuleQueryPostgresTests
             searchContext,
             domainContext,
             new NotSupportedUserDirectory(),
-            new NotSupportedReportGenerationGateway());
+            new NotSupportedReportGenerationGateway(),
+            TimeProvider.System);
 
         UseCaseResult<PagedResult<ReportRuleListModel>> searched = await service.QueryAsync(
             new ReportRuleQuery(null, new PageRequest("weekly", 1, 10, "siteName", "asc")),
@@ -71,7 +72,8 @@ public sealed class ReportRuleQueryPostgresTests
             searchContext,
             domainContext,
             new NotSupportedUserDirectory(),
-            new NotSupportedReportGenerationGateway());
+            new NotSupportedReportGenerationGateway(),
+            TimeProvider.System);
 
         UseCaseResult<PagedResult<ReportRuleListModel>> secondPage = await service.QueryAsync(
             new ReportRuleQuery(null, new PageRequest(null, 2, 2, "siteName", "asc")),
@@ -101,20 +103,20 @@ public sealed class ReportRuleQueryPostgresTests
     }
 
     /// <summary>
-    /// A throwaway PostgreSQL schema with a table shaped like the report_rule_search view. The query under test
+    /// A throwaway PostgreSQL _schema with a table shaped like the report_rule_search view. The query under test
     /// only reads the relation, so a directly seeded table pins the same SQL the view serves in production.
     /// </summary>
     private sealed class ReportRuleSearchFixture : IAsyncDisposable
     {
-        private readonly string baseConnectionString;
-        private readonly string schema;
-        private readonly string scopedConnectionString;
+        private readonly string _baseConnectionString;
+        private readonly string _schema;
+        private readonly string _scopedConnectionString;
 
         private ReportRuleSearchFixture(string baseConnectionString, string schema)
         {
-            this.baseConnectionString = baseConnectionString;
-            this.schema = schema;
-            scopedConnectionString = new NpgsqlConnectionStringBuilder(baseConnectionString)
+            _baseConnectionString = baseConnectionString;
+            _schema = schema;
+            _scopedConnectionString = new NpgsqlConnectionStringBuilder(baseConnectionString)
             {
                 SearchPath = schema
             }.ConnectionString;
@@ -151,7 +153,7 @@ public sealed class ReportRuleQueryPostgresTests
 
         public async Task SeedAsync(params (Guid Id, string SiteName, string ReportName, ReportFrequencyType Frequency)[] rules)
         {
-            await using NpgsqlConnection connection = new(scopedConnectionString);
+            await using NpgsqlConnection connection = new(_scopedConnectionString);
             await connection.OpenAsync();
             foreach ((Guid id, string siteName, string reportName, ReportFrequencyType frequency) in rules)
             {
@@ -172,17 +174,17 @@ public sealed class ReportRuleQueryPostgresTests
         }
 
         public RVTSearchContext CreateSearchContext() =>
-            new(TestDbContexts.Npgsql<RVTSearchContext>(scopedConnectionString));
+            new(TestDbContexts.Npgsql<RVTSearchContext>(_scopedConnectionString));
 
         public RVTDbContext CreateDomainContext() =>
-            new(TestDbContexts.Npgsql<RVTDbContext>(scopedConnectionString));
+            new(TestDbContexts.Npgsql<RVTDbContext>(_scopedConnectionString));
 
         public async ValueTask DisposeAsync()
         {
-            await using NpgsqlConnection connection = new(baseConnectionString);
+            await using NpgsqlConnection connection = new(_baseConnectionString);
             await connection.OpenAsync();
             await using NpgsqlCommand command = connection.CreateCommand();
-            command.CommandText = $"""DROP SCHEMA IF EXISTS "{schema}" CASCADE;""";
+            command.CommandText = $"""DROP SCHEMA IF EXISTS "{_schema}" CASCADE;""";
             await command.ExecuteNonQueryAsync();
         }
     }

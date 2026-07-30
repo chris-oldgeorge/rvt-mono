@@ -14,7 +14,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using RvtPortal.Spa.Application.Auth;
+using RvtPortal.Spa.UseCases.Auth;
 
 namespace RvtPortal.Spa.Api;
 

@@ -12,8 +12,8 @@ using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RvtPortal.Application.Identity;
-using RvtPortal.Spa.Application.AlertLevels;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.AlertLevels;
 
 namespace RvtPortal.Spa.Api;
 
@@ -60,10 +60,12 @@ public class AlertLevelsController : ControllerBase
                 "Monitor is required",
                 "A monitorId query parameter must be supplied."));
         }
+
         if (!string.IsNullOrWhiteSpace(result.InvalidSort))
         {
             return InvalidSort(result.InvalidSort, result.ValidSorts);
         }
+
         if (result.NotFound || result.Response == null)
         {
             return MonitorNotFound(request.MonitorId ?? Guid.Empty);

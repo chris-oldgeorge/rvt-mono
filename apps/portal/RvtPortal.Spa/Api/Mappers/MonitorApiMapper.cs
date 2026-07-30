@@ -2,7 +2,7 @@
 // Major updates:
 // - 2026-07-09 pending Added monitor read-service mappers for controller cleanup.
 
-using RvtPortal.Spa.Application.Monitors;
+using RvtPortal.Spa.UseCases.Monitors;
 
 namespace RvtPortal.Spa.Api.Mappers;
 

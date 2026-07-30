@@ -17,7 +17,7 @@ namespace RVT.DataAccess.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.7")
+                .HasAnnotation("ProductVersion", "10.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -861,6 +861,16 @@ namespace RVT.DataAccess.Migrations
                         .HasConstraintName("fk_notification_monitor_id");
 
                     b.Navigation("Monitor");
+                });
+
+            modelBuilder.Entity("RVT.Entities.NotificationSettings", b =>
+                {
+                    b.HasOne("RVT.Entities.SiteUsers", null)
+                        .WithMany()
+                        .HasForeignKey("SiteUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notification_setting_site_user_id");
                 });
 
             modelBuilder.Entity("RVT.Entities.SiteArchived", b =>

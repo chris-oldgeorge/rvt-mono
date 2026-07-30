@@ -11,10 +11,9 @@ using Microsoft.EntityFrameworkCore.Storage;
 using RVT.DataAccess.Context;
 using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
-using RvtPortal.Spa.Application.Common;
 using RvtPortal.Spa.Data;
-
 using RvtPortal.Spa.Tests.Support;
+using RvtPortal.Spa.UseCases.Common;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class EfCoreUnitOfWorkTests

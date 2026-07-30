@@ -12,8 +12,8 @@ using RVT.Entities;
 using RvtPortal.Application.Ports.Vendors;
 using RvtPortal.Spa.Adapters.Vendors;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.AlertLevels;
 using RvtPortal.Spa.Tests.Support;
+using RvtPortal.Spa.UseCases.AlertLevels;
 namespace RvtPortal.Spa.Tests;
 
 public sealed class OmnidotsVibrationGatewayTests

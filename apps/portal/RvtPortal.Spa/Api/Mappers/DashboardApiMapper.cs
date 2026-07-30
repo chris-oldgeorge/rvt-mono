@@ -3,7 +3,7 @@
 // - 2026-07-09 pending Added summary, map, and calendar mappers for dashboard controller cleanup.
 // - 2026-07-08 pending Added breach-alert mapper for controller-to-application-service cleanup.
 
-using RvtPortal.Spa.Application.Dashboard;
+using RvtPortal.Spa.UseCases.Dashboard;
 
 namespace RvtPortal.Spa.Api.Mappers;
 

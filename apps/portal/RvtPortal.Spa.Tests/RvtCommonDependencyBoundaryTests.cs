@@ -72,7 +72,7 @@ public sealed class RvtCommonDependencyBoundaryTests
     // Strongest form of the same boundary: the compiled application core must not reference RVT common at all.
     public void ApplicationCore_DoesNotReferenceRvtCommon()
     {
-        string?[] referenced = [.. typeof(RvtPortal.Application.Time.IRvtDateTimeProvider).Assembly
+        string?[] referenced = [.. typeof(Application.Time.IRvtDateTimeProvider).Assembly
             .GetReferencedAssemblies()
             .Select(assembly => assembly.Name)];
 

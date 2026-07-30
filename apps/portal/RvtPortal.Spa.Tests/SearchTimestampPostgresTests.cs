@@ -14,9 +14,9 @@ using RVT.DataAccess.EntityModels.Models;
 using RVT.Entities;
 using RVT.Entities.Querying;
 using RvtPortal.Spa.Api;
-using RvtPortal.Spa.Application.Data;
-using RvtPortal.Spa.Application.Monitors;
 using RvtPortal.Spa.Tests.Support;
+using RvtPortal.Spa.UseCases.Data;
+using RvtPortal.Spa.UseCases.Monitors;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -281,7 +281,7 @@ public sealed class SearchTimestampPostgresTests
             searchContext,
             null!);
         PostgresDustDataSource dataSource = new(monitorService, monitor);
-        DataApplicationService application = new(domainContext, dataSource);
+        DataApplicationService application = new(domainContext, dataSource, TimeProvider.System);
 
         DataWorkflowResult<MonitorDataGridResponse> result = await application.GetGridAsync(
             deployment.Id,
@@ -359,7 +359,7 @@ public sealed class SearchTimestampPostgresTests
         await using RVTDbContext domainContext = CreateDomainContext(deployment);
         MonitorDataSource realDataSource = new(null!, searchContext, null!);
         PostgresTraceDataSource dataSource = new(realDataSource, monitor);
-        DataApplicationService application = new(domainContext, dataSource);
+        DataApplicationService application = new(domainContext, dataSource, TimeProvider.System);
         DataViewActor actor = new(null, IsAdmin: true, IsCompanyUser: false);
 
         DataWorkflowResult<TraceListResponse> list = await application.GetTracesAsync(
@@ -468,12 +468,13 @@ public sealed class SearchTimestampPostgresTests
         public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
             string serialId,
             DateTime fromDate,
-            DateTime toDate)
+            DateTime toDate,
+            CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<OmnidotsTracesIndex>>([]);
         }
 
-        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
+        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<OmnidotsTracesIndex?>(null);
         }
@@ -492,7 +493,7 @@ public sealed class SearchTimestampPostgresTests
 
         public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request, CancellationToken cancellationToken = default)
         {
-            OmnidotsTracesIndex? index = await _inner.GetTraceIndexAsync(request.TraceId!.Value);
+            OmnidotsTracesIndex? index = await _inner.GetTraceIndexAsync(request.TraceId!.Value, cancellationToken);
             Assert.NotNull(index);
             return new MonitorData
             {
@@ -506,14 +507,15 @@ public sealed class SearchTimestampPostgresTests
         public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
             string serialId,
             DateTime fromDate,
-            DateTime toDate)
+            DateTime toDate,
+            CancellationToken cancellationToken = default)
         {
-            return _inner.GetTraceIndexesAsync(serialId, fromDate, toDate);
+            return _inner.GetTraceIndexesAsync(serialId, fromDate, toDate, cancellationToken);
         }
 
-        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
+        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default)
         {
-            return _inner.GetTraceIndexAsync(traceId);
+            return _inner.GetTraceIndexAsync(traceId, cancellationToken);
         }
     }
 }

@@ -9,8 +9,8 @@
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using RvtPortal.Spa.Application.Lookups;
 using RvtPortal.Spa.Data;
+using RvtPortal.Spa.UseCases.Lookups;
 namespace RvtPortal.Spa.Api;
 
 [ApiController]
@@ -56,6 +56,7 @@ public class LookupsController : ControllerBase
                 "Unknown lookup kind",
                 $"Unknown lookup kind '{kind}'."));
         }
+
         return new SearchLookupResponse
         {
             Kind = normalizedKind,

@@ -103,7 +103,7 @@ Verification so far:
   Future slices must move deliberately and incrementally rather than as
   opportunistic cleanup during unrelated changes.
 - Approved one retained Task 6 variance:
-  `RvtPortal.Spa.Application.Sites.ActiveSiteAssignment` remains for seven live
+  `RvtPortal.Spa.UseCases.Sites.ActiveSiteAssignment` remains for seven live
   EF-expression consumers in notification, dashboard, monitor, and alert-level
   slices. Moving those consumers is outside this extraction; the application
   boundary owns the equivalent pure Sites assignment policy, and both retain

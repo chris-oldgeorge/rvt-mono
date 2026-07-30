@@ -13,7 +13,10 @@ public static class AlertPersistenceExceptionClassifier
     {
         ArgumentNullException.ThrowIfNull(exception);
 
-        if (exception is OperationCanceledException or AlertOccurrenceConflictException or AlertTransientPersistenceException)
+        if (exception is OperationCanceledException
+            or AlertOccurrenceConflictException
+            or AlertTransientPersistenceException
+            or AlertUnknownMonitorException)
         {
             return exception;
         }

@@ -8,18 +8,19 @@ namespace Svantek.Model.Dto
     // Major updates:
     // - 2026-06-18 Warning remediation: restored SampleResponse conversion constructor used by tests and ingestion utilities.
     // - 2026-06-18 Warning remediation: added default-safe string initialisation for nullable analysis.
+    // - 2026-07-30 Parsing correctness: levels are nullable so unparseable vendor readings persist as NULL, not 0.0 dB.
     public class NoiseDto : DtoBase
     {
         public string SerialId { get; set; } = string.Empty;
         public DateTime SampleTime { get; set; }
-        public double LAeq { get; set; }
-        public double LAmax { get; set; }
-        public double LA90 { get; set; }
-        public double LA10 { get; set; }
-        public double LCeq { get; set; }
-        public double LCmax { get; set; }
-        public double LC90 { get; set; }
-        public double LC10 { get; set; }
+        public double? LAeq { get; set; }
+        public double? LAmax { get; set; }
+        public double? LA90 { get; set; }
+        public double? LA10 { get; set; }
+        public double? LCeq { get; set; }
+        public double? LCmax { get; set; }
+        public double? LC90 { get; set; }
+        public double? LC10 { get; set; }
 
         public NoiseDto()
         {

@@ -64,7 +64,7 @@ public sealed class NotifySiteAveragesHandler
             }
             catch (Exception exception)
             {
-                failures.Capture($"NotifySiteAverages monitor {monitor.SerialId}", exception);
+                failures.Capture($"NotifySiteAverages monitor {monitor.SerialId}", exception, cancellationToken);
             }
         }
 

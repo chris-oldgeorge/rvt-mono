@@ -50,7 +50,7 @@ public sealed class NotifyBatteryLevelsHandler
             }
             catch (Exception exception)
             {
-                failures.Capture($"NotifyBatteryLevels monitor {monitor.SerialId}", exception);
+                failures.Capture($"NotifyBatteryLevels monitor {monitor.SerialId}", exception, cancellationToken);
             }
         }
 
@@ -111,12 +111,9 @@ public sealed class NotifyBatteryLevelsHandler
         AlertType alertType,
         CancellationToken cancellationToken)
     {
-        byte status = (byte)(alertType == AlertType.BatteryAlert ? 1 : 2);
-        await _monitorCommands.SetMonitorBatteryStatusAsync(
-            monitor.Id,
-            status,
-            cancellationToken).ConfigureAwait(false);
-        cancellationToken.ThrowIfCancellationRequested();
+        // Signal first and latch the status gate only after the durable stack
+        // accepted the alert; latching first would permanently suppress the
+        // alert when AcceptAsync fails transiently (the offline handler's order).
         await _ruleProcessor.SignalAlertAsync(
             monitor.SerialId,
             DateTimeUtil.TruncateMillis(DateTime.UtcNow),
@@ -125,6 +122,11 @@ public sealed class NotifyBatteryLevelsHandler
             batteryLevel,
             alertType,
             _batteryLevel,
+            cancellationToken).ConfigureAwait(false);
+        byte status = (byte)(alertType == AlertType.BatteryAlert ? 1 : 2);
+        await _monitorCommands.SetMonitorBatteryStatusAsync(
+            monitor.Id,
+            status,
             cancellationToken).ConfigureAwait(false);
     }
 }

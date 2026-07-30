@@ -136,7 +136,7 @@ namespace Omnidots.Api
                 traceQueries,
                 traceCollectionOptions,
                 timeProvider);
-            _notifyBatteryLevels = new NotifyBatteryLevelsHandler(monitorReader, dbClient, alertIngress);
+            _notifyBatteryLevels = new NotifyBatteryLevelsHandler(monitorReader, dbClient, dbClient, alertIngress);
             _clearOlderErrorMessages = new ClearOlderErrorMessagesHandler(dbClient);
             _monitoring = new MonitoringHandler(
                 monitorReader,

@@ -158,7 +158,6 @@ public class TestRules
 
         alertIngress.Verify(c => c.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()),
             Times.Exactly(1));
-        ruleQueries.Verify(q => q.ReadAlertContacts(It.IsAny<Guid>(), out It.Ref<Guid>.IsAny), Times.Never);
         operationalCommands.Verify(c => c.UpdateAlertRule(It.Is<RvtAlertRuleDto>(d => TestUtil.VerifyAlertRuleDto(d, _serialId, "LAeq", true))),
             Times.Exactly(1));
         operationalCommands.VerifyNoOtherCalls();

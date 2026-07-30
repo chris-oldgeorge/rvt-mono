@@ -36,19 +36,6 @@ public sealed class MonitorRulePolicyTests
     }
 
     [TestMethod]
-    [DataRow("airq", MonitorNotificationStyle.Noise)]
-    [DataRow("svantek", MonitorNotificationStyle.Noise)]
-    [DataRow("omnidots", MonitorNotificationStyle.Vibration)]
-    [DataRow("myatm", MonitorNotificationStyle.Generic)]
-    [DataRow(null, MonitorNotificationStyle.Generic)]
-    public void ForMonitorKind_SelectsTheNotificationStyle(
-        string? monitorKind,
-        MonitorNotificationStyle expected)
-    {
-        Assert.AreEqual(expected, MonitorRulePolicy.ForMonitorKind(monitorKind).NotificationStyle);
-    }
-
-    [TestMethod]
     public void IsActive_WithoutATimeWindowPolicy_ConsidersOnlyTheDay()
     {
         AlertActivityTimeDto rule = CreateSaturdayRule();

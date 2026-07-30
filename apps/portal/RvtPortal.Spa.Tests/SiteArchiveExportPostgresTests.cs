@@ -151,9 +151,9 @@ public sealed class SiteArchiveExportPostgresTests
             string schemaName = $"site_archive_{Guid.NewGuid():N}";
             ArchiveSchemaFixture fixture = new(schemaName, SpaTestDatabase.CreateSchema(schemaName));
 
-            await fixture.ExecuteAsync($"""
-                CREATE TABLE {NoiseLevelColumns("air_q_noise_level")};
-                CREATE TABLE {NoiseLevelColumns("svantek_noise_level")};
+            // The two noise relations come from SpaTestDatabase now (the deployment measurement probe reads them
+            // too, so every Spa test schema needs them); only `report` is still local to this fixture.
+            await fixture.ExecuteAsync("""
                 CREATE TABLE "report"
                 (
                     id uuid PRIMARY KEY,
@@ -244,26 +244,6 @@ public sealed class SiteArchiveExportPostgresTests
 
             SpaTestDatabase.DropSchema(_schemaName, _scopedConnectionString);
             await Task.CompletedTask;
-        }
-
-        // Function summary: Returns the canonical column list for the two noise measurement relations.
-        private static string NoiseLevelColumns(string tableName)
-        {
-            return $"""
-                "{tableName}"
-                (
-                    serial_id character varying(32) NOT NULL,
-                    sample_time timestamp without time zone NOT NULL,
-                    laeq double precision,
-                    lamax double precision,
-                    la_90 double precision,
-                    la_10 double precision,
-                    lceq double precision,
-                    lcmax double precision,
-                    lc_90 double precision,
-                    lc_10 double precision
-                )
-                """;
         }
 
         // Function summary: Seeds one notification and one row in every measurement relation at the given time.

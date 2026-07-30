@@ -111,35 +111,59 @@ public sealed class RemoveMonitorFromContractCommandHandler
     : IRequestHandler<RemoveMonitorFromContractCommand, RemoveMonitorFromContractResult>
 {
     private readonly RVTDbContext _domainContext;
+    private readonly IDeploymentMeasurementProbe _measurementProbe;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the transactional monitor unassignment command handler.
-    public RemoveMonitorFromContractCommandHandler(RVTDbContext domainContext)
+    public RemoveMonitorFromContractCommandHandler(
+        RVTDbContext domainContext,
+        IDeploymentMeasurementProbe measurementProbe,
+        TimeProvider timeProvider)
     {
         _domainContext = domainContext;
+        _measurementProbe = measurementProbe;
+        _timeProvider = timeProvider;
     }
 
-    // Function summary: Ends or deletes the active deployment for a monitor contract assignment.
+    /// <summary>
+    /// Ends the active deployment, or deletes it outright when it owns no data.
+    /// <para>
+    /// PRODUCT RULING (§4.2, 2026-07-30): the undo affordance for a mis-assignment stays, but it is conditioned
+    /// on <em>no measurement having arrived</em> inside the deployment's ownership window - not on the
+    /// deployment being under an hour old, which is what this used to test. That rule made any data that had
+    /// already landed permanently unattributable (the deployment row is the only link from a measurement's
+    /// serial and timestamp to a contract and site) while also refusing to undo an obvious mis-assignment
+    /// noticed 61 minutes later. The one-hour value had no explanation and is gone.
+    /// </para>
+    /// </summary>
     public async Task<RemoveMonitorFromContractResult> Handle(
         RemoveMonitorFromContractCommand request,
         CancellationToken cancellationToken)
     {
         RemoveMonitorFromContractResult result = new();
-        Deployment? deployment = await _domainContext.Deployments.SingleOrDefaultAsync(
-            item => item.MonitorId == request.MonitorId && item.EndDate == null,
-            cancellationToken);
+        Deployment? deployment = await _domainContext.Deployments
+            .Include(item => item.Monitor)
+            .Include(item => item.Contract)
+            .SingleOrDefaultAsync(
+                item => item.MonitorId == request.MonitorId && item.EndDate == null,
+                cancellationToken);
         if (deployment == null)
         {
             AddError(result.Errors, "id", "Monitor not assigned to a contract.");
             return result;
         }
 
-        if (deployment.StartDate > DateTime.UtcNow.AddHours(-1))
+        bool ownsMeasurements = await _measurementProbe.HasMeasurementsAsync(
+            deployment.Monitor?.SerialId ?? "",
+            MonitorOwnershipWindowResolver.ForDeployment(deployment),
+            cancellationToken);
+        if (ownsMeasurements)
         {
-            _domainContext.Deployments.Remove(deployment);
+            deployment.EndDate = _timeProvider.GetUtcNow().UtcDateTime;
         }
         else
         {
-            deployment.EndDate = DateTime.UtcNow;
+            _domainContext.Deployments.Remove(deployment);
         }
 
         return result;

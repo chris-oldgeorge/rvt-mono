@@ -165,6 +165,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IMonitorDetailReader, MonitorDetailReader>();
         services.AddScoped<IMonitorListReader, MonitorListReader>();
         services.AddScoped<IMonitorRemovalImpactReader, MonitorRemovalImpactReader>();
+        services.AddScoped<IDeploymentMeasurementProbe, DeploymentMeasurementProbe>();
         services.AddScoped<IMonitorReadAuthorizationService, MonitorReadAuthorizationService>();
         services.AddScoped<IReportRuleRecipientReader, ReportRuleRecipientReader>();
         services.AddOptions<ReportGenerationServiceOptions>().BindConfiguration("ReportGenerationService");

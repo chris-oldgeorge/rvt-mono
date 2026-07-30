@@ -93,7 +93,42 @@ internal static class SpaTestDatabase
             search.Database.GenerateCreateScript(),
             identity.Database.GenerateCreateScript(),
             ViewStandInScript(domain, search),
+            UnmappedNoiseRelationsScript(),
         ];
+    }
+
+    /// <summary>
+    /// The two raw noise arrival tables. No portal EF model maps them - the monitors write them and the portal
+    /// reads noise through Timescale aggregates - but portal SQL does read them directly: the site-archive
+    /// exports and the deployment measurement probe. Without them here, that SQL cannot even parse in a test
+    /// schema. Shapes match <c>database/postgres/create_unmapped_schema.sql</c>.
+    /// </summary>
+    public static string UnmappedNoiseRelationsScript()
+    {
+        return $"""
+            CREATE TABLE {NoiseLevelColumns("air_q_noise_level")};
+            CREATE TABLE {NoiseLevelColumns("svantek_noise_level")};
+            """;
+    }
+
+    // Function summary: Returns the canonical column list shared by the two raw noise measurement relations.
+    private static string NoiseLevelColumns(string tableName)
+    {
+        return $"""
+            "{tableName}"
+            (
+                serial_id character varying(32) NOT NULL,
+                sample_time timestamp without time zone NOT NULL,
+                laeq double precision,
+                lamax double precision,
+                la_90 double precision,
+                la_10 double precision,
+                lceq double precision,
+                lcmax double precision,
+                lc_90 double precision,
+                lc_10 double precision
+            )
+            """;
     }
 
     /// <summary>

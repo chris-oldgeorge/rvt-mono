@@ -91,7 +91,7 @@ Browser evidence:
 
 The SPA migration uses the existing database schema and shared business/data-access projects:
 
-- `RvtPortal.Spa` references `RVT.BusinessLogic`, `RVT.DataAccess`, and `RVT.Entities`.
+- `RvtPortal.Spa` references `RvtPortal.Application`, `RVT.DataAccess`, `RVT.Entities`, `Rvt.Communication.Abstractions`, and `Rvt.Communication.SendGridMail`. (`RVT.BusinessLogic` was dissolved into `RvtPortal.Application` and the host's own application layer on 2026-07-30.)
 - `ApplicationDbContext`, `RVTDbContext`, and `RVTSearchContext` still point at the configured `DefaultConnection`.
 - No Phase 12 schema migration is required.
 - Site archive remains DB-only in the SPA path until an owner approves any legacy blob/archive side-effect retirement.

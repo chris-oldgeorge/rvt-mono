@@ -62,6 +62,36 @@ All modes ignore generated output and dependency caches. They run .NET
 whitespace, style, and analyzer checks for C# plus pinned Prettier and ESLint
 checks for supported Portal sources.
 
+### Analysis policy inputs
+
+The changed-surface modes grade only the files in the range, so a change that
+alters *which diagnostics exist at all* cannot be graded that way: setting one
+rule to `none` would silence baselined diagnostics in files the range never
+touches, and every count would collapse into a harmless-looking decrease.
+
+Any `--working-tree` or `--base/--head` range that touches an analysis policy
+input therefore re-measures the whole inventory instead of the changed surface,
+and a baseline entry that the inventory can no longer reproduce is a policy
+violation ("policy inputs changed, re-baseline required") rather than a
+decrease. The changed-surface rules still apply on top of the inventory.
+
+Analysis policy inputs are `.editorconfig`, `.globalconfig` and `*.globalconfig`,
+`*.ruleset`, `Directory.Build.props`, `Directory.Build.targets`,
+`Directory.Packages.props`, `global.json`, the Portal ESLint and Prettier
+configuration and ignore files, and the Portal `tsconfig*.json` files.
+
+A deliberate policy change is landed by committing the regenerated baseline
+alongside it:
+
+```bash
+scripts/verify-engineering-standards.sh --all --update-baseline
+```
+
+The regenerated baseline shows the silenced entries as deletions in review,
+which is the point: the ratchet can be relaxed, but not invisibly. A policy
+change that *adds* diagnostics still has to be paid for in code, because an
+update refuses to widen any count.
+
 ## Baseline lifecycle
 
 The legacy baseline is

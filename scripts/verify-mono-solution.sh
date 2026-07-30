@@ -2,6 +2,10 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# These are the module roots that must be represented, not the set that is
+# graded. Discovery below walks the whole repository, so a project in a new
+# top-level tree is graded the day it appears rather than the day someone
+# remembers to extend this list.
 module_roots=(
   "apps/monitors"
   "apps/portal"
@@ -12,7 +16,10 @@ solution_file="${MONO_SOLUTION_FILE:-$root_dir/Rvt.Mono.slnx}"
 solution_output="$(dotnet sln "$solution_file" list)"
 listed_projects="$(printf '%s\n' "$solution_output" | grep -E '\.csproj$' | sed -e 's/\r$//' -e 's#^\./##' | LC_ALL=C sort || true)"
 listed_count="$(printf '%s\n' "$listed_projects" | grep -c . || true)"
-discovered_projects="$(cd "$root_dir" && find "${module_roots[@]}" -name '*.csproj' -print | sed -e 's/\r$//' -e 's#^\./##' | LC_ALL=C sort)"
+discovered_projects="$(cd "$root_dir" && find . \
+  \( -name .git -o -name .worktrees -o -name .codegraph -o -name .sonar \
+     -o -name bin -o -name obj -o -name node_modules -o -name artifacts \) -prune \
+  -o -name '*.csproj' -print | sed -e 's/\r$//' -e 's#^\./##' | LC_ALL=C sort)"
 source_count="$(printf '%s\n' "$discovered_projects" | grep -c . || true)"
 
 if [[ "$listed_count" -ne "$source_count" ]]; then
@@ -61,6 +68,12 @@ while IFS= read -r project_path; do
     apps/monitors/*) logical_folder='/Apps/Monitors/' ;;
     apps/portal/*) logical_folder='/Apps/Portal/' ;;
     libs/rvt-monitor-common/*) logical_folder='/Libraries/RVT Monitor Common/' ;;
+    *)
+      # Without this the loop would silently reuse the previous project's folder.
+      echo "No approved solution folder is defined for: $project_path" >&2
+      echo "A project in a new module root needs a logical folder here and in the solution." >&2
+      exit 1
+      ;;
   esac
 
   if grep -Eq '<IsTestProject>true</IsTestProject>|Include="Microsoft\.NET\.Test\.Sdk"' "$root_dir/$project_path"; then

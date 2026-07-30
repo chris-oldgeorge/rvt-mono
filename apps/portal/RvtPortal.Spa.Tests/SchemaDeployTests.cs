@@ -5,6 +5,7 @@
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Npgsql;
 using RVT.SchemaDeploy;
 using RvtPortal.Spa.Tests.Support;
 
@@ -237,6 +238,159 @@ public class SchemaDeployTests
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains("Restore complete.", result.StandardOutput, StringComparison.Ordinal);
+    }
+
+    [RequiresPostgresFact]
+    // Function summary: Verifies a second PK adjustment run leaves the existing constraints in place rather than rebuilding them.
+    public async Task PkAdjustmentScript_LeavesAnAlreadyCorrectPrimaryKeyAlone()
+    {
+        // Rebuilding a PK takes ACCESS EXCLUSIVE and rewrites the index; the deploy then holds that lock
+        // through every later script. A constraint that is dropped and recreated gets a new pg_constraint oid,
+        // so comparing oids across two runs distinguishes "same end state" from "did nothing".
+        string script = await File.ReadAllTextAsync(Path.Combine(
+            FindRepositoryRoot(),
+            "database",
+            "postgres",
+            "post-load",
+            "01_pk_adjustments.sql"));
+
+        await using NpgsqlConnection connection = new(
+            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable));
+        await connection.OpenAsync();
+        await using NpgsqlTransaction transaction =
+            await connection.BeginTransactionAsync();
+
+        await ExecuteAsync(connection, transaction, script);
+        IReadOnlyDictionary<string, long> afterFirstRun = await ReadAdjustedPrimaryKeyIdentitiesAsync(
+            connection,
+            transaction);
+
+        await ExecuteAsync(connection, transaction, script);
+        IReadOnlyDictionary<string, long> afterSecondRun = await ReadAdjustedPrimaryKeyIdentitiesAsync(
+            connection,
+            transaction);
+
+        await transaction.RollbackAsync();
+
+        Assert.NotEmpty(afterFirstRun);
+        Assert.Equal(afterFirstRun, afterSecondRun);
+    }
+
+    [RequiresPostgresFact]
+    // Function summary: Verifies a second site-write-uniqueness run leaves the existing unique indexes in place.
+    public async Task SiteWriteUniquenessScript_LeavesAlreadyUniqueIndexesAlone()
+    {
+        // EF migration 20260723234806_EnforceSiteWriteUniqueness creates these indexes and the deploy
+        // runs after the migrations, so the script's normal case is "nothing to do". A dropped and
+        // recreated index gets a new pg_class oid, which is how that is distinguished from a rebuild.
+        string script = await File.ReadAllTextAsync(Path.Combine(
+            FindRepositoryRoot(),
+            "database",
+            "postgres",
+            "post-load",
+            "06_site_write_uniqueness.sql"));
+
+        await using NpgsqlConnection connection = new(
+            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable));
+        await connection.OpenAsync();
+        await using NpgsqlTransaction transaction = await connection.BeginTransactionAsync();
+
+        await ExecuteAsync(connection, transaction, script);
+        IReadOnlyDictionary<string, long> afterFirstRun = await ReadSiteWriteIndexIdentitiesAsync(
+            connection,
+            transaction);
+
+        await ExecuteAsync(connection, transaction, script);
+        IReadOnlyDictionary<string, long> afterSecondRun = await ReadSiteWriteIndexIdentitiesAsync(
+            connection,
+            transaction);
+
+        await transaction.RollbackAsync();
+
+        Assert.Equal(2, afterFirstRun.Count);
+        Assert.Equal(afterFirstRun, afterSecondRun);
+    }
+
+    // Function summary: Reads the pg_class identity of the two unique indexes the site-write script owns.
+    private static async Task<IReadOnlyDictionary<string, long>> ReadSiteWriteIndexIdentitiesAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction)
+    {
+        Dictionary<string, long> identities = [];
+        await using NpgsqlCommand command = new(
+            """
+            SELECT index_class.relname, index_class.oid::bigint
+            FROM pg_class AS index_class
+            WHERE index_class.relname IN (
+                'ix_site_archived_site_id', 'ix_notification_setting_site_user_id');
+            """,
+            connection,
+            transaction);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            identities[reader.GetString(0)] = reader.GetInt64(1);
+        }
+
+        return identities;
+    }
+
+    [RequiresPostgresFact]
+    // Function summary: Verifies the deploy refuses a connection scoped to a schema other than public instead of writing into public.
+    public async Task Run_WhenTheConnectionIsNotScopedToPublic_RefusesBeforeApplyingAnything()
+    {
+        NpgsqlConnectionStringBuilder scoped = new(
+            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable))
+        {
+            SearchPath = "pg_catalog"
+        };
+
+        ScriptRunner runner = new(new DeployOptions
+        {
+            ConnectionString = scoped.ConnectionString,
+            ScriptRoot = Path.Combine(FindRepositoryRoot(), "database", "postgres"),
+            DryRun = false
+        });
+
+        DeployException exception = await Assert.ThrowsAsync<DeployException>(
+            () => runner.RunAsync());
+
+        Assert.Contains("public schema", exception.Message, StringComparison.Ordinal);
+    }
+
+    // Function summary: Reads the pg_constraint identity of each primary key the PK adjustment script owns.
+    private static async Task<IReadOnlyDictionary<string, long>> ReadAdjustedPrimaryKeyIdentitiesAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction)
+    {
+        Dictionary<string, long> identities = [];
+        await using NpgsqlCommand command = new(
+            """
+            SELECT constraints.conname, constraints.oid::bigint
+            FROM pg_constraint AS constraints
+            WHERE constraints.contype = 'p'
+              AND constraints.conname IN (
+                  'pk_error_log', 'pk_notification_sent', 'pk_site_average', 'pk_user_action_history');
+            """,
+            connection,
+            transaction);
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            identities[reader.GetString(0)] = reader.GetInt64(1);
+        }
+
+        return identities;
+    }
+
+    // Function summary: Runs one SQL script inside the supplied transaction.
+    private static async Task ExecuteAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        string sql)
+    {
+        await using NpgsqlCommand command = new(sql, connection, transaction) { CommandTimeout = 60 };
+        await command.ExecuteNonQueryAsync();
     }
 
     [Fact]

@@ -72,14 +72,12 @@ public sealed partial class MonitorOwnershipWindowSqlTests
         string archiveEnd = SiteArchiveQueryCatalog.EffectiveEndExpression();
 
         string translated = CollapseWhitespace(OwnershipQuerySql(context));
-        List<string> timeBounded = catalog.CsvExports
-            .Select(export => export.Sql)
-            .Where(sql => sql.Contains(archiveEnd, StringComparison.Ordinal))
-            .ToList();
+        int timeBounded = catalog.CsvExports
+            .Count(export => export.Sql.Contains(archiveEnd, StringComparison.Ordinal));
 
         Assert.Contains(WholeDayOffHireNormalization, translated, StringComparison.Ordinal);
         Assert.Contains(WholeDayOffHireNormalization, archiveEnd, StringComparison.Ordinal);
-        Assert.Equal(TimeBoundedExportCount, timeBounded.Count);
+        Assert.Equal(TimeBoundedExportCount, timeBounded);
     }
 
     /// <summary>

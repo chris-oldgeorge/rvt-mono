@@ -136,14 +136,14 @@ public sealed class SiteArchiveExportPostgresTests
     /// </summary>
     private sealed class ArchiveSchemaFixture : IAsyncDisposable
     {
-        private readonly string schemaName;
-        private readonly string scopedConnectionString;
-        private readonly List<string> workspaces = [];
+        private readonly string _schemaName;
+        private readonly string _scopedConnectionString;
+        private readonly List<string> _workspaces = [];
 
         private ArchiveSchemaFixture(string schemaName, string scopedConnectionString)
         {
-            this.schemaName = schemaName;
-            this.scopedConnectionString = scopedConnectionString;
+            _schemaName = schemaName;
+            _scopedConnectionString = scopedConnectionString;
         }
 
         public static async Task<ArchiveSchemaFixture> CreateAsync()
@@ -165,14 +165,14 @@ public sealed class SiteArchiveExportPostgresTests
         }
 
         public RVTDbContext CreateDomainContext() =>
-            new(TestDbContexts.Npgsql<RVTDbContext>(scopedConnectionString));
+            new(TestDbContexts.Npgsql<RVTDbContext>(_scopedConnectionString));
 
         // Function summary: Creates a scratch directory for one run of the CSV exports.
         public string CreateWorkspace()
         {
-            string workspace = Path.Combine(Path.GetTempPath(), schemaName);
+            string workspace = Path.Combine(Path.GetTempPath(), _schemaName);
             Directory.CreateDirectory(workspace);
-            workspaces.Add(workspace);
+            _workspaces.Add(workspace);
             return workspace;
         }
 
@@ -237,12 +237,12 @@ public sealed class SiteArchiveExportPostgresTests
 
         public async ValueTask DisposeAsync()
         {
-            foreach (string workspace in workspaces)
+            foreach (string workspace in _workspaces)
             {
                 Directory.Delete(workspace, recursive: true);
             }
 
-            SpaTestDatabase.DropSchema(schemaName, scopedConnectionString);
+            SpaTestDatabase.DropSchema(_schemaName, _scopedConnectionString);
             await Task.CompletedTask;
         }
 
@@ -308,7 +308,7 @@ public sealed class SiteArchiveExportPostgresTests
         // Function summary: Runs one statement batch on the schema-scoped connection.
         private async Task ExecuteAsync(string sql, Action<NpgsqlCommand>? bind = null)
         {
-            await using NpgsqlConnection connection = new(scopedConnectionString);
+            await using NpgsqlConnection connection = new(_scopedConnectionString);
             await connection.OpenAsync();
             await using NpgsqlCommand command = connection.CreateCommand();
             command.CommandText = sql;

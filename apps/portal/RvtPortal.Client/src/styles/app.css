@@ -1306,18 +1306,17 @@ th {
   cursor: not-allowed;
   opacity: 0.65;
 }
-.dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  display: grid;
-  place-items: center;
-  padding: 18px;
+/* The confirmation dialog is opened with showModal(), so the scrim is the element's own
+   ::backdrop and the top layer centres it - a wrapper element would sit behind it. */
+.confirm-dialog::backdrop {
   background: rgba(30, 37, 36, 0.46);
 }
 .confirm-dialog {
   width: min(420px, 100%);
-  margin: 0;
+  max-width: calc(100% - 36px);
+  max-height: calc(100% - 36px);
+  overflow: auto;
+  margin: auto;
   border: 0;
   border-radius: 8px;
   background: #ffffff;

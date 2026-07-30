@@ -1,5 +1,6 @@
 ﻿// File summary: Provides reusable React UI components shared across portal screens.
 // Major updates:
+// - 2026-07-30 pending Covered confirmation focus handoff, Tab containment and Escape cancellation.
 // - 2026-05-26 5f9e8ed Initial pre-release alpha SPA import.
 // - 2026-06-03 f5fd01e Preserved React SPA/API host compatibility during provider update where applicable.
 
@@ -73,7 +74,75 @@ describe('FormControls', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
     expect(onCancel).not.toHaveBeenCalled();
   });
+
+  it('moves focus into the confirmation, cancels on Escape, and restores focus to the trigger', async () => {
+    const user = userEvent.setup();
+    render(<ConfirmHarness />);
+
+    const trigger = screen.getByRole('button', { name: /remove item/i });
+    await user.click(trigger);
+
+    const cancelButton = await screen.findByRole('button', { name: /^cancel$/i });
+    expect(cancelButton).toHaveFocus();
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByText('This item will be removed.')).not.toBeInTheDocument());
+    expect(trigger).toHaveFocus();
+  });
+
+  it('keeps Tab inside the confirmation instead of walking the page behind it', async () => {
+    const user = userEvent.setup();
+    render(<ConfirmHarness />);
+
+    await user.click(screen.getByRole('button', { name: /remove item/i }));
+    const cancelButton = await screen.findByRole('button', { name: /^cancel$/i });
+    const confirmButton = screen.getByRole('button', { name: /^delete$/i });
+
+    await user.tab();
+    expect(confirmButton).toHaveFocus();
+
+    await user.tab();
+    expect(cancelButton).toHaveFocus();
+
+    await user.tab({ shift: true });
+    expect(confirmButton).toHaveFocus();
+  });
+
+  it('leaves Escape inert while the confirmed action is still running', async () => {
+    const user = userEvent.setup();
+    render(<ConfirmHarness isBusy />);
+
+    await user.click(screen.getByRole('button', { name: /remove item/i }));
+    await screen.findByText('This item will be removed.');
+
+    await user.keyboard('{Escape}');
+
+    expect(screen.getByText('This item will be removed.')).toBeInTheDocument();
+  });
 });
+
+// Function summary: Renders a trigger plus confirmation so dialog focus handoff can be asserted end to end.
+function ConfirmHarness({ isBusy = false }: Readonly<{ isBusy?: boolean }>) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}>
+        Remove item
+      </button>
+      <ConfirmDialog
+        open={open}
+        title="Delete item"
+        message="This item will be removed."
+        confirmLabel="Delete"
+        isBusy={isBusy}
+        onCancel={() => setOpen(false)}
+        onConfirm={() => setOpen(false)}
+      />
+    </>
+  );
+}
 
 // Function summary: Renders the SubmitHarness React component and wires its local UI behavior.
 function SubmitHarness({ onSubmit }: Readonly<{ onSubmit: () => Promise<void> }>) {

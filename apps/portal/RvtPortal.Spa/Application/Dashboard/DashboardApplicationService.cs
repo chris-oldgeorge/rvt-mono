@@ -1,5 +1,6 @@
 // File summary: Provides database-backed dashboard overview, map, and calendar workflows for the portal API.
 // Major updates:
+// - 2026-07-30 pending Pushed the archived filter and the caller's site scope into the monitor/deployment SQL.
 // - 2026-07-09 pending Moved dashboard summary, map marker, and calendar query logic out of the API controller.
 // - 2026-07-22 pending Enforced inclusive active assignment windows across dashboard visibility.
 
@@ -438,27 +439,45 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         DashboardActor actor,
         CancellationToken cancellationToken)
     {
-        List<DashboardMonitorRow> rows = await BuildMonitorRowsAsync(cancellationToken);
+        List<DashboardMonitorRow> rows = await BuildMonitorRowsAsync(actor, cancellationToken);
+        // The scope below is already applied in SQL; ApplyRoleVisibilityAsync stays as the authority on what a
+        // role may see, so the visibility rules live in exactly one place and a future query change cannot
+        // widen them by accident.
         return await ApplyRoleVisibilityAsync(actor, rows, cancellationToken);
     }
 
     // Function summary: Builds monitor rows with current deployment, freshness, and open-notification state.
-    private async Task<List<DashboardMonitorRow>> BuildMonitorRowsAsync(CancellationToken cancellationToken)
+    private async Task<List<DashboardMonitorRow>> BuildMonitorRowsAsync(
+        DashboardActor actor,
+        CancellationToken cancellationToken)
     {
-        DateTime now = DateTime.UtcNow;
-        List<MonitorEntity> monitors = await domainContext.MonitorsList.AsNoTracking().ToListAsync(cancellationToken);
+        DateTime now = timeProvider.GetUtcNow().UtcDateTime;
 
         // The ownership window is applied in SQL now, so only deployments that actually own their monitor's
         // data right now come back - previously every open deployment was loaded and then filtered in memory.
-        List<Deployment> deployments = await domainContext.Deployments
+        IQueryable<Deployment> deploymentQuery = domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .ThenInclude(contract => contract.Company)
             .Include(deployment => deployment.Contract)
             .ThenInclude(contract => contract.Site)
             .Where(deployment => deployment.EndDate == null)
-            .Where(MonitorOwnershipWindowResolver.OwnsAt(now))
-            .ToListAsync(cancellationToken);
+            .Where(MonitorOwnershipWindowResolver.OwnsAt(now));
+
+        // A site-scoped caller can only ever see deployments on their assigned sites, so that scope belongs in
+        // the query rather than in a post-filter over the whole fleet. ApplyRoleVisibilityAsync still decides.
+        List<Guid>? visibleSiteIds = actor.IsAdmin || actor.IsInstaller
+            ? null
+            : [.. await VisibleSiteIdsAsync(actor, cancellationToken)];
+        if (visibleSiteIds is not null)
+        {
+            deploymentQuery = deploymentQuery.Where(deployment =>
+                deployment.Contract != null &&
+                deployment.Contract.SiteiD.HasValue &&
+                visibleSiteIds.Contains(deployment.Contract.SiteiD.Value));
+        }
+
+        List<Deployment> deployments = await deploymentQuery.ToListAsync(cancellationToken);
         Dictionary<Guid, Deployment> currentByMonitor = deployments
             .GroupBy(deployment => deployment.MonitorId)
             .ToDictionary(group => group.Key, group => group.OrderByDescending(deployment => deployment.StartDate).First());
@@ -466,6 +485,20 @@ public sealed class DashboardApplicationService : IDashboardApplicationService
         // Only monitors with a current deployment can contribute notifications: the lookup below drops anything
         // else. Asking for just those monitors avoids loading open notifications that would be discarded.
         List<Guid> deployedMonitorIds = [.. currentByMonitor.Keys];
+
+        // Archived monitors are excluded here exactly as they are from the monitor inventory grid
+        // (MonitorListReader.BuildMonitorScope); a monitor can only be archived while unattached, so no
+        // deployed row disappears. Every role but an administrator sees only deployed monitors, so those
+        // callers read just the rows their deployments named instead of the whole fleet.
+        IQueryable<MonitorEntity> monitorQuery = domainContext.MonitorsList
+            .AsNoTracking()
+            .Where(monitor => !monitor.Archived);
+        if (!actor.IsAdmin)
+        {
+            monitorQuery = monitorQuery.Where(monitor => deployedMonitorIds.Contains(monitor.Id));
+        }
+
+        List<MonitorEntity> monitors = await monitorQuery.ToListAsync(cancellationToken);
         List<Notification> notifications = await domainContext.Notifications
             .AsNoTracking()
             .Where(notification => deployedMonitorIds.Contains(notification.MonitorId) && notification.ClosedTime == null)

@@ -1,5 +1,6 @@
 // File summary: Covers regression tests for API host, React migration parity, and provider configuration behavior.
 // Major updates:
+// - 2026-07-30 pending Pinned per-role dashboard monitor visibility once the scope moved into SQL.
 // - 2026-07-22 pending Covered inactive and exact-boundary dashboard assignment authorization.
 // - 2026-06-26 pending Added moved-monitor dashboard and calendar ownership-window regressions.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -24,6 +25,7 @@ public class DashboardMapCalendarTests
     private const string AdminEmail = "dashboard.admin@rvt.test";
     private const string MasterAdminEmail = "dashboard.master@rvt.test";
     private const string CompanyUserEmail = "dashboard.company@rvt.test";
+    private const string InstallerEmail = "dashboard.installer@rvt.test";
     private const string Password = "P8sSw0rd9$";
 
     // Probe values seeded once by SeedDashboardScenarioAsync and asserted by the map/calendar tests.
@@ -127,6 +129,54 @@ public class DashboardMapCalendarTests
         Assert.Empty(futureSummary.Sites);
         Assert.Equal(1, boundarySummary!.MonitorCounts.Assigned);
         Assert.Equal(ids.SiteId.ToString(), Assert.Single(boundarySummary.Sites).Value);
+    }
+
+    [RequiresPostgresFact]
+    /// <summary>
+    /// Pins the four roles' monitor-row visibility now that the scope is applied in SQL rather than to an
+    /// in-memory copy of the whole <c>monitor</c> table. The scenario adds the two rows the old full-table read
+    /// could not distinguish: an unattached monitor (visible to administrators only) and an archived one
+    /// (visible to nobody, exactly as in the monitor inventory grid).
+    /// </summary>
+    public async Task DashboardSummary_ScopesMonitorRowsByRole()
+    {
+        using SpaTestApplicationFactory factory = new();
+        DashboardScenarioIds ids = await SeedDashboardScenarioAsync(factory);
+        await factory.SeedDomainEntitiesAsync(
+            Monitor(Guid.NewGuid(), "P8-SPARE", "SER-P8-S", MonitorTypeEnum.Dust, ids.Today),
+            Archived(Monitor(Guid.NewGuid(), "P8-GONE", "SER-P8-G", MonitorTypeEnum.Dust, ids.Today)));
+
+        await factory.SeedUserAsync(MasterAdminEmail, Password, RoleNames.RVTMasterAdmin);
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller);
+        ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
+        await AssignUserToSiteAsync(factory, companyUser.Id, ids.SiteId);
+
+        DashboardSummaryResponse master = await SummaryAsync(factory, MasterAdminEmail);
+        DashboardSummaryResponse admin = await SummaryAsync(factory, AdminEmail);
+        DashboardSummaryResponse installer = await SummaryAsync(factory, InstallerEmail);
+        DashboardSummaryResponse company = await SummaryAsync(factory, CompanyUserEmail);
+
+        Assert.Multiple(
+            // Both administrator roles see the whole fleet, the unattached spare included and the archived
+            // monitor excluded - an archived monitor used to be counted as "not used".
+            () => Assert.Equal(3, master.MonitorCounts.Assigned),
+            () => Assert.Equal(1, master.MonitorCounts.NotUsed),
+            () => Assert.Equal(0, master.MonitorCounts.New),
+            () => Assert.Equal(3, admin.MonitorCounts.Assigned),
+            () => Assert.Equal(1, admin.MonitorCounts.NotUsed),
+            () => Assert.Equal(0, admin.MonitorCounts.New),
+            // An installer sees every currently deployed monitor and nothing else.
+            () => Assert.Equal(3, installer.MonitorCounts.Assigned),
+            () => Assert.Equal(0, installer.MonitorCounts.NotUsed),
+            () => Assert.Equal(0, installer.MonitorCounts.New),
+            () => Assert.Equal(3, installer.CalendarDeployments.Count),
+            // A company user sees only their assigned site's deployment, and none of the other site's alerts.
+            () => Assert.Equal(1, company.MonitorCounts.Assigned),
+            () => Assert.Equal(0, company.MonitorCounts.NotUsed),
+            () => Assert.Equal(1, company.OpenAlerts),
+            () => Assert.Equal(0, company.OpenCautions),
+            () => Assert.Equal(ids.DeploymentId.ToString(), Assert.Single(company.CalendarDeployments).Value));
     }
 
     [RequiresPostgresFact]
@@ -421,6 +471,23 @@ public class DashboardMapCalendarTests
     private static async Task AssignUserToSiteAsync(SpaTestApplicationFactory factory, string userId, Guid siteId)
     {
         await factory.SeedDomainEntitiesAsync(TestData.SiteUser(siteId: siteId, userId: Guid.Parse(userId), startDate: DateTime.UtcNow.AddDays(-1)));
+    }
+
+    // Function summary: Marks a seeded monitor archived, the state the unattached-removal command writes.
+    private static RVT.Entities.Monitor Archived(RVT.Entities.Monitor monitor)
+    {
+        monitor.Archived = true;
+        monitor.ArchivedAt = DateTime.UtcNow.AddDays(-1);
+        monitor.ArchivedBy = "dashboard-tests";
+        return monitor;
+    }
+
+    // Function summary: Logs one role in on its own client and returns its dashboard summary.
+    private static async Task<DashboardSummaryResponse> SummaryAsync(SpaTestApplicationFactory factory, string email)
+    {
+        HttpClient client = CreateClient(factory);
+        await LoginAsync(client, email, Password);
+        return (await client.GetFromJsonAsync<DashboardSummaryResponse>("/api/dashboard/summary"))!;
     }
 
     // Function summary: Handles the monitor workflow for this module.

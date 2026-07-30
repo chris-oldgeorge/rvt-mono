@@ -37,7 +37,7 @@ jobs:
   engineering-standards:
     name: Engineering standards
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

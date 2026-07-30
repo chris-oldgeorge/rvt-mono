@@ -886,13 +886,21 @@ function toDateTimeInput(value: string | null) {
   return value.slice(0, 16);
 }
 
-// Function summary: Handles the from date to API workflow for this module.
+// Function summary: Converts a datetime-local wall time into a UTC API instant, or null when absent or malformed.
+// The value is seeded from the query string, so a hand-edited or bookmarked URL can carry
+// a value Date cannot parse; toISOString() then threw inside the request effect and the
+// error boundary replaced the whole shell.
 export function fromDateToApi(value: string) {
   if (!value) {
     return null;
   }
 
-  return new Date(value).toISOString();
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString();
 }
 
 // Function summary: Handles the format duration workflow for this module.

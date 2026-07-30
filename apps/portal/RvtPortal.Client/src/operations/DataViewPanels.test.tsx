@@ -12,4 +12,10 @@ describe('DataViewPanels UTC timestamp presentation', () => {
     const value = '2026-07-01T14:30';
     expect(fromDateToApi(value)).toBe(new Date(value).toISOString());
   });
+
+  it('drops malformed and absent date inputs instead of throwing', () => {
+    expect(fromDateToApi('not-a-date')).toBeNull();
+    expect(fromDateToApi('2026-13-45T99:99')).toBeNull();
+    expect(fromDateToApi('')).toBeNull();
+  });
 });

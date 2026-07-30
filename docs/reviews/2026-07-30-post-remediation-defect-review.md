@@ -36,6 +36,14 @@ Eight findings. Three cause silent data loss, two are user-visible breakage on
 every use, two let broken code reach `main`, and one is a cross-subsystem schema
 conflict that breaks ingestion against a migrated database.
 
+> **All eight resolved 2026-07-30** — PRs #69 (P1-6, P1-7), #72 (P1-5), #74
+> (P1-8), #76 (P1-4), #77 (P1-1, P1-2, P1-3). Execution corrected the review on
+> five points, recorded in the per-item notes below; the largest is that **site
+> archiving was broken outright**, not merely losing a day — an error only
+> reachable once the SQL was executed for the first time. Where a finding's
+> stated remedy proved insufficient (P1-1's recovery, P1-4's normalisation
+> form), the shipped fix differs from the text above and the note says how.
+
 ### P1-1 — A single future-dated vendor sample blinds an AirQ monitor permanently
 `apps/monitors/airqmonitor/AirQMonitor/api/http/AirQHttpGateway.cs:213-239`
 
@@ -51,6 +59,15 @@ self-sustaining; only a manual database edit recovers it.
 **Fix:** clamp the watermark to `min(sampleTime, utcNow)` and drop future-dated
 samples rather than warning about them. The same clamp belongs on Svantek's
 `lastDataTime` (`StoreNoiseLevelsHandler.cs:230`). **S**
+
+**Done 2026-07-30, PR #77 — with two corrections.** The clamp alone does *not*
+recover an already-poisoned monitor (real samples are always older than now, so
+they stay discarded); a stored watermark ahead of the clock is therefore treated
+as *absent*, falling back to the seed so the backlog imports — no manual database
+edit is needed, contrary to this item's own assessment. And **Svantek is
+poisonable by a different mechanism**: a future `LastDataTime` makes
+`NoiseRequestWindowCalculator` return an empty window list, so the monitor is
+never requested at all. Both recoveries are proven by test.
 
 ### P1-2 — Empty averaging windows score 0.0 dB, resetting latched rules and fabricating daily averages
 `apps/monitors/airqmonitor/AirQMonitor/api/db/DBClient.cs:199`,
@@ -75,6 +92,13 @@ Note this is *not* covered by the B2 fix from the previous review: that added a
 window-*completeness* guard, and a complete window containing zero samples still
 scores 0.0. **M**
 
+**Done 2026-07-30, PR #77.** Both monitors' `GetAverageNoiseLevel` now return
+`double?` following MyAtm; rule processors skip null windows and the site-average
+handlers write no row for an empty site-day. Behaviour change worth naming:
+because `NoiseRuleEvaluator` deactivates deleted rules before inspecting the
+level, skipping an empty window defers that deactivation to the next populated
+one — matching MyAtm's existing ordering.
+
 ### P1-3 — First-import runs issue tens of thousands of synchronous per-window queries
 Svantek `StoreNoiseLevelsHandler.cs:244` + `SvantekRuleProcessor.cs:128-148`;
 AirQ `StoreNoiseLevelsHandler.cs:64-65` + `:99-108` + `AirQRuleProcessor.cs:103-119`
@@ -89,6 +113,13 @@ AirQ seeds an unwatermarked monitor at `UtcNow.AddYears(-1)`, giving ≈1,095
 
 **Fix:** clamp the rule start the same way the request window is clamped —
 `max(periodStart, end - MaximumInitialBackfill)`. **S**
+
+**Done 2026-07-30, PR #77 — one correction.** Svantek's 8-hour averaging loop is
+unbounded in the same way as the rule start, which this item does not mention;
+one shared clamp fixes both. AirQ's year-back *seed* was deliberately left alone:
+`/latestData` takes no date parameter, so that value doubles as the truncation
+threshold deciding which samples are kept. Iteration counts are now pinned by
+test — AirQ 21 + 168, Svantek 21 + 672.
 
 ### P1-4 — Site-archive SQL silently drops the final day of every contract's data
 `apps/portal/RvtPortal.Spa/Adapters/Archive/SiteArchiveQueryCatalog.cs:269-272`
@@ -106,6 +137,21 @@ Because `ContractCommands.AsUtcDate` (`:161-162`) stores `value.Date`, **every**
 portal grid, graph and CSV show data through the final day; the archive zip
 excludes it across all six measurement exports plus breaches. No error, no
 warning. **S**
+
+**Done 2026-07-30, PR #76 — and it uncovered a worse defect.** Executing this SQL
+for the first time revealed that `Monitors.csv` selects `d.latitude`/`d.longitude`,
+columns that have never existed (the table has `lat`/`lng`). It is the *first*
+export written, so **every site archive has been failing outright** with
+`column d.latitude does not exist` since the source-snapshot import — the
+final-day drop was downstream of a total failure. Also, the normalisation form
+suggested above is wrong: `off_hire_date` is `timestamptz`, so a bare
+`date_trunc('day', …)` comparison resolves in the *session* time zone while the
+C# tests `TimeOfDay` on a UTC value — they agree only under a UTC server. The
+shipped SQL uses the session-independent fragment Npgsql itself compiles the EF
+twin to, and normalises *inside* the minimum to match `ForDeployment`. PB-6 was
+fixed alongside: bare identifiers now resolve through `SearchPath`, and new
+integration tests run the real catalog SQL, executor and CSV writer against a
+seeded throwaway schema.
 
 ### P1-5 — The Calendar "Day Detail" pane always sends `day=NaN` and 400s
 `apps/portal/RvtPortal.Client/src/operations/MapCalendarPanels.tsx:474-477`,
@@ -127,6 +173,15 @@ printed day number for viewers west of UTC.
 **Fix:** slice to `value.slice(0, 10)` once before splitting, use the same slice
 for the button label, and assert the emitted query string in a test. **S**
 
+**Done 2026-07-30, PR #72.** Fixed by slicing to the leading `YYYY-MM-DD`; the
+day-number label was fixed the same way. The durable part is the test change —
+the fixture matched on pathname alone *and* seeded a bare `2026-05-24` where the
+server sends a full `DateTime`, so it was hiding the exact difference that caused
+the bug. It now mirrors the controller's validation and 400s on a malformed day,
+and the ownership test pins `TZ=America/Los_Angeles`. FE-5 and FE-6 were fixed in
+the same PR. Noted for later: pathname-only mocking is systemic — roughly 30
+routes ignore query parameters that carry meaning.
+
 ### P1-6 — The docs-only CI gate is fail-open on renames
 `scripts/detect-code-changes.sh:80`
 
@@ -143,6 +198,11 @@ all skip, the content pins never run, and the PR merges green.
 
 **Fix:** add `--no-renames` (one word), plus a rename case in
 `tests/detect-code-changes.test.sh` — its nine cases cover none. **S**
+
+**Done 2026-07-30, PR #69.** Fixed with `--no-renames`. The change-detector suite
+had nine cases and covered no rename at all; it now covers a code file renamed
+into `docs/` and a content-pinned doc relocated out of its tree, both verified to
+fail against the unfixed script.
 
 ### P1-7 — If the gate job fails, every heavy job is skipped, and skipped satisfies required checks
 `tests.yml:41`, `tests.yml:110`, `engineering-standards.yml:40`
@@ -161,6 +221,11 @@ documentation-only verdict runs everything; update the contract pin. **S**
 
 *(The gate-is-not-a-required-check half is SUSPECTED — the expression semantics
 are confirmed.)*
+
+**Done 2026-07-30, PR #69.** The gates now test `!= 'false'`, so only an explicit
+documentation-only verdict may skip them and any gate-job failure runs everything.
+The rationale is recorded in the workflow beside the job, and both workflow
+contract tests' pins and always-skipped mutations were updated.
 
 ### P1-8 — `omnidots_trace` has two irreconcilable schema owners
 Portal: `omnidots_trace_index_id` — `apps/portal/database/postgres/canonical_database_naming.sql:494`
@@ -186,6 +251,21 @@ only string-matches migration text.
 integration test applying the Omnidots forward migration to a schema built by
 `RVTSearchContext`. Also settle **who owns this table** — it is the one place the
 kernel/monitor/portal boundary has no owner. **M** (the decision is the work)
+
+
+**Done 2026-07-30, PR #74.** Ruled in the portal's favour, and the investigation
+changed the fix: **no deployed database can hold the monitor's shape** — nothing
+shipped creates the table with `trace_id`, the migration is transactional, and it
+fails against *both* candidate shapes, so it has never applied successfully
+anywhere despite being a listed deploy prerequisite. The historical script was
+therefore corrected in place (with a guarded idempotent rename as insurance)
+rather than adding a reconciliation migration that would imply a deployment
+history that never happened. A new portal-side suite builds the schema from
+`RVTSearchContext`, applies the monitor's migration, and round-trips rows written
+with the monitor's column names through the portal's EF model — verified to fail
+with the exact production symptom when reverted. Ownership is recorded in
+`docs/database/omnidots-trace-ownership.md`: names are the portal's, rows are the
+monitor's.
 
 ---
 

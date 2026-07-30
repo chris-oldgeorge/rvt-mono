@@ -201,4 +201,24 @@ unifiable). The durable-alerts doc's claim that claim/lease fencing is
 **P3 — batched cleanups**
 12. L5–L10 deletions; M4–M10 renames/moves/splits; B12 one-liners; G6–G8; solution/config hygiene.
 
-**Product rulings needed**: timezone policy (quiet-hours UTC vs local — B12; supersedes the earlier per-site items); deleted global offline rules (B12); adopt-or-delete for the two paged site endpoints (L2); InMemory-provider branching (B12); the M11 no-split decision (recorded above, needs sign-off).
+**Product rulings — all decided 2026-07-30:**
+
+- **Timezone policy: UTC everywhere.** Contact send-windows stay UTC; rule
+  activity windows (`AlertActivityTimeDto` local evaluation) move to UTC to
+  match. Configured hours are UTC wall-clock and do not track DST; supersedes
+  the earlier per-site timezone items. Consequence: quiet hours drift ±1h from
+  local wall-clock across DST — accepted.
+- **Deleted global offline rules: honor `IsDeleted`.** Fix `ReadRules(null)`
+  in all three monitors so deleted global rules stop alerting, matching site-
+  rule semantics.
+- **Paged site endpoints: delete.** `GET api/sites/{id}/monitors` and
+  `GET api/sites/{id}/notifications/open` go the way of the other five (L2);
+  server-side paging can be rebuilt if site sizes ever demand it.
+- **InMemory-provider branching: eliminate by migrating tests to Postgres.**
+  Move the affected tests onto the integration DB (throwaway-schema pattern)
+  and delete all 7 production branches — no provider sniffing remains.
+- **M11 no-split: signed off.** `Rvt.Monitor.Common` stays one package; the
+  G7 technology-confinement guard is the enforcement mechanism.
+- **Portal `DateTime.Today` ×5: inject `TimeProvider`, compute in UTC** —
+  consistent with the timezone ruling and the six sibling classes that already
+  inject it.

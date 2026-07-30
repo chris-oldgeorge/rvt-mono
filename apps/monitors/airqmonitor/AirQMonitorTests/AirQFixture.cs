@@ -3,7 +3,6 @@ using AirQ.Model.Dto;
 using AirQ.Model.Http;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using Rvt.Monitor.Common.Utilities;
 
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
@@ -265,11 +264,11 @@ namespace AirQMonitorTests
         {
             if (start != null)
             {
-                start = DateTime.Today + DateTimeUtil.UtcToLocal(((DateTime)start).ToUniversalTime().TimeOfDay);
+                start = ((DateTime)start).ToUniversalTime();
             }
             if (end != null)
             {
-                end = DateTime.Today + DateTimeUtil.UtcToLocal(((DateTime)end).ToUniversalTime().TimeOfDay);
+                end = ((DateTime)end).ToUniversalTime();
             }
             return new AlertActivityTimeDto
             {

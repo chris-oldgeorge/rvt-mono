@@ -139,6 +139,32 @@ public class MonitorWorkflowTests
     }
 
     [RequiresPostgresFact]
+    // Function summary: Verifies a calibration date without a UTC marker - what the React form sends - is stored rather than rejected by the timestamptz guard.
+    public async Task MonitorEdit_AcceptsCalibrationDatesWithoutAUtcMarker()
+    {
+        using SpaTestApplicationFactory factory = new();
+        MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
+        await factory.SeedUserAsync(AdminEmail, Password, RoleNames.RVTAdmin);
+        HttpClient client = CreateClient(factory);
+        await LoginAsync(client, AdminEmail, Password);
+
+        // The monitor form posts "2026-05-01T00:00:00" - no trailing Z - which binds as Kind=Unspecified.
+        MonitorMutationRequest request = new()
+        {
+            FleetNumber = "MON-CAL-NAIVE",
+            CalibrationDate = new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Unspecified),
+            CalibrationDue = new DateTime(2027, 5, 1, 0, 0, 0, DateTimeKind.Unspecified)
+        };
+
+        HttpResponseMessage update = await client.PutAsJsonAsync($"/api/monitors/{ids.OnlineMonitorId}", request);
+        EntityResponse<MonitorDetailResponse>? updated = await update.Content.ReadFromJsonAsync<EntityResponse<MonitorDetailResponse>>();
+
+        Assert.Equal(HttpStatusCode.OK, update.StatusCode);
+        Assert.Equal(new DateTime(2026, 5, 1, 0, 0, 0, DateTimeKind.Utc), updated?.Item?.CalibrationDate);
+        Assert.Equal(new DateTime(2027, 5, 1, 0, 0, 0, DateTimeKind.Utc), updated?.Item?.CalibrationDue);
+    }
+
+    [RequiresPostgresFact]
     // Function summary: Verifies monitor detail exposes legacy summary data used by the React detail page.
     public async Task MonitorDetail_ExposesLegacySummaryData()
     {

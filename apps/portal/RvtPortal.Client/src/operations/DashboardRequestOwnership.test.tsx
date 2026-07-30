@@ -413,6 +413,18 @@ describe('Portal dashboard request ownership', () => {
     expect(screen.queryByText('All Sites (Dust)')).not.toBeInTheDocument();
   });
 
+  it('fetches the map summary once across a site filter change', async () => {
+    api.queryMapMarkers.mockResolvedValue(mapResponse('Site A'));
+
+    render(<MapPanel locationPath="/maps" onRequestError={vi.fn()} />);
+    await screen.findByRole('option', { name: 'Site A' });
+    fireEvent.change(screen.getByLabelText('Site'), { target: { value: 'site-a' } });
+    await waitFor(() => expect(api.queryMapMarkers).toHaveBeenCalledTimes(2));
+
+    expect(api.getDashboardSummary).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('option', { name: 'Site B' })).toBeInTheDocument();
+  });
+
   it('keeps the newest live site search result when an older query resolves last', async () => {
     const initialSearch = deferred<ReturnType<typeof siteResponse>>();
     const alphaSearch = deferred<ReturnType<typeof siteResponse>>();

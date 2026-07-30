@@ -63,6 +63,7 @@ export function MapPanel({ locationPath, onRequestError }: MapCalendarPanelProps
   const initialParams = useMemo(() => new URL(locationPath, 'https://rvt.local').searchParams, [locationPath]);
   const [siteId, setSiteId] = useState(initialParams.get('siteId') ?? '');
   const [sites, setSites] = useState<OptionItem[]>([]);
+  const [sitesError, setSitesError] = useState<string | null>(null);
   const [mapResult, setMapResult] = useState<MapResult | null>(null);
   const execution = useMemo<MapExecution>(() => ({ siteId }), [siteId]);
   const activeResult = mapResult?.execution === execution ? mapResult : null;
@@ -72,14 +73,30 @@ export function MapPanel({ locationPath, onRequestError }: MapCalendarPanelProps
 
   useEffect(() => {
     const controller = new AbortController();
-    globalThis.history.replaceState(null, '', `/maps${mapQuery(execution.siteId)}`);
-    Promise.all([
-      getDashboardSummary({ signal: controller.signal }),
-      queryMapMarkers(mapMarkersRequest(execution.siteId), { signal: controller.signal }),
-    ])
-      .then(([nextSummary, nextMarkers]) => {
+    // The summary only supplies the site filter options, so it stays in its own
+    // mount-once effect and a site change no longer refetches it.
+    getDashboardSummary({ signal: controller.signal })
+      .then((summary) => {
         if (!controller.signal.aborted) {
-          setSites(nextSummary.sites);
+          setSites(summary.sites);
+        }
+      })
+      .catch((err: Error) => {
+        if (isAbortError(err) || controller.signal.aborted) {
+          return;
+        }
+        setSitesError(err.message);
+        onRequestError(err);
+      });
+    return () => controller.abort();
+  }, [onRequestError]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    globalThis.history.replaceState(null, '', `/maps${mapQuery(execution.siteId)}`);
+    queryMapMarkers(mapMarkersRequest(execution.siteId), { signal: controller.signal })
+      .then((nextMarkers) => {
+        if (!controller.signal.aborted) {
           setMapResult({ execution, markers: nextMarkers, error: null });
         }
       })
@@ -113,7 +130,7 @@ export function MapPanel({ locationPath, onRequestError }: MapCalendarPanelProps
           ))}
         </select>
       </label>
-      {error && <Notice tone="error" message={error} />}
+      {(error ?? sitesError) && <Notice tone="error" message={error ?? sitesError ?? ''} />}
       {isLoading && <LoadingInline label="Loading map" />}
       <MonitorMap markers={markers?.markers ?? []} />
       <MonitorMarkerList markers={markers?.markers ?? []} />

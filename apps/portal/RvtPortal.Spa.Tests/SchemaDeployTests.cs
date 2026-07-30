@@ -255,7 +255,7 @@ public class SchemaDeployTests
             "01_pk_adjustments.sql"));
 
         await using NpgsqlConnection connection = new(
-            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!);
+            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable));
         await connection.OpenAsync();
         await using NpgsqlTransaction transaction =
             await connection.BeginTransactionAsync();
@@ -291,7 +291,7 @@ public class SchemaDeployTests
             "06_site_write_uniqueness.sql"));
 
         await using NpgsqlConnection connection = new(
-            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!);
+            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable));
         await connection.OpenAsync();
         await using NpgsqlTransaction transaction = await connection.BeginTransactionAsync();
 
@@ -340,7 +340,7 @@ public class SchemaDeployTests
     public async Task Run_WhenTheConnectionIsNotScopedToPublic_RefusesBeforeApplyingAnything()
     {
         NpgsqlConnectionStringBuilder scoped = new(
-            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable)!)
+            Environment.GetEnvironmentVariable(RequiresPostgresFactAttribute.ConnectionVariable))
         {
             SearchPath = "pg_catalog"
         };

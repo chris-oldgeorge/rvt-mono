@@ -1,8 +1,8 @@
 using MyAtm.Api.UseCases;
+using MyAtm.Delivery;
 using MyAtm.Model;
 using MyAtm.Model.Config;
 using MyAtm.Model.Json;
-using MyAtm.Delivery;
 
 namespace MyAtm.Api
 {

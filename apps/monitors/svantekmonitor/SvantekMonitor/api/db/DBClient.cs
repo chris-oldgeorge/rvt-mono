@@ -8,9 +8,9 @@ using Rvt.Monitor.Common.Data.Queries;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
+using Rvt.Monitor.Common.Utilities;
 using Svantek.Api.Db.EntityFramework;
 using Svantek.Api.Db.Mapping;
-using Rvt.Monitor.Common.Utilities;
 using Svantek.Model.Dto;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 namespace Svantek.Api.Db

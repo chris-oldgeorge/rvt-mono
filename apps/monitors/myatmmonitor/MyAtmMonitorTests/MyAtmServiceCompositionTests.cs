@@ -2,8 +2,8 @@ using System.Reflection;
 using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.UseCases;
-using MyAtm.Model.Config;
 using MyAtm.Delivery;
+using MyAtm.Model.Config;
 using Rvt.Monitor.IntegrationTesting;
 
 namespace MyAtmMonitorTests;

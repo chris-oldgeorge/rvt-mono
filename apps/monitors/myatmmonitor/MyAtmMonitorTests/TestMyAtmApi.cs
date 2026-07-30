@@ -5,12 +5,12 @@ using Moq;
 using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
+using MyAtm.Delivery;
 using MyAtm.Model;
 using MyAtm.Model.Config;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Communication.Abstractions;
-using MyAtm.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 namespace MyAtmMonitorTests

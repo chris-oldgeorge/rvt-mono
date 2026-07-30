@@ -2,9 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using MyAtm.Api.Db.EntityFramework;
+using MyAtm.Delivery;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
-using MyAtm.Delivery;
 
 namespace MyAtmMonitorTests.EntityFramework;
 

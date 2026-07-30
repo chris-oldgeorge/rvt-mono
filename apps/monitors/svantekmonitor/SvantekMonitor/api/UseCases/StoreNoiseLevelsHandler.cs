@@ -5,8 +5,8 @@ using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Rules;
 using Svantek.Api.Db;
 using Svantek.Api.Ports;
-using Svantek.Model.Http;
 using Svantek.Model.Dto;
+using Svantek.Model.Http;
 
 namespace Svantek.Api.UseCases;
 

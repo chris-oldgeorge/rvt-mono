@@ -3,9 +3,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using MyAtm.Api;
 using MyAtm.Api.Db;
+using MyAtm.Delivery;
 using MyAtm.Model.Config;
 using Rvt.Communication.Abstractions;
-using MyAtm.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 

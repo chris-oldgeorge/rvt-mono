@@ -7,13 +7,13 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Api.Ports;
 using MyAtm.Api.UseCases;
+using MyAtm.Delivery;
 using MyAtm.Model.Config;
 using Rvt.Communication;
 using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
 using Rvt.Communication.TransmitSms;
 using Rvt.Monitor.Common.Configuration;
-using MyAtm.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 

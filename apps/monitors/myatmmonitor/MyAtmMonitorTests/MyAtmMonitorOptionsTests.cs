@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
-using MyAtm.Model.Config;
 using MyAtm.Delivery;
+using MyAtm.Model.Config;
 
 namespace MyAtmMonitorTests;
 

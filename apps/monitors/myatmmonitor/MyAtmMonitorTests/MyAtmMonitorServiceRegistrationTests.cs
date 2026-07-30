@@ -5,8 +5,8 @@ using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Api.UseCases;
-using MyAtm.Model.Config;
 using MyAtm.Delivery;
+using MyAtm.Model.Config;
 using Rvt.Monitor.Common.Mqtt;
 
 namespace MyAtmMonitorTests;

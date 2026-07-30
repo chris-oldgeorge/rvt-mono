@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MyAtm.Api;
+using MyAtm.Model;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using MyAtm.Model.Json.Customer;

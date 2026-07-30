@@ -1,10 +1,56 @@
 using Rvt.Monitor.IntegrationTesting;
+using Svantek.Api.Ports;
 
 namespace SvantekMonitorTests.Architecture;
 
 [TestClass]
 public sealed class SvantekDependencyBoundaryTests
 {
+    private const string _monitorDirectory = "apps/monitors/svantekmonitor/SvantekMonitor";
+
+    /// <summary>
+    /// <c>SvantekApi</c> is the historical facade and still constructs the
+    /// vendor gateway itself; the composition root registers the transport,
+    /// database client, and durable alert stack. Both are listed so the guards
+    /// pass today while keeping every other file honest.
+    /// </summary>
+    private static readonly MonitorBoundaryContractDefinition _definition = new()
+    {
+        MonitorDirectory = _monitorDirectory,
+        ApiNamespaceRoot = "Svantek.Api",
+        VendorGatewayPort = typeof(ISvantekVendorGateway),
+        TransportMarkers =
+        [
+            "Svantek.Api.Http",
+            "SvantekHttpGateway",
+            "HttpWebClient",
+            "IHttpClient",
+            "HttpClient"
+        ],
+        PersistenceMarkers =
+        [
+            "SvantekMonitorContext",
+            "Npgsql",
+            "Microsoft.EntityFrameworkCore"
+        ],
+        PersistenceAllowlist = [_monitorDirectory + "/api/SvantekMonitorServices.cs"],
+        AdapterConstructionMarkers =
+        [
+            "new SvantekHttpGateway",
+            "new HttpWebClient",
+            "new DBClient"
+        ],
+        AdapterConstructionAllowlist =
+        [
+            _monitorDirectory + "/api/SvantekApi.cs",
+            _monitorDirectory + "/api/SvantekMonitorServices.cs"
+        ],
+        // The frozen M7 baseline: NoiseMonitorReadDto still static-imports the
+        // api facade for JAN1_1970. Retargeting it to DateTimeUtil (P3) should
+        // remove this entry; no file may join it.
+        ModelApiImportAllowlist = [_monitorDirectory + "/model/dto/NoiseMonitorReadDto.cs"]
+    };
+
     [TestMethod]
     public void ApiPartials_DoNotCallConcreteDatabaseClientFieldDirectly()
     {
@@ -33,4 +79,27 @@ public sealed class SvantekDependencyBoundaryTests
         CollectionAssert.AreEqual(Array.Empty<string>(), directCalls);
     }
 
+    [TestMethod]
+    public void UseCases_DependOnTheVendorPortRatherThanTheHttpAdapter() =>
+        MonitorDependencyBoundaryContract.VerifyUseCasesDependOnTheVendorPortRatherThanTheTransport(_definition);
+
+    [TestMethod]
+    public void ApplicationCodeOutsideTheDataAdapter_DoesNotReferenceEfCoreOrNpgsql() =>
+        MonitorDependencyBoundaryContract.VerifyPersistenceDetailStaysInsideTheDataAdapter(_definition);
+
+    [TestMethod]
+    public void ProductionCode_DoesNotBlockOnAsynchronousCalls() =>
+        MonitorDependencyBoundaryContract.VerifyProductionCodeDoesNotBlockOnAsynchronousCalls(_definition);
+
+    [TestMethod]
+    public void EveryVendorPortMethodIsAsynchronousAndCancellable() =>
+        MonitorDependencyBoundaryContract.VerifyEveryVendorPortMethodIsAsynchronousAndCancellable(_definition);
+
+    [TestMethod]
+    public void ConcreteAdapterConstruction_IsConfinedToTheCompositionAllowlist() =>
+        MonitorDependencyBoundaryContract.VerifyConcreteAdapterConstructionIsConfinedToTheCompositionAllowlist(_definition);
+
+    [TestMethod]
+    public void ModelLayer_DoesNotImportTheApiLayer() =>
+        MonitorDependencyBoundaryContract.VerifyTheModelLayerDoesNotImportTheApiLayer(_definition);
 }

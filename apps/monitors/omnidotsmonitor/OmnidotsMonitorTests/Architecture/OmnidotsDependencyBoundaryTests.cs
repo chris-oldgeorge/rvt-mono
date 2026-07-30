@@ -1,59 +1,58 @@
-using AirQ.Api.Ports;
+using Omnidots.Api.Ports;
 using Rvt.Monitor.IntegrationTesting;
 
-namespace AirQMonitorTests.Architecture;
+namespace OmnidotsMonitorTests.Architecture;
 
-/// <summary>
-/// AirQ was the only monitor without architecture guards, so the boundaries the
-/// July port extraction established were held by convention alone. These tests
-/// pin them via the shared <see cref="MonitorDependencyBoundaryContract"/>:
-/// the use cases talk to <see cref="IAirQVendorGateway"/> rather than the
-/// vendor transport, persistence detail stays inside <c>api/db</c>, the import
-/// chain stays asynchronous end to end, and the model layer never imports api.
-/// </summary>
+// Summary: Asserts this host honors the shared monitor dependency-boundary contract.
+// Major updates:
+// - 2026-07-30 guard pack (G3/G4): first Omnidots dependency guards, instantiated
+//   from MonitorDependencyBoundaryContract; only the definition is host-specific.
 [TestClass]
-public sealed class AirQDependencyBoundaryTests
+public sealed class OmnidotsDependencyBoundaryTests
 {
-    private const string _monitorDirectory = "apps/monitors/airqmonitor/AirQMonitor";
+    private const string _monitorDirectory = "apps/monitors/omnidotsmonitor/OmnidotsMonitor";
 
     /// <summary>
-    /// <c>AirQApi</c> is the historical facade and still constructs the adapter
-    /// itself. It is listed here so the guard passes today while keeping every
-    /// other file honest; the correct end state is composition-root only.
+    /// <c>OmnidotsApi</c> is the historical facade and still constructs the
+    /// vendor gateway itself; the composition root registers the transport,
+    /// database client, and durable alert stack. Both are listed so the guards
+    /// pass today while keeping every other file honest.
     /// </summary>
     private static readonly MonitorBoundaryContractDefinition _definition = new()
     {
         MonitorDirectory = _monitorDirectory,
-        ApiNamespaceRoot = "AirQ.Api",
-        VendorGatewayPort = typeof(IAirQVendorGateway),
+        ApiNamespaceRoot = "Omnidots.Api",
+        VendorGatewayPort = typeof(IOmnidotsVendorGateway),
         TransportMarkers =
         [
-            "AirQ.Api.Http",
-            "AirQHttpGateway",
+            "Omnidots.Api.Http",
+            "OmnidotsHttpGateway",
             "HttpWebClient",
             "IHttpClient",
             "HttpClient"
         ],
         PersistenceMarkers =
         [
-            "AirQMonitorContext",
+            "OmnidotsMonitorContext",
             "Npgsql",
             "Microsoft.EntityFrameworkCore"
         ],
-        // The composition root names the concrete context factory to register
-        // the durable alert stack, matching the other monitors' service roots.
-        PersistenceAllowlist = [_monitorDirectory + "/api/AirQMonitorServices.cs"],
+        PersistenceAllowlist = [_monitorDirectory + "/api/OmnidotsMonitorServices.cs"],
         AdapterConstructionMarkers =
         [
-            "new AirQHttpGateway",
+            "new OmnidotsHttpGateway",
             "new HttpWebClient",
             "new DBClient"
         ],
         AdapterConstructionAllowlist =
         [
-            _monitorDirectory + "/api/AirQApi.cs",
-            _monitorDirectory + "/api/AirQMonitorServices.cs"
-        ]
+            _monitorDirectory + "/api/OmnidotsApi.cs",
+            _monitorDirectory + "/api/OmnidotsMonitorServices.cs"
+        ],
+        // The frozen M7 baseline: VibrationMonitorDto still static-imports the
+        // api facade for JAN1_1970. Retargeting it to DateTimeUtil (P3) should
+        // remove this entry; no file may join it.
+        ModelApiImportAllowlist = [_monitorDirectory + "/model/dto/VibrationMonitorDto.cs"]
     };
 
     [TestMethod]

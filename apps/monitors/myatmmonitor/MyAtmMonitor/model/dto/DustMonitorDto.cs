@@ -1,5 +1,4 @@
 
-using MyAtm.Api;
 using Rvt.Monitor.Common.Diagnostics;
 
 namespace MyAtm.Model.Dto

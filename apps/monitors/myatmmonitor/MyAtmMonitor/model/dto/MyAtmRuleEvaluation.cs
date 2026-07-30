@@ -1,4 +1,3 @@
-using MyAtm.Api;
 using Rvt.Monitor.Common.Notifications;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 

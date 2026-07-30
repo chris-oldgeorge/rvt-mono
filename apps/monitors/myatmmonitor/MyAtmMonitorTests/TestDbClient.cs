@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.Rules;
+using MyAtm.Model;
 using MyAtm.Model.Config;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;

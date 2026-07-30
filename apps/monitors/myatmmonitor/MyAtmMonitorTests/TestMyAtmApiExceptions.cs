@@ -8,6 +8,7 @@ using Moq;
 using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.Http;
+using MyAtm.Model;
 using MyAtm.Model.Json;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Diagnostics;

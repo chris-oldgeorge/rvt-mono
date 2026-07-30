@@ -152,13 +152,51 @@ unifiable). The durable-alerts doc's claim that claim/lease fencing is
 
 **P2 — next slices**
 4. Battery latch-before-signal in Svantek + Omnidots (B4); Svantek failure-collector cancellation semantics + AirQ site-averages guard (B5, B6); Svantek 0.0 dB parsing (B7).
+   **Done 2026-07-30, PR #47: both battery handlers signal the durable ingress
+   before latching (Omnidots gains per-monitor failure isolation); the Svantek
+   collector and AirQ's inline catch adopt MyAtm's cancellation semantics; AirQ
+   site averages skip sites without hours; malformed Svantek readings persist
+   as DBNull and parse invariant.**
 5. Unknown-serial ingestion outcome (B8).
+   **Done 2026-07-30, PR #47: `EfAlertCommitStore` uses `SingleOrDefaultAsync`
+   and maps a missing serial to a distinct `AlertUnknownMonitorException`.**
 6. Dead sync-alerting DB surface ×~40 across monitors (L1) — also shrinks the four TestDbClients.
+   **Done 2026-07-30, PR #48: the members, interface declarations, both DTOs,
+   and their dead-only tests are deleted across the four monitors; the live
+   MyAtm outbox claim/complete/retry/dead-letter surface was kept as specified.**
 7. Dissolve RVT.BusinessLogic into RvtPortal.Application; unify paging/result types (M1); move MyAtm's Delivery/* out of Common + fix the outbox mapping leak (M2, M3).
+   **Done 2026-07-30: M1 in PR #50 (ports/paging/time merged into
+   RvtPortal.Application, one paging vocabulary, project deleted); M2 + M3 in
+   PR #51 (the ten MyAtm outbox files and `RuleNotificationRequest` moved into
+   MyAtm api/Delivery with namespaces preserved, `monitor_delivery_outbox`
+   mapped only in `MyAtmMonitorContext`; the two shared policy files stay in
+   Common).**
 8. Seven client-dead portal endpoints — adopt-or-delete (L2); dead message chain + sync PublishAlert in Common (L3, L4).
+   **Partially done 2026-07-30: the five unambiguous endpoints are deleted in
+   PR #50; the two paged `sites/{id}` endpoints still await the adopt-or-delete
+   ruling and remain open. L3 + L4 landed in PR #48 (GetMessage chain deleted,
+   `PublishAlertAsync` is the abstract member).**
 9. Portal cancellation threading (B9) + unattached N+1 (B10).
+   **Done 2026-07-30, PR #50: the deployment-data read path takes a
+   CancellationToken end to end, and the unattached-monitors page batches its
+   removal-impact reads.**
 10. Frontend still-open P0 pair + PortalShell refetch (B11).
+    **Done 2026-07-30, PR #49: formatters return malformed input instead of
+    throwing in render, `ConfirmDialog` is the one confirmation idiom, the
+    shell health/profile fetch runs once per mount with an AbortSignal, and
+    the frontend B12 one-liners (sort default, dashboard refetch,
+    forgot-password email out of the query string) rode along.**
 11. Guard pack: G2 + G3 + G4 + G5 (one afternoon, converts convention to enforcement).
+    **Done 2026-07-30, guard pack PR: G2 — `CommonPackageBoundaryTests` rejects
+    any monitor→monitor ProjectReference. G3 — AirQ's five guards generalized
+    into `MonitorDependencyBoundaryContract` in `Rvt.Monitor.IntegrationTesting`
+    and instantiated by all four vendor monitors (per-monitor allowlists pin
+    today's known exceptions). G4 — `Period` moved from MyAtm api/ to model/
+    (`MyAtm.Model`), clearing the four dto imports, and the contract's
+    model-must-not-import-api scan freezes the remaining M7 baseline (one file
+    each in Svantek/Omnidots). G5 — the portal `Adapters/` Api-import surface is
+    pinned to the two known reporting files in
+    `ApplicationBoundaryArchitectureTests`.**
 
 **P3 — batched cleanups**
 12. L5–L10 deletions; M4–M10 renames/moves/splits; B12 one-liners; G6–G8; solution/config hygiene.

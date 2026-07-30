@@ -1,3 +1,4 @@
+using MyAtm.Model;
 using Rvt.Monitor.Common.Rules;
 
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;

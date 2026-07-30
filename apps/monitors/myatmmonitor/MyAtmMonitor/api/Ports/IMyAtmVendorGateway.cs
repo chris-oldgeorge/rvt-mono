@@ -1,6 +1,7 @@
 // The namespace follows this project's established scheme rather than the
 // folder path; IDE0130 would require a name no sibling file uses.
 #pragma warning disable IDE0130
+using MyAtm.Model;
 using MyAtm.Model.Json;
 using MyAtm.Model.Json.DeviceInfo;
 

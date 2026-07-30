@@ -55,27 +55,52 @@ public sealed class VendorHttpResponse : IDisposable
             throw AdapterException.Of($"HTTP response exceeded the configured {maxResponseBytes}-byte limit.");
         }
 
-        await using Stream source = await _response.Content.ReadAsStreamAsync(cancellationToken);
-        using MemoryStream destination = new();
-        byte[] buffer = new byte[Math.Min(81920, maxResponseBytes)];
-        while (true)
-        {
-            int read = await source.ReadAsync(buffer, cancellationToken);
-            if (read == 0)
-            {
-                break;
-            }
-
-            if (destination.Length + read > maxResponseBytes)
-            {
-                throw AdapterException.Of($"HTTP response exceeded the configured {maxResponseBytes}-byte limit.");
-            }
-
-            await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
-        }
-
+        using BoundedMemoryStream destination = new(maxResponseBytes);
+        await _response.Content.CopyToAsync(destination, cancellationToken);
         return destination.ToArray();
     }
 
     public void Dispose() => _response.Dispose();
+
+    private sealed class BoundedMemoryStream(int maxResponseBytes) : MemoryStream
+    {
+        public override void Write(byte[] buffer, int offset, int count)
+        {
+            EnsureWithinLimit(count);
+            base.Write(buffer, offset, count);
+        }
+
+        public override void Write(ReadOnlySpan<byte> buffer)
+        {
+            EnsureWithinLimit(buffer.Length);
+            base.Write(buffer);
+        }
+
+        public override Task WriteAsync(
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken cancellationToken)
+        {
+            EnsureWithinLimit(count);
+            return base.WriteAsync(buffer, offset, count, cancellationToken);
+        }
+
+        public override ValueTask WriteAsync(
+            ReadOnlyMemory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            EnsureWithinLimit(buffer.Length);
+            return base.WriteAsync(buffer, cancellationToken);
+        }
+
+        private void EnsureWithinLimit(int writeBytes)
+        {
+            if (Length + writeBytes > maxResponseBytes)
+            {
+                throw AdapterException.Of(
+                    $"HTTP response exceeded the configured {maxResponseBytes}-byte limit.");
+            }
+        }
+    }
 }

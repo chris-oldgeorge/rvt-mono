@@ -8,7 +8,55 @@ used to be (40+ dated sections) is archived at
 Add new detail here by *replacing* stale statements, not appending; move
 superseded narratives to the archive.
 
-## Current state — 2026-07-29
+## Current state — 2026-07-30
+
+### Full code-review checkpoint
+
+- Reviewed committed `main` at
+  `923184fba21d84e20ec5e8559c8ef606efec4637`; it matches `origin/main`.
+- The bounded-response remediation and its regression tests are complete in
+  the current checkpoint.
+- Current top-level structure:
+  - `apps/monitors`: AirQ, MyAtm, Omnidots, Reporting, Svantek and shared
+    monitor-host applications.
+  - `apps/portal`: Portal application, API host, React client, storage and
+    integration-test projects.
+  - `libs`: shared communication, integration-testing and monitor-common
+    libraries.
+  - `eng`, `scripts`, and `tests`: build configuration, repository guards,
+    release tooling and shell contract tests.
+  - `docs`: architecture, operations, development, history, plans and reviews.
+- Full verification passed: locked restore; Release build with zero warnings
+  and errors; 2,374/2,374 .NET tests with no skips; 163/163 Portal unit tests;
+  six Portal Chromium end-to-end tests; Portal production build; all root
+  guards, all `tests/*.test.sh` contracts and the complete engineering
+  standards inventory. Portal lint has zero errors and one existing
+  React Fast Refresh warning in `DataViewPanels.tsx`.
+- The security review covered all 1,548 tracked files. Its four
+  bounded-response findings are remediated in the current worktree: AirQ,
+  Omnidots and Svantek JSON responses are capped at 4 MiB; Svantek recordings
+  are capped at 64 MiB; and Reporting logos retain their 2 MiB contract but
+  now enforce it during streaming. Declared oversized bodies are rejected
+  before reading, chunked bodies stop at the boundary, and caller
+  cancellation remains effective. No critical or high severity security
+  issue was found.
+- Highest-priority correctness findings are two Svantek UTC defects:
+  `StoreMonitorsHandler` assigns `DateTime.Now` to a PostgreSQL
+  `timestamp with time zone`, and the latest-notification query binds a
+  `DateTime.Now` cutoff to the same type. Npgsql rejects local-kind
+  `DateTime` values in both paths.
+- Other open review findings: the shared Portal date formatter throws for
+  malformed non-empty timestamps; malformed site-list sort directions fall
+  back to ascending instead of the intended descending order; the generated
+  Portal OpenAPI contract is stale enough that Help DTOs are maintained as
+  local schema-gap types; and a component module exports a date helper despite
+  an existing dedicated date module.
+- Review-time database variables were runtime-only:
+  `RVT_TEST_POSTGRES_CONNECTION` and
+  `RVT__POSTGRES_INTEGRATION_CONNECTION`, both pointed at the disposable local
+  PostgreSQL instance on port `55432`. No production credential was used or
+  persisted. The verified toolchain is .NET SDK `10.0.302` and Node
+  `24.18.0`.
 
 ### Reviewable full-monorepo client release
 
@@ -177,13 +225,12 @@ superseded narratives to the archive.
   [docs/database/portal/ef-migrations.md](docs/database/portal/ef-migrations.md).
   The example is a non-secret local test credential; never substitute a
   production connection.
-- Verification on the merged PR tree passed with the disposable database
-  prepared: the full solution reported 2,379/2,379, including AirQ 140/140,
-  Omnidots 403/403, and Portal 560/560, with no skips. The five root repository
-  guards, all `tests/*.test.sh` contract scripts, and
-  `scripts/verify-engineering-standards.sh --working-tree` also passed. One
-  engineering-standards contract scenario needed an isolated retry after its
-  0.4-second process-ownership timing check flaked; the retry passed.
+- Verification on current `main` passed with the disposable database prepared:
+  the bounded-response state reports 2,374/2,374 with no skips and a
+  zero-warning Release build. The changed-surface engineering-standards check
+  passes. The preceding full-review checkpoint also passed the five root
+  repository guards, all `tests/*.test.sh` contract scripts, and
+  `scripts/verify-engineering-standards.sh --all`.
 - Repository guards run from the root: `verify-postgresql-only.sh .`,
   `verify-mono-layout.sh`, `verify-mono-solution.sh`,
   `verify-rvt-common-source-boundary.sh`, `verify-documentation-layout.sh`.
@@ -198,9 +245,10 @@ superseded narratives to the archive.
 
 ## Standing working-tree notes
 
-- Preserve the pre-existing untracked `.codex/`, root `AGENTS.md`, and
-  `docs/superpowers/plans/2026-07-28-sonar-security-remediation.md`; they are
-  not part of this branch.
+- The bounded-response remediation affects the AirQ, Omnidots and Svantek
+  vendor HTTP clients, the shared bounded-response reader, the Reporting
+  customer-logo client, and four focused regression test files. It introduces
+  no new environment variables.
 - `main` carries the Windows/Parallels SPA proxy repair:
   `RvtPortal.Spa.csproj` launches
   `RvtPortal.Client/scripts/start-vite-for-visual-studio.mjs`, and

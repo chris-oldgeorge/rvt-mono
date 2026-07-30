@@ -15,9 +15,6 @@ namespace RvtPortal.Spa.Application.Monitors;
 public sealed record UpdateMonitorCommand(Guid MonitorId, MonitorMutationRequest Request)
     : IRequest<MonitorMutationCommandResult>, ITransactionalRequest;
 
-public sealed record SetMonitorFleetNumberCommand(Guid MonitorId, string FleetNumber)
-    : IRequest<MonitorMutationCommandResult>, ITransactionalRequest;
-
 public sealed record CreateDefaultMonitorAlertLevelsCommand()
     : IRequest<DefaultMonitorsResponse>, ITransactionalRequest;
 
@@ -93,49 +90,6 @@ public sealed class UpdateMonitorCommandHandler : IRequestHandler<UpdateMonitorC
     }
 
     private static string? EmptyToNull(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-}
-
-public sealed class SetMonitorFleetNumberCommandHandler
-    : IRequestHandler<SetMonitorFleetNumberCommand, MonitorMutationCommandResult>
-{
-    private readonly RVTDbContext domainContext;
-
-    // Function summary: Initializes the transactional monitor fleet-number command handler.
-    public SetMonitorFleetNumberCommandHandler(RVTDbContext domainContext)
-    {
-        this.domainContext = domainContext;
-    }
-
-    // Function summary: Sets a monitor fleet number and creates default alert levels when needed.
-    public async Task<MonitorMutationCommandResult> Handle(SetMonitorFleetNumberCommand request, CancellationToken cancellationToken)
-    {
-        MonitorMutationCommandResult result = new() { MonitorId = request.MonitorId };
-        MonitorEntity? monitor = await domainContext.MonitorsList.SingleOrDefaultAsync(
-            item => item.Id == request.MonitorId && !item.Archived,
-            cancellationToken);
-        if (monitor == null)
-        {
-            result.NotFound = true;
-            result.MissingId = request.MonitorId;
-            return result;
-        }
-
-        MonitorMutationRequest mutation = new() { FleetNumber = request.FleetNumber };
-        await MonitorMutationWorkflow.ValidateMonitorMutationAsync(domainContext, request.MonitorId, mutation, result.Errors, cancellationToken);
-        if (result.Errors.Count > 0)
-        {
-            return result;
-        }
-
-        bool wasFirstFleetNumber = string.IsNullOrWhiteSpace(monitor.FleetNr);
-        monitor.FleetNr = request.FleetNumber.Trim();
-        if (wasFirstFleetNumber)
-        {
-            await MonitorMutationWorkflow.AddDefaultAlertLevelsAsync(domainContext, monitor, cancellationToken);
-        }
-
-        return result;
-    }
 }
 
 public sealed class CreateDefaultMonitorAlertLevelsCommandHandler

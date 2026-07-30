@@ -98,15 +98,6 @@ public class MonitorsController : ControllerBase
         return MonitorApiMapper.ToQueryResponse(result);
     }
 
-    [HttpGet("options")]
-    [ProducesResponseType(typeof(MonitorOptionsResponse), StatusCodes.Status200OK)]
-    // Function summary: Returns monitor form and filter options.
-    public async Task<ActionResult<MonitorOptionsResponse>> Options()
-    {
-        MonitorOptionsModel options = await _monitorReads.OptionsAsync(await CreateActorAsync(), HttpContext.RequestAborted);
-        return MonitorApiMapper.ToOptionsResponse(options);
-    }
-
     [HttpGet("assignment")]
     [Authorize(Roles = RoleAuthorization.AdminRoles)]
     [ProducesResponseType(typeof(MonitorAssignmentContextResponse), StatusCodes.Status200OK)]
@@ -143,21 +134,6 @@ public class MonitorsController : ControllerBase
         if (detail == null)
         {
             return MonitorNotFound(id);
-        }
-
-        return new EntityResponse<MonitorDetailResponse> { Item = detail };
-    }
-
-    [HttpGet("deployments/{deploymentId:guid}")]
-    [ProducesResponseType(typeof(EntityResponse<MonitorDetailResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    // Function summary: Retrieves authorized deployment detail through the monitor workflow service.
-    public async Task<ActionResult<EntityResponse<MonitorDetailResponse>>> GetDeployment(Guid deploymentId)
-    {
-        MonitorDetailResponse? detail = await _monitorWorkflows.GetDeploymentDetailAsync(deploymentId, User, HttpContext.RequestAborted);
-        if (detail == null)
-        {
-            return MonitorNotFound(deploymentId);
         }
 
         return new EntityResponse<MonitorDetailResponse> { Item = detail };
@@ -201,18 +177,6 @@ public class MonitorsController : ControllerBase
         }
 
         return File(picture.Stream, picture.ContentType, picture.FileName);
-    }
-
-    [HttpPut("{id:guid}/fleet-number")]
-    [Authorize(Roles = RoleAuthorization.AdminRoles)]
-    [ProducesResponseType(typeof(EntityResponse<MonitorDetailResponse>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    // Function summary: Sets a monitor fleet number through the monitor workflow service.
-    public async Task<ActionResult<EntityResponse<MonitorDetailResponse>>> SetFleetNumber(Guid id, FleetNumberMutationRequest request)
-    {
-        MonitorDetailWorkflowResult result = await _monitorWorkflows.SetFleetNumberAsync(id, request.FleetNumber, User, HttpContext.RequestAborted);
-        return MonitorDetailResult(id, result);
     }
 
     [HttpPost("{id:guid}/contract-assignment")]
@@ -273,17 +237,6 @@ public class MonitorsController : ControllerBase
             page,
             pageSize), await CreateActorAsync(), HttpContext.RequestAborted);
         return MonitorApiMapper.ToUnattachedQueryResponse(result);
-    }
-
-    [HttpGet("{id:guid}/removal-impact")]
-    [Authorize(Roles = RoleAuthorization.AdminRoles)]
-    [ProducesResponseType(typeof(MonitorRemovalImpactResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    // Function summary: Retrieves related data counts used before removing an unattached monitor.
-    public async Task<ActionResult<MonitorRemovalImpactResponse>> GetRemovalImpact(Guid id)
-    {
-        MonitorRemovalImpactResponse? impact = await _monitorReads.GetRemovalImpactAsync(id, HttpContext.RequestAborted);
-        return impact == null ? MonitorNotFound(id) : impact;
     }
 
     [HttpDelete("{id:guid}/unattached")]

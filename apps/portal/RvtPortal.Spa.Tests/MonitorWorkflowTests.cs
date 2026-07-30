@@ -102,11 +102,11 @@ public class MonitorWorkflowTests
         const string editedFleetNumber = "MON-ONLINE-EDIT";
 
         // Reusing an existing monitor's fleet number is rejected as a duplicate.
-        HttpResponseMessage duplicate = await client.PutAsJsonAsync($"/api/monitors/{ids.NewMonitorId}/fleet-number", new FleetNumberMutationRequest
+        HttpResponseMessage duplicate = await client.PutAsJsonAsync($"/api/monitors/{ids.NewMonitorId}", new MonitorMutationRequest
         {
             FleetNumber = OnlineFleetNumber
         });
-        HttpResponseMessage assignFleet = await client.PutAsJsonAsync($"/api/monitors/{ids.NewMonitorId}/fleet-number", new FleetNumberMutationRequest
+        HttpResponseMessage assignFleet = await client.PutAsJsonAsync($"/api/monitors/{ids.NewMonitorId}", new MonitorMutationRequest
         {
             FleetNumber = newFleetNumber
         });
@@ -484,72 +484,6 @@ public class MonitorWorkflowTests
         Assert.Equal(HttpStatusCode.OK, ownPicture.StatusCode);
         Assert.Equal("image/png", ownPicture.Content.Headers.ContentType?.MediaType);
         Assert.Equal(HttpStatusCode.NotFound, otherPicture.StatusCode);
-    }
-
-    [Fact]
-    // Function summary: Verifies monitor option metadata is restricted to each non-admin actor's authorized tenant graph.
-    public async Task MonitorOptions_AreScopedToInstallerCompanyAndCompanyUserSites()
-    {
-        using SpaTestApplicationFactory factory = new();
-        MonitorWorkflowIds ids = await SeedMonitorScenarioAsync(factory);
-        ApplicationUser companyUser = await factory.SeedUserAsync(CompanyUserEmail, Password, RoleNames.CompanyUser, companyId: ids.CompanyId);
-        await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller, companyId: ids.CompanyId);
-        await factory.SeedDomainEntitiesAsync(TestData.SiteUser(
-            siteId: ids.SiteId,
-            userId: Guid.Parse(companyUser.Id),
-            startDate: DateTime.UtcNow.AddDays(-1)));
-
-        HttpClient installerClient = CreateClient(factory);
-        await LoginAsync(installerClient, InstallerEmail, Password);
-        MonitorOptionsResponse? installerOptions = await installerClient.GetFromJsonAsync<MonitorOptionsResponse>("/api/monitors/options");
-
-        HttpClient companyClient = CreateClient(factory);
-        await LoginAsync(companyClient, CompanyUserEmail, Password);
-        MonitorOptionsResponse? companyOptions = await companyClient.GetFromJsonAsync<MonitorOptionsResponse>("/api/monitors/options");
-
-        Assert.Equal(ids.ContractId.ToString(), Assert.Single(installerOptions!.Contracts).Value);
-        Assert.Equal(ids.SiteId.ToString(), Assert.Single(installerOptions.Sites).Value);
-        Assert.Equal(ids.ContractId.ToString(), Assert.Single(companyOptions!.Contracts).Value);
-        Assert.Equal(ids.SiteId.ToString(), Assert.Single(companyOptions.Sites).Value);
-    }
-
-    [Fact]
-    // Function summary: Verifies an installer sees only its own company's contract when multiple companies share a site.
-    public async Task InstallerMonitorOptions_DoNotLeakAnotherCompanyContractOnVisibleSite()
-    {
-        using SpaTestApplicationFactory factory = new();
-        Guid installerCompanyId = Guid.NewGuid();
-        Guid otherCompanyId = Guid.NewGuid();
-        Guid sharedSiteId = Guid.NewGuid();
-        Guid installerContractId = Guid.NewGuid();
-        await factory.SeedUserAsync(InstallerEmail, Password, RoleNames.RVTInstaller, companyId: installerCompanyId);
-        await factory.SeedDomainEntitiesAsync(
-            new Company { Id = installerCompanyId, CompanyName = "Installer Company", Contracts = [] },
-            new Company { Id = otherCompanyId, CompanyName = "Other Shared-Site Company", Contracts = [] },
-            new Site { Id = sharedSiteId, SiteName = "Shared Contract Site", CreateDate = DateTime.UtcNow.AddDays(-10), Contracts = [] },
-            new Contract
-            {
-                Id = installerContractId,
-                ContractNumber = "INSTALLER-OWN",
-                CompanyId = installerCompanyId,
-                SiteiD = sharedSiteId,
-                OnHireDate = DateTime.UtcNow.Date
-            },
-            new Contract
-            {
-                Id = Guid.NewGuid(),
-                ContractNumber = "OTHER-LEAK",
-                CompanyId = otherCompanyId,
-                SiteiD = sharedSiteId,
-                OnHireDate = DateTime.UtcNow.Date
-            });
-
-        HttpClient client = CreateClient(factory);
-        await LoginAsync(client, InstallerEmail, Password);
-        MonitorOptionsResponse? options = await client.GetFromJsonAsync<MonitorOptionsResponse>("/api/monitors/options");
-
-        Assert.Equal(installerContractId.ToString(), Assert.Single(options!.Contracts).Value);
-        Assert.Equal(sharedSiteId.ToString(), Assert.Single(options.Sites).Value);
     }
 
     [Fact]

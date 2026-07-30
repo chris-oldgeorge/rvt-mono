@@ -45,27 +45,7 @@ public class ReportsController : ControllerBase
             : result.Response!;
     }
 
-    [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(EntityResponse<ReportListItem>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    // Function summary: Retrieves report detail by id.
-    public async Task<ActionResult<EntityResponse<ReportListItem>>> Get(Guid id)
-    {
-        ReportListItem? report = await reports.GetAsync(id, HttpContext.RequestAborted);
-        return report == null ? ReportNotFound(id) : new EntityResponse<ReportListItem> { Item = report };
-    }
-
     // Function summary: Builds the invalid-sort problem response while preserving the existing report API contract.
     private BadRequestObjectResult InvalidSort(string requestedSort, IEnumerable<string> allowedSortFields) =>
         ApiProblems.InvalidSort(HttpContext, requestedSort, allowedSortFields, "reports");
-
-    // Function summary: Builds the report not-found response.
-    private NotFoundObjectResult ReportNotFound(Guid id)
-    {
-        return NotFound(ApiProblems.Create(
-            HttpContext,
-            StatusCodes.Status404NotFound,
-            "Report not found",
-            $"Report '{id}' was not found."));
-    }
 }

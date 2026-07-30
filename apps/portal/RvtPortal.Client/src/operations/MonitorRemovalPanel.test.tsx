@@ -26,7 +26,7 @@ function unattachedMonitor(): UnattachedMonitorListItem {
     serialId: 'SER-001',
     typeOfMonitor: 'Noise',
     model: 'Model A',
-    siteName: null,
+    siteName: '',
     hasRelatedData: true,
     willArchiveOnRemoval: true,
     impact: {
@@ -37,7 +37,7 @@ function unattachedMonitor(): UnattachedMonitorListItem {
       measurementRowCount: 12,
       hasRelatedData: true,
     },
-  };
+  } as UnattachedMonitorListItem;
 }
 
 // Function summary: Builds the paged unattached-monitor response for the removal grid.

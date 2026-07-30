@@ -187,7 +187,7 @@ export function ConfirmDialog({
 type Focusable = Readonly<{ focus: () => void; isConnected: boolean }>;
 
 // Function summary: Lists the tabbable controls inside the confirmation dialog in document order.
-function focusableElements(dialog: HTMLDialogElement | null): Focusable[] {
+function focusableElements(dialog: HTMLDialogElement | null): HTMLElement[] {
   if (!dialog) {
     return [];
   }

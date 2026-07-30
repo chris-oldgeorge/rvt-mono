@@ -218,8 +218,14 @@ public sealed class StoreNoiseLevelsHandler
         DateTime watermark = lastDataTime.Value > utcNow
             ? DateTime.SpecifyKind(utcNow, lastDataTime.Value.Kind)
             : lastDataTime.Value;
-        DateTime start = monitor.PeriodStartDate;
         DateTime end = watermark;
+        // The vendor request is capped at MaximumInitialBackfill but the
+        // rule-evaluation and averaging start was not: a monitor deployed a year
+        // ago whose first sample arrives today drove roughly 35,000 single-window
+        // aggregate queries for one 15-minute rule, inside the per-project loop
+        // that blocks the rest of the fleet. Clamp it the same way.
+        DateTime periodStart = ClampToInitialBackfill(monitor.PeriodStartDate, end);
+        DateTime start = periodStart;
         int startHour = (start.Hour / 8) * 8;
         start = new DateTime(start.Year, start.Month, start.Day, startHour, 0, 0, start.Kind);
         if (start == firstDataTime.Value)
@@ -249,7 +255,13 @@ public sealed class StoreNoiseLevelsHandler
 
         cancellationToken.ThrowIfCancellationRequested();
         List<RvtAlertRuleDto> rules = _ruleQueries.ReadRules(monitor.SerialId);
-        await _ruleProcessor.ProcessRulesAsync(monitor, rules, monitor.PeriodStartDate, watermark, cancellationToken).ConfigureAwait(false);
+        await _ruleProcessor.ProcessRulesAsync(monitor, rules, periodStart, watermark, cancellationToken).ConfigureAwait(false);
+    }
+
+    private DateTime ClampToInitialBackfill(DateTime start, DateTime end)
+    {
+        DateTime earliest = end - _windowCalculator.MaximumInitialBackfill;
+        return start > earliest ? start : earliest;
     }
 
     private static DataTable CreateResultsTable()

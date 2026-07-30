@@ -2,10 +2,12 @@ using AirQ.Api.Db;
 using AirQ.Api.Db.EntityFramework;
 using AirQ.Api.Http;
 using AirQ.Api.UseCases;
+using AirQ.Model.Config;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Rvt.Communication;
 using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
@@ -38,6 +40,12 @@ public static class AirQMonitorServices
         AddEmailProvider(services, configuration);
         services.AddTransmitSms(configuration);
         services.TryAddSingleton<TimeProvider>(_ => TimeProvider.System);
+        services.AddSingleton<IValidateOptions<AirQImportOptions>, AirQImportOptionsValidator>();
+        services.AddOptions<AirQImportOptions>()
+            .BindConfiguration(AirQImportOptions.SectionName)
+            .ValidateOnStart();
+        services.AddSingleton(provider =>
+            provider.GetRequiredService<IOptions<AirQImportOptions>>().Value);
         services.AddSingleton<IMonitorDbContextFactory<AirQMonitorContext>>(
             _ => new AirQMonitorContextFactory(
                 RvtConfig.DB_CONNECTION_STRING,
@@ -61,7 +69,8 @@ public static class AirQMonitorServices
             provider.GetRequiredService<IAlertIngressPort>(),
             RvtConfig.TESTLOCAL,
             provider.GetRequiredService<IConfiguration>()["AirQ:TestLocal:SerialId"],
-            provider.GetRequiredService<TimeProvider>()));
+            provider.GetRequiredService<TimeProvider>(),
+            provider.GetRequiredService<AirQImportOptions>()));
         services.AddSingleton(provider =>
         {
             RvtLogger.CreateLogger(provider.GetRequiredService<ILoggerFactory>(), "AirQService");

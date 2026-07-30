@@ -17,6 +17,13 @@ public sealed class NoiseRequestWindowCalculator
         _options = options;
     }
 
+    /// <summary>
+    /// The cap the vendor request window is built against. Rule evaluation and
+    /// averaging have to honour the same cap, or a monitor deployed long ago
+    /// whose first sample arrives today walks every window in between.
+    /// </summary>
+    public TimeSpan MaximumInitialBackfill => _options.MaximumInitialBackfill;
+
     public IReadOnlyList<NoiseRequestWindow> Calculate(
         DateTime deploymentStart,
         DateTime? watermark,

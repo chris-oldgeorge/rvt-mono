@@ -12,10 +12,13 @@ superseded narratives to the archive.
 
 ### Full code-review checkpoint
 
-- Reviewed committed `main` at
-  `923184fba21d84e20ec5e8559c8ef606efec4637`; it matches `origin/main`.
-- The bounded-response remediation and its regression tests are complete in
-  the current checkpoint.
+- The full review covered committed `main` at
+  `923184fba21d84e20ec5e8559c8ef606efec4637`. The bounded-response merge
+  immediately preceding the Sonar remediation is
+  `f6c06a9c98245cda144f324870727ff40370e20a`
+  (`Merge bounded download limits`).
+- The bounded-response remediation and its regression tests are merged into
+  current `main`.
 - Current top-level structure:
   - `apps/monitors`: AirQ, MyAtm, Omnidots, Reporting, Svantek and shared
     monitor-host applications.
@@ -57,6 +60,30 @@ superseded narratives to the archive.
   PostgreSQL instance on port `55432`. No production credential was used or
   persisted. The verified toolchain is .NET SDK `10.0.302` and Node
   `24.18.0`.
+
+### Sonar security and reliability remediation
+
+- The Sonar remediation work was based on
+  `f6c06a9c98245cda144f324870727ff40370e20a`.
+- SonarCloud's latest `main` analysis is still the older
+  `7976b211b27bd28de8dff4546251304c833dcc96` snapshot. It reports two
+  `javascript:S4036` vulnerabilities and five reliability bugs; a new analysis
+  remains pending until the manual workflow runs against updated `main`.
+- The current tree remediates all seven findings: the Visual Studio Vite
+  launcher invokes `robocopy.exe` by an absolute Windows system path; Portal
+  problem responses observe `HttpContext.RequestAborted`; the Omnidots bounded
+  reader uses an intentional unbounded control loop while retaining its
+  64-KiB byte limit; repository path validation locates one invalid segment
+  without a single-iteration loop; and `MyAtmMeasurementPage<T>` is owned by
+  the `MyAtm.Api.Ports` namespace rather than the global namespace.
+- Regression coverage includes two Portal middleware cancellation tests and a
+  MyAtm namespace-ownership test. The red phase reproduced the missing
+  cancellation and global-namespace defects before production changes.
+- Fresh verification on this branch: locked restore passed; Release build
+  passed with zero warnings and errors; the full .NET solution passed
+  2,377/2,377 tests against the disposable PostgreSQL instance; Portal client
+  production build passed; and Portal lint has zero errors with the one
+  existing React Fast Refresh warning in `DataViewPanels.tsx`.
 
 ### Reviewable full-monorepo client release
 

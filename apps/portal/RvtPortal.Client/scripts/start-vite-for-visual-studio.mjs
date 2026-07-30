@@ -5,7 +5,7 @@
 import { createHash } from 'node:crypto';
 import console from 'node:console';
 import { copyFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import process from 'node:process';
 import { clearInterval, setInterval } from 'node:timers';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,7 @@ const packageLockPath = join(clientRoot, 'package-lock.json');
 const viteConfigPath = join(clientRoot, 'vite.config.ts');
 const cacheRoot = process.env.LOCALAPPDATA;
 const commandProcessor = process.env.ComSpec ?? 'cmd.exe';
+const systemRoot = process.env.SystemRoot;
 
 if (process.platform !== 'win32') {
   throw new Error('The Visual Studio SPA launcher is intended for Windows.');
@@ -24,6 +25,15 @@ if (process.platform !== 'win32') {
 
 if (!cacheRoot) {
   throw new Error('LOCALAPPDATA is not defined; the SPA dependency cache cannot be created.');
+}
+
+if (!systemRoot || !isAbsolute(systemRoot)) {
+  throw new Error('SystemRoot must identify the absolute Windows system directory.');
+}
+
+const robocopyPath = join(systemRoot, 'System32', 'robocopy.exe');
+if (!existsSync(robocopyPath)) {
+  throw new Error(`The Windows file-copy utility was not found at ${robocopyPath}.`);
 }
 
 const lockfileHash = createHash('sha256').update(readFileSync(packageLockPath)).digest('hex').slice(0, 16);
@@ -126,7 +136,7 @@ function assertSuccessfulMirror(result) {
 
 mkdirSync(dirname(workspaceRoot), { recursive: true });
 assertSuccessfulMirror(
-  spawnSync('robocopy.exe', robocopyArguments, {
+  spawnSync(robocopyPath, robocopyArguments, {
     stdio: 'inherit',
     windowsHide: true,
   }),
@@ -140,7 +150,7 @@ const mirrorInterval = setInterval(() => {
   }
 
   mirrorInProgress = true;
-  const mirror = spawn('robocopy.exe', robocopyArguments, {
+  const mirror = spawn(robocopyPath, robocopyArguments, {
     stdio: 'ignore',
     windowsHide: true,
   });

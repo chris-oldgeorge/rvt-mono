@@ -2,6 +2,7 @@ using System.Text.Json;
 using Moq;
 using MyAtm.Api;
 using MyAtm.Api.Http;
+using MyAtm.Api.Ports;
 using MyAtm.Model.Json;
 
 namespace MyAtmMonitorTests;
@@ -9,6 +10,12 @@ namespace MyAtmMonitorTests;
 [TestClass]
 public sealed class MyAtmHttpGatewayTests
 {
+    [TestMethod]
+    public void MeasurementPage_IsOwnedByPortsNamespace()
+    {
+        Assert.AreEqual("MyAtm.Api.Ports", typeof(MyAtmMeasurementPage<>).Namespace);
+    }
+
     [TestMethod]
     public async Task HttpGetDeviceMeasurementPageAsync_UnspecifiedDatabaseAndVendorTimes_PreserveTicksAsUtc()
     {

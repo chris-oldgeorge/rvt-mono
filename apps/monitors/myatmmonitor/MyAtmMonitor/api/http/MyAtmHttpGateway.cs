@@ -254,8 +254,3 @@ namespace MyAtm.Api.Http
         #endregion // ApiCalls
     }
 }
-
-public sealed record MyAtmMeasurementPage<T>(
-    IReadOnlyList<T> Measurements,
-    DateTime? NextCursor,
-    bool HasMore);

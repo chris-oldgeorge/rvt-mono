@@ -11,7 +11,7 @@ using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using static Omnidots.Api.OmnidotsApi;
-using AlertActivityTimeDto = Rvt.Monitor.Common.Notifications.AlertActivityTimeDto;
+using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 namespace OmnidotsAdapterTests
 {

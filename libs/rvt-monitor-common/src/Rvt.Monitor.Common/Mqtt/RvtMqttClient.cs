@@ -20,15 +20,6 @@ public class RvtMqttClient : IMqttClient, IDisposable
     private readonly SemaphoreSlim _connectLock = new(1, 1);
     private readonly MqttOptions _options;
 
-    /// <summary>
-    /// Preserves the historical environment-driven configuration for hosts
-    /// that have not yet supplied options explicitly.
-    /// </summary>
-    public RvtMqttClient()
-        : this(MqttOptions.FromRvtConfig())
-    {
-    }
-
     public RvtMqttClient(MqttOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);

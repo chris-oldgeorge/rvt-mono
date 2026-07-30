@@ -30,7 +30,7 @@ internal static class DeliveryFixture
         Guid? notificationId = null,
         Guid? leaseId = null) => new(
             Guid.Parse("33333333-3333-3333-3333-333333333333"),
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             notificationId ?? NotificationId,
             "notification:fixture-key",
             "delivery:fixture-key",

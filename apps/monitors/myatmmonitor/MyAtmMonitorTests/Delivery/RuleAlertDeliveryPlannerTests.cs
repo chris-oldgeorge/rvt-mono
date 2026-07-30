@@ -43,14 +43,14 @@ public sealed class RuleAlertDeliveryPlannerTests
         RuleAlertDeliveryPlan plan = planner.Plan(
             request,
             contacts,
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey,
             _createdAt);
         RuleAlertDeliveryPlan replay = planner.Plan(
             request,
             contacts,
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey,
             _createdAt);
@@ -93,7 +93,7 @@ public sealed class RuleAlertDeliveryPlannerTests
             plan.Deliveries.Select(delivery => delivery.Id).ToArray());
 
         Assert.HasCount(1, plan.Deliveries.Where(delivery => delivery.Kind == MonitorDeliveryKind.MqttAlert));
-        Assert.IsTrue(plan.Deliveries.All(delivery => delivery.Producer == MonitorDeliveryProducers.Svantek));
+        Assert.IsTrue(plan.Deliveries.All(delivery => delivery.Producer == MonitorDeliveryProducers.MyAtm));
         Assert.IsTrue(plan.Deliveries.All(delivery => delivery.NotificationId == expectedNotificationId));
         Assert.IsTrue(plan.Deliveries.All(delivery => delivery.CorrelationKey == correlationKey));
         Assert.IsTrue(plan.Deliveries.All(delivery => delivery.PayloadVersion == 1));
@@ -151,7 +151,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             contacts,
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: "svantek:duplicate-email",
             _createdAt);
@@ -178,7 +178,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             contacts,
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: "svantek:duplicate-sms",
             _createdAt);
@@ -211,7 +211,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         Assert.ThrowsExactly<ArgumentException>(() => new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             [],
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey,
             _createdAt));
@@ -227,7 +227,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         Assert.ThrowsExactly<ArgumentException>(() => new RuleAlertDeliveryPlanner().Plan(
             request,
             [],
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: "svantek:fixture",
             _createdAt));
@@ -246,7 +246,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         Assert.ThrowsExactly<ArgumentException>(() => new RuleAlertDeliveryPlanner().Plan(
             request,
             [],
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: "svantek:fixture",
             _createdAt));
@@ -262,7 +262,7 @@ public sealed class RuleAlertDeliveryPlannerTests
         Assert.ThrowsExactly<ArgumentException>(() => new RuleAlertDeliveryPlanner().Plan(
             Request(AlertType.Alert),
             [],
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: "svantek:fixture",
             createdAt));

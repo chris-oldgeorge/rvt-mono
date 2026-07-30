@@ -8,11 +8,9 @@ namespace Rvt.Monitor.Common.Delivery;
 public static class MonitorDeliveryProducers
 {
     public const string MyAtm = "MyAtm";
-    public const string Svantek = "Svantek";
 
     public static bool IsKnown(string producer) =>
-        string.Equals(producer, MyAtm, StringComparison.Ordinal) ||
-        string.Equals(producer, Svantek, StringComparison.Ordinal);
+        string.Equals(producer, MyAtm, StringComparison.Ordinal);
 }
 
 public enum MonitorDeliveryKind

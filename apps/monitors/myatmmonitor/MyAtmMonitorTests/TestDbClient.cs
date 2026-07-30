@@ -744,7 +744,7 @@ namespace MyAtmMonitorTests
                 0,
                 null,
                 null,
-                MonitorDeliveryProducers.Svantek);
+                "OtherProducer");
             InsertOutboxMessage(connection, pendingId, "Pending", utcNow.AddMinutes(-5), 0, null, null);
             InsertOutboxMessage(connection, expiredId, "InProgress", utcNow.AddMinutes(-4), 7, expiredLeaseId, utcNow.AddSeconds(-1));
 

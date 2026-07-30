@@ -1,11 +1,11 @@
 using System.Data.Common;
 using Npgsql;
 
-namespace Rvt.Monitor.Common.Data;
+namespace Rvt.Monitor.IntegrationTesting;
 
-// Summary: Adds Npgsql parameters for shared monitor commands.
+// Summary: Adds Npgsql parameters for monitor integration-test fixtures.
 // Major updates:
-// - 2026-06-12 Monitor Migration: moved duplicated monitor parameter creation into common data access.
+// - 2026-07-30 L7: moved out of Rvt.Monitor.Common.Data - every call site is a test.
 public static class MonitorDbParameterExtensions
 {
     public static DbParameter AddWithValue(

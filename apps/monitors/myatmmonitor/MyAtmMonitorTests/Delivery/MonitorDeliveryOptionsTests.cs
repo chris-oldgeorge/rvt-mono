@@ -15,16 +15,11 @@ public sealed class MonitorDeliveryOptionsTests
         FieldInfo? myAtmField = typeof(MonitorDeliveryProducers).GetField(
             nameof(MonitorDeliveryProducers.MyAtm),
             BindingFlags.Public | BindingFlags.Static);
-        FieldInfo? svantekField = typeof(MonitorDeliveryProducers).GetField(
-            nameof(MonitorDeliveryProducers.Svantek),
-            BindingFlags.Public | BindingFlags.Static);
 
         Assert.IsNotNull(myAtmField);
-        Assert.IsNotNull(svantekField);
         Assert.AreEqual("MyAtm", (string?)myAtmField.GetRawConstantValue());
-        Assert.AreEqual("Svantek", (string?)svantekField.GetRawConstantValue());
         Assert.IsTrue(MonitorDeliveryProducers.IsKnown("MyAtm"));
-        Assert.IsTrue(MonitorDeliveryProducers.IsKnown("Svantek"));
+        Assert.IsFalse(MonitorDeliveryProducers.IsKnown("Svantek"));
         Assert.IsFalse(MonitorDeliveryProducers.IsKnown("myatm"));
         CollectionAssert.AreEqual(
             new[]
@@ -68,7 +63,7 @@ public sealed class MonitorDeliveryOptionsTests
         DateTime createdAt = new(2026, 7, 15, 12, 0, 0, DateTimeKind.Utc);
         MonitorDeliveryRequest request = new(
             Guid.NewGuid(),
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             DeliveryFixture.NotificationId,
             "notification:fixture-key",
             "delivery:fixture-key",
@@ -83,7 +78,7 @@ public sealed class MonitorDeliveryOptionsTests
             "Sent",
             createdAt);
 
-        Assert.AreEqual(MonitorDeliveryProducers.Svantek, request.Producer);
+        Assert.AreEqual(MonitorDeliveryProducers.MyAtm, request.Producer);
         Assert.AreEqual("delivery:fixture-key", request.DeliveryKey);
         Assert.AreEqual(MonitorDeliveryKind.Email, request.Kind);
         Assert.AreEqual(DeliveryFixture.NotificationId, audit.NotificationId);
@@ -179,7 +174,7 @@ public sealed class MonitorDeliveryOptionsTests
 
     private static MonitorDeliveryOptions ValidOptions() => new()
     {
-        Producer = MonitorDeliveryProducers.Svantek,
+        Producer = MonitorDeliveryProducers.MyAtm,
         InsertTopic = "monitors/inserted",
         AlertTopic = "monitors/alerts",
         PortalBaseUrl = "https://portal.example.test/"

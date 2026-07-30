@@ -96,14 +96,22 @@ public static class MonitorDb
 
         using DbConnection connection = OpenConnection(connectionString);
         using DbCommand command = CreateCommand(sql, connection);
-        command.Parameters.AddWithValue("@Host", HostName());
-        command.Parameters.AddWithValue("@Source", serviceName + " " + serviceVersion);
-        command.Parameters.AddWithValue("@Message", exception.Message);
-        command.Parameters.AddWithValue("@Level", "Exception");
-        command.Parameters.AddWithValue("@StackTrace", exception.StackTrace ?? "");
-        command.Parameters.AddWithValue("@Variables", tag);
-        command.Parameters.AddWithValue("@LogTime", DateTime.UtcNow);
+        AddParameter(command, "@Host", HostName());
+        AddParameter(command, "@Source", serviceName + " " + serviceVersion);
+        AddParameter(command, "@Message", exception.Message);
+        AddParameter(command, "@Level", "Exception");
+        AddParameter(command, "@StackTrace", exception.StackTrace ?? "");
+        AddParameter(command, "@Variables", tag);
+        AddParameter(command, "@LogTime", DateTime.UtcNow);
         command.ExecuteNonQuery();
+    }
+
+    private static void AddParameter(DbCommand command, string name, object? value)
+    {
+        DbParameter parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value ?? DBNull.Value;
+        command.Parameters.Add(parameter);
     }
 
     public static string RequireMappedSqlIdentifier(

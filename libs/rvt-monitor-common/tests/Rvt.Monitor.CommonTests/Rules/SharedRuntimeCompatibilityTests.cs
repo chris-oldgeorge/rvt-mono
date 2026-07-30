@@ -56,36 +56,4 @@ public sealed class SharedRuntimeCompatibilityTests
         Assert.HasCount(1, serializedContactMethodProperties);
     }
 
-    [TestMethod]
-    public void MaintainsRulesNotificationDtoCompatibilitySurface()
-    {
-        Common.Rules.NotificationDto notification = new(
-            Guid.NewGuid(),
-            DateTime.UtcNow,
-            limitOn: 10,
-            averagingPeriod: 900,
-            level: 11,
-            closedTime: null,
-            closedByUser: null,
-            alertType: Rvt.Monitor.Common.Notifications.AlertType.Alert,
-            alertField: "LAeq",
-            monitorId: Guid.NewGuid());
-
-        Assert.IsInstanceOfType<Rvt.Monitor.Common.Notifications.NotificationDto>(notification);
-    }
-
-    [TestMethod]
-    public void MaintainsNotificationAlertActivityTimeDtoCompatibilitySurface()
-    {
-        Common.Notifications.AlertActivityTimeDto activity = new()
-        {
-            Weekdays = true,
-            Saturdays = true,
-            Sundays = true
-        };
-
-        Assert.IsTrue(activity.IsActive(DateTime.UtcNow));
-        Assert.IsInstanceOfType<Rvt.Monitor.Common.Rules.AlertActivityTimeDto>(activity);
-    }
-
 }

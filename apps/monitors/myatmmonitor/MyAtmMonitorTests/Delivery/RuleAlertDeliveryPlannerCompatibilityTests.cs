@@ -44,7 +44,7 @@ public sealed class RuleAlertDeliveryPlannerCompatibilityTests
         RuleAlertDeliveryPlan plan = new RuleAlertDeliveryPlanner().Plan(
             request,
             contacts,
-            MonitorDeliveryProducers.Svantek,
+            MonitorDeliveryProducers.MyAtm,
             customerId: null,
             correlationKey: $"compatibility:{alertType}",
             createdAt: request.AlertTime);

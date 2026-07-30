@@ -117,17 +117,6 @@ public sealed class MonitorDbTests
     }
 
     [TestMethod]
-    public void AddWithValue_CreatesNpgsqlParameter()
-    {
-        using DbCommand command = new NpgsqlCommand();
-
-        DbParameter parameter = command.Parameters.AddWithValue("@value", null);
-
-        Assert.IsInstanceOfType<NpgsqlParameter>(parameter);
-        Assert.AreEqual(DBNull.Value, parameter.Value);
-    }
-
-    [TestMethod]
     public void BulkInsert_RejectsUnsafeMappedTableBeforeOpeningConnection()
     {
         MonitorDbOptions options = new(new Dictionary<string, string>(StringComparer.Ordinal)

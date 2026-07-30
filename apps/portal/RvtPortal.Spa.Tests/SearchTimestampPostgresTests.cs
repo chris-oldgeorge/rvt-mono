@@ -499,7 +499,7 @@ public sealed class SearchTimestampPostgresTests
                 Monitor = _monitor,
                 FromDate = index.StartTime,
                 ToDate = index.EndTime,
-                VibrationTraces = new SearchQueryResult<OmnidotsTrace>(true, string.Empty, [], 0, string.Empty)
+                VibrationTraces = new SearchQueryResult<OmnidotsTrace>([], 0, string.Empty)
             };
         }
 

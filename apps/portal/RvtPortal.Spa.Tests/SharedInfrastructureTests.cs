@@ -259,8 +259,6 @@ public class SharedInfrastructureTests
             int pageValue = Math.Max(page ?? 1, 1);
             List<CompanySearch> items = [.. filtered];
             return Task.FromResult(new SearchQueryResult<CompanySearch>(
-                true,
-                "",
                 [.. items.Skip((pageValue - 1) * pageSize).Take(pageSize)],
                 items.Count,
                 ""));

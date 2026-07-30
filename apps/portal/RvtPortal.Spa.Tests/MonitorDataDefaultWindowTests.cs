@@ -49,9 +49,6 @@ public sealed class MonitorDataDefaultWindowTests
 
         public DateTime LocalToUtc(DateTime localDateTime) =>
             DateTime.SpecifyKind(localDateTime, DateTimeKind.Utc);
-
-        public string DisplayUtcAsLocal(DateTime utcDateTime, string format) =>
-            utcDateTime.ToString(format, System.Globalization.CultureInfo.InvariantCulture);
     }
 
     // Function summary: Serves one deployment with no monitor so the default window is returned unclamped.

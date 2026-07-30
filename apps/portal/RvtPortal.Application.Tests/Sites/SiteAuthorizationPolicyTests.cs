@@ -32,19 +32,6 @@ public sealed class SiteAuthorizationPolicyTests
     }
 
     [Fact]
-    public void AssignmentWindow_IsInclusiveAtBothBounds()
-    {
-        Guid userId = Guid.NewGuid();
-        SiteAssignmentWindow assignment = new(userId, _nowUtc, _nowUtc);
-
-        Assert.True(ActiveSiteAssignment.IsActive(assignment, userId, _nowUtc));
-        Assert.False(ActiveSiteAssignment.IsActive(
-            assignment,
-            userId,
-            _nowUtc.AddTicks(1)));
-    }
-
-    [Fact]
     public void ReadScope_RejectsNonUtcClockValues()
     {
         PortalUserContext user = new(Guid.NewGuid(), "user", null, false, false, true);

@@ -57,6 +57,6 @@ public class CompanyService : ICompanyService
             .Take(pageSize)
             .ToListAsync(cancellationToken);
 
-        return new SearchQueryResult<CompanySearch>(true, string.Empty, results, recordCount, string.Empty);
+        return new SearchQueryResult<CompanySearch>(results, recordCount, string.Empty);
     }
 }

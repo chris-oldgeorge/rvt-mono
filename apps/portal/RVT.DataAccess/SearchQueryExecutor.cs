@@ -60,7 +60,7 @@ internal static class SearchQueryExecutor
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
 
-            return new SearchQueryResult<TEntity>(true, string.Empty, pageRows, totalCount, string.Empty);
+            return new SearchQueryResult<TEntity>(pageRows, totalCount, string.Empty);
         }
 
         // Read one row past the bound so a capped result can be reported rather than silently truncated.
@@ -71,7 +71,7 @@ internal static class SearchQueryExecutor
             rows.RemoveAt(rows.Count - 1);
         }
 
-        return new SearchQueryResult<TEntity>(true, string.Empty, rows, rows.Count, string.Empty)
+        return new SearchQueryResult<TEntity>(rows, rows.Count, string.Empty)
         {
             HasMore = hasMore
         };

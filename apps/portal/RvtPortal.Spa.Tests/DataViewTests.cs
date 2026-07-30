@@ -567,7 +567,7 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
                 FromDate = trace.Index.StartTime,
                 ToDate = trace.Index.EndTime,
                 FilterOptions = [],
-                VibrationTraces = new SearchQueryResult<OmnidotsTrace>(true, "", trace.Samples, trace.Samples.Count, "")
+                VibrationTraces = new SearchQueryResult<OmnidotsTrace>(trace.Samples, trace.Samples.Count, "")
             });
         }
 
@@ -610,7 +610,7 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
                 ToDate = today.AddHours(3),
                 FilterOption = "60",
                 FilterOptions = new Dictionary<string, string> { ["60"] = "All Readings", ["900"] = "15 Min Averages" },
-                DustLevels = new SearchQueryResult<MyAtmDustLevel>(true, "", values, rows.Count, "") { HasMore = hasMore }
+                DustLevels = new SearchQueryResult<MyAtmDustLevel>(values, rows.Count, "") { HasMore = hasMore }
             };
         };
     }
@@ -681,6 +681,6 @@ internal sealed class RecordingSearchQueryReader : ISearchQueryReader
         where TSource : class
     {
         LastFilters = whereFilter;
-        return Task.FromResult(new SearchQueryResult<TResult>(true, string.Empty, [], 0, string.Empty));
+        return Task.FromResult(new SearchQueryResult<TResult>([], 0, string.Empty));
     }
 }

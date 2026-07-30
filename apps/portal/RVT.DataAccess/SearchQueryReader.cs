@@ -33,7 +33,7 @@ public sealed class SearchQueryReader : ISearchQueryReader
             pagedata.Paged, pagedata.Page, pagedata.PageSize, cancellationToken);
 
         List<TResult> records = [.. source.Value.Select(map)];
-        return new SearchQueryResult<TResult>(source.WasSuccessful, source.ErrorMessage, records, source.RecordCount, string.Empty)
+        return new SearchQueryResult<TResult>(records, source.RecordCount, string.Empty)
         {
             HasMore = source.HasMore
         };

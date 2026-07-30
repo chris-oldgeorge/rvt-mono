@@ -356,7 +356,7 @@ public class MonitorService : IMonitorService
             .Take(1000000)
             .ToListAsync(cancellationToken);
 
-        return new SearchQueryResult<OmnidotsTrace>(true, string.Empty, records, records.Count, string.Empty);
+        return new SearchQueryResult<OmnidotsTrace>(records, records.Count, string.Empty);
     }
 
     // Function summary: Handles the traces index read one workflow for this module.

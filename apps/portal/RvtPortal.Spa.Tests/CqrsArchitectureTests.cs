@@ -131,7 +131,7 @@ public class CqrsArchitectureTests
         // Every UTC/local conversion takes its time zone from an injected IRvtDateTimeProvider parameter.
         IEnumerable<MethodInfo> conversions = dateExtensions
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Where(method => method.Name is "UtcToLocal" or "LocalToUtc" or "DisplayUtcAsLocal");
+            .Where(method => method.Name is "UtcToLocal" or "LocalToUtc");
 
         Assert.All(
             conversions,

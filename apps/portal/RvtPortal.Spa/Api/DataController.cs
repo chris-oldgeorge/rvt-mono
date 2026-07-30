@@ -1,5 +1,6 @@
 // File summary: Exposes API endpoints used by the React portal for monitor data view workflows.
 // Major updates:
+// - 2026-07-30 pending Converged invalid-sort responses on the shared ApiProblems.InvalidSort payload.
 // - 2026-07-09 pending Routed data grid, graph, trace, and CSV workflows through an application service.
 // - 2026-06-26 pending Scoped monitor data and traces to effective deployment/contract ownership windows.
 // - 2026-06-09 pending Renamed data-access namespaces and repository types to RVT.DataAccess/Repository.
@@ -149,11 +150,7 @@ public class DataController : ControllerBase
     {
         return failure.Kind switch
         {
-            DataWorkflowFailureKind.InvalidSort => BadRequest(new ProblemDetails
-            {
-                Title = "Unsupported sort field",
-                Detail = $"Sort field '{failure.RequestedSort}' is not supported. Allowed values: {string.Join(", ", failure.AllowedFields ?? [])}"
-            }),
+            DataWorkflowFailureKind.InvalidSort => InvalidSort(failure),
             DataWorkflowFailureKind.InvalidTimestamp => BadRequest(InvalidTimestampProblem(failure)),
             DataWorkflowFailureKind.TraceNotFound => NotFound(new ProblemDetails
             {
@@ -172,11 +169,7 @@ public class DataController : ControllerBase
     {
         if (failure.Kind == DataWorkflowFailureKind.InvalidSort)
         {
-            return BadRequest(new ProblemDetails
-            {
-                Title = "Unsupported sort field",
-                Detail = $"Sort field '{failure.RequestedSort}' is not supported. Allowed values: {string.Join(", ", failure.AllowedFields ?? [])}"
-            });
+            return InvalidSort(failure);
         }
 
         if (failure.Kind == DataWorkflowFailureKind.InvalidTimestamp)
@@ -186,6 +179,10 @@ public class DataController : ControllerBase
 
         return NotFound(ProblemDetailsFor(failure));
     }
+
+    // Function summary: Builds the canonical invalid-sort response shared by every list endpoint.
+    private BadRequestObjectResult InvalidSort(DataWorkflowFailure failure) =>
+        ApiProblems.InvalidSort(HttpContext, failure.RequestedSort ?? "", failure.AllowedFields ?? [], "monitor data");
 
     // Function summary: Builds the bad-request payload for ambiguous or non-UTC date bounds.
     private static ProblemDetails InvalidTimestampProblem(DataWorkflowFailure failure)

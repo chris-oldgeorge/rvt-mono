@@ -26,9 +26,9 @@ public sealed class SearchQueryExecutorTests
         await using RVTDbContext context = CreateContext();
         SeedCompanies(context, seededCompanies);
         await context.SaveChangesAsync();
-        CompanyRepository repository = new(context);
 
-        SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
+        SearchQueryResult<Company> result = await ReadFilteredAsync(
+            context,
             [],
             _byName,
             maximumRecords: 10,
@@ -50,9 +50,9 @@ public sealed class SearchQueryExecutorTests
         await using RVTDbContext context = CreateContext();
         SeedCompanies(context, 5);
         await context.SaveChangesAsync();
-        CompanyRepository repository = new(context);
 
-        SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
+        SearchQueryResult<Company> result = await ReadFilteredAsync(
+            context,
             [],
             _byName,
             maximumRecords,
@@ -72,9 +72,9 @@ public sealed class SearchQueryExecutorTests
         await using RVTDbContext context = CreateContext();
         SeedCompanies(context, seededCompanies);
         await context.SaveChangesAsync();
-        CompanyRepository repository = new(context);
 
-        SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
+        SearchQueryResult<Company> result = await ReadFilteredAsync(
+            context,
             [],
             _byName,
             maximumRecords: 0,
@@ -94,9 +94,9 @@ public sealed class SearchQueryExecutorTests
         await using RVTDbContext context = CreateContext();
         SeedCompanies(context, 4);
         await context.SaveChangesAsync();
-        CompanyRepository repository = new(context);
 
-        SearchQueryResult<Company> result = await repository.ReadFilteredAsync(
+        SearchQueryResult<Company> result = await ReadFilteredAsync(
+            context,
             [new SingleFilter { Operation = Op.Equals, PropertyName = "CompanyName", Value = "Company 2" }],
             _byName,
             maximumRecords: 10,
@@ -114,6 +114,19 @@ public sealed class SearchQueryExecutorTests
         {
             context.Companies.Add(new Company { Id = Guid.NewGuid(), CompanyName = $"Company {index}" });
         }
+    }
+
+    // Function summary: Drives the shared search executor with the repository-shaped argument list the tests use.
+    private static Task<SearchQueryResult<Company>> ReadFilteredAsync(
+        RVTDbContext context,
+        List<Filter> whereFilter,
+        OrderByProperty[] orderBy,
+        int maximumRecords,
+        Paging paging,
+        CancellationToken cancellationToken)
+    {
+        return SearchQueryExecutor.ReadFilteredAsync<Company>(
+            context, whereFilter, orderBy, maximumRecords, paging.Paged, paging.Page, paging.PageSize, cancellationToken);
     }
 
     // Function summary: Creates an isolated in-memory domain context for read-path tests.

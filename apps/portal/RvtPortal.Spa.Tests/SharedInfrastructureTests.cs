@@ -259,8 +259,6 @@ public class SharedInfrastructureTests
             int pageValue = Math.Max(page ?? 1, 1);
             List<CompanySearch> items = [.. filtered];
             return Task.FromResult(new SearchQueryResult<CompanySearch>(
-                true,
-                "",
                 [.. items.Skip((pageValue - 1) * pageSize).Take(pageSize)],
                 items.Count,
                 ""));
@@ -271,7 +269,7 @@ public class SharedInfrastructureTests
         // Function summary: Removes this member data for the current workflow.
         public Task DeleteAsync(Guid Id) => throw new NotSupportedException();
         // Function summary: Retrieves one data for callers.
-        public Task<Company> ReadOneAsync(Guid Id) => throw new NotSupportedException();
+        public Task<Company?> ReadOneAsync(Guid id, CancellationToken cancellationToken = default) => throw new NotSupportedException();
         // Function summary: Updates this member data for the current workflow.
         public Task UpdateAsync(Company company) => throw new NotSupportedException();
     }

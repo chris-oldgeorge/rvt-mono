@@ -48,7 +48,7 @@ public sealed class MonitorListReaderSqlTests
             .UseNpgsql("Host=unused;Database=unused;Username=unused;Password=unused");
 
         using RVTDbContext context = new(builder.Options);
-        MonitorListReader reader = new(context);
+        MonitorListReader reader = new(context, TimeProvider.System);
 
         // ToQueryString() throws InvalidOperationException if any part of the projection cannot be translated.
         return reader.BuildBaseRows(null).ToQueryString();

@@ -175,9 +175,6 @@ public static class ServiceCollectionExtensions
         // connection and provider options). InitDataAccess used to TryAddScoped them here, which never won the
         // registration and only resolved at all via a parameterless-constructor fallback that read appsettings
         // from the process working directory. Both are gone.
-        services.AddScoped<ICompanyRepository, CompanyRepository>();
-        services.AddScoped<IDeploymentRepository, DeploymentRepository>();
-        services.AddScoped<IMonitorRepository, MonitorRepository>();
         services.AddScoped<ISearchQueryReader, SearchQueryReader>();
         return services;
     }

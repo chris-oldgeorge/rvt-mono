@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.10
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.302 AS build
 WORKDIR /src
 COPY . .
 RUN dotnet publish apps/monitors/myatmmonitor/MyAtmMonitor/MyAtmMonitor.csproj -c Release -o /app/publish /p:UseAppHost=false

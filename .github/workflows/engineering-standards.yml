@@ -1,17 +1,43 @@
 name: Engineering standards
 
-on: pull_request
+on:
+  pull_request:
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: engineering-standards-${{ github.event.pull_request.number }}
+  group: engineering-standards-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Required-check-safe paths filter: docs-only changes skip the standards
+  # job via `if:` gating, and the skipped job still satisfies a required
+  # check. The changed-range standards scan ignores markdown anyway.
+  changes:
+    name: Detect documentation-only changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.detect.outputs.code }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+
+      - name: Detect non-documentation changes
+        id: detect
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: scripts/detect-code-changes.sh --base "${BASE_SHA}" --head "${GITHUB_SHA}"
+
   engineering-standards:
     name: Engineering standards
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -20,24 +46,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up .NET 10
-        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Set up Node.js 24
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
-        with:
-          node-version: 24.x
-          cache: npm
-          cache-dependency-path: apps/portal/RvtPortal.Client/package-lock.json
-
-      - name: Install Portal client dependencies
-        working-directory: apps/portal/RvtPortal.Client
-        run: npm ci --ignore-scripts
-
-      - name: Restore monorepo
-        run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel
+      - name: Set up monorepo toolchain
+        uses: ./.github/actions/setup-monorepo
 
       - name: Verify standards model and module policy
         run: node --test tests/engineering-standards-model.test.mjs tests/verify-engineering-standards-policy.test.mjs

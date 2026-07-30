@@ -194,7 +194,6 @@ public sealed class MyAtmRuleEvaluatorTests
         public List<RvtAlertRuleDto> ReadRules(string? serialId, Period period) => [];
         public List<RvtAlertRuleDto> ReadRules(Period period) => [];
         public List<RulesContactDto> ReadAlertContacts(Guid monitorId) => [];
-        public bool HasOpenNotification(Guid monitorId, string alertField, AlertType alertType) => false;
         public double? GetAverageDustLevel(string serialNumber, string columnName, DateTime start, DateTime end) => null;
     }
 }

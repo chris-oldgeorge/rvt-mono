@@ -10,7 +10,6 @@ using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 
 namespace MyAtmMonitorTests;
 
@@ -43,8 +42,6 @@ public sealed class TestRules2
         Assert.IsFalse(commit.RuleStateMutations.Single().IsActive);
         Assert.IsEmpty(commit.Occurrences);
         dbClient.Verify(client => client.ReadMonitor(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
-        dbClient.Verify(client => client.UpdateAlertRule(It.IsAny<RvtAlertRuleDto>()), Times.Never);
-        dbClient.Verify(client => client.WriteNotification(It.IsAny<NotificationDto>()), Times.Never);
         messageService.VerifyNoOtherCalls();
         mqttClient.VerifyNoOtherCalls();
     }
@@ -67,8 +64,6 @@ public sealed class TestRules2
 
         dbClient.Verify(client => client.CommitAlertAsync(It.IsAny<MyAtmAlertCommit>(), It.IsAny<CancellationToken>()), Times.Never);
         dbClient.Verify(client => client.ReadMonitor(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
-        dbClient.Verify(client => client.UpdateAlertRule(It.IsAny<RvtAlertRuleDto>()), Times.Never);
-        dbClient.Verify(client => client.WriteNotification(It.IsAny<NotificationDto>()), Times.Never);
         messageService.VerifyNoOtherCalls();
         mqttClient.VerifyNoOtherCalls();
     }

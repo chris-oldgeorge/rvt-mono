@@ -419,209 +419,6 @@ namespace MyAtmMonitorTests
         }
 
         [TestMethod]
-        public void TestWriteNotification()
-        {
-            string connectionString = _database!.ConnectionString;
-            using NpgsqlConnection connection = new(connectionString);
-            connection.Open();
-
-            string serialId = "82731";
-            int customerId = 332;
-            List<DustMonitorDto> monitorsIn = CreateMonitorsList(1, customerId);
-            _testObj!.WriteMonitorList(monitorsIn);
-
-            foreach (DustMonitorDto monitorIn in monitorsIn)
-            {
-                _testObj.WriteFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
-            }
-
-            List<DustMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
-            Assert.HasCount(1, monitorsOut);
-            Guid monitorId = monitorsOut[0].Id;
-
-
-            // add an alert and contact as RvtAlertContacts table has foreign key constraints
-            InsertAlertRule(connection, 10, serialId, monitorId, AlertType.Caution);
-            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
-            Assert.HasCount(1, rules);
-            string email = "foobob@bbb.com";
-            string phoneNo = "01238867890";
-            Guid siteUserId = Guid.NewGuid();
-            InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo, siteUserId);
-            List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
-            Assert.HasCount(1, contacts);
-
-            DateTime dt = ParseUtc("2023-10-18T11:19:00");
-            NotificationDto alertIn = new(rules[0], 99.876, dt, monitorId);
-
-            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
-
-            _testObj.WriteNotification(alertIn);
-
-            Assert.IsTrue(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
-            {
-                List<NotificationDto> alerts = ReadNotifications(connection);
-                Assert.HasCount(1, alerts);
-
-                NotificationDto alertOut = alerts[0];
-
-                Assert.AreEqual(alertIn.Id, alertOut.Id);
-                Assert.AreEqual(alertIn.Level, alertOut.Level);
-                Assert.AreEqual(alertIn.NotificationTime, alertOut.NotificationTime);
-                Assert.AreEqual(alertIn.LimitOn, alertOut.LimitOn);
-                Assert.AreEqual(alertIn.AveragingPeriod, alertOut.AveragingPeriod);
-                Assert.AreEqual(alertIn.AlertField, alertOut.AlertField);
-                Assert.AreEqual(alertIn.AlertType, alertOut.AlertType);
-                Assert.AreEqual(alertIn.MonitorId, alertOut.MonitorId);
-            }
-
-            NotificationDto notifyAlert = new(id: Guid.NewGuid(),
-                                             notificationTime: dt,
-                                             limitOn: rules[0].LimitOn,
-                                             averagingPeriod: rules[0].AveragingPeriod,
-                                             level: 99.876,
-                                             closedTime: null,
-                                             closedByUser: null,
-                                             alertType: AlertType.Alert,
-                                             alertField: rules[0].Field,
-                                             monitorId: monitorId);
-
-            _testObj.WriteNotification(notifyAlert);
-
-            Assert.IsTrue(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsTrue(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
-
-            Assert.HasCount(2, ReadNotifications(connection));
-        }
-
-        [TestMethod]
-        public void TestReadNotificationsMapsClosedFields()
-        {
-            using NpgsqlConnection connection = new(_database!.ConnectionString);
-            connection.Open();
-
-            DustMonitorDto monitor = CreateMonitorsList(1, 332)[0];
-            _testObj!.WriteMonitorList([monitor]);
-            Guid monitorId = _testObj.ReadMonitor(monitor.SerialId)!.Id;
-            DateTime closedTime = ParseUtc("2023-10-18T12:34:56Z");
-            Guid closedByUser = Guid.NewGuid();
-            NotificationDto notification = new(
-                id: Guid.NewGuid(),
-                notificationTime: ParseUtc("2023-10-18T11:19:00Z"),
-                limitOn: 99.876,
-                averagingPeriod: 60,
-                level: 12.345,
-                closedTime: closedTime,
-                closedByUser: closedByUser,
-                alertType: AlertType.Alert,
-                alertField: "Pm2_5",
-                monitorId: monitorId);
-
-            _testObj.WriteNotification(notification);
-
-            NotificationDto notificationOut = ReadNotifications(connection).Single();
-
-            Assert.AreEqual(closedTime, notificationOut.ClosedTime);
-            Assert.AreEqual(closedByUser, notificationOut.ClosedByUser);
-        }
-
-
-        [DataRow(AlertType.Caution, AlertType.Alert, false)]
-        [DataRow(AlertType.Caution, AlertType.Caution, true)]
-        [DataRow(AlertType.Alert, AlertType.Caution, false)]
-        [DataRow(AlertType.Alert, AlertType.Alert, true)]
-        [TestMethod]
-        public void TestHasOpenNotification(AlertType existing, AlertType alertType, bool expectedResult)
-        {
-            string connectionString = _database!.ConnectionString;
-            using NpgsqlConnection connection = new(connectionString);
-            connection.Open();
-
-            string serialId = "82731";
-            int customerId = 332;
-            List<DustMonitorDto> monitorsIn = CreateMonitorsList(1, customerId);
-            _testObj!.WriteMonitorList(monitorsIn);
-
-            foreach (DustMonitorDto monitorIn in monitorsIn)
-            {
-                _testObj.WriteFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
-            }
-
-            List<DustMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
-            Assert.HasCount(1, monitorsOut);
-            Guid monitorId = monitorsOut[0].Id;
-
-            // add an alert and contact as RvtAlertContacts table has foreign key constraints
-            InsertAlertRule(connection, 21, serialId, monitorId, alertType);
-            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
-            Assert.HasCount(1, rules);
-            string email = "foobob@bbb.com";
-            string phoneNo = "01238867890";
-            Guid siteUserId = Guid.NewGuid();
-            InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo, siteUserId);
-            List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
-            Assert.HasCount(1, contacts);
-
-            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Caution));
-            Assert.IsFalse(_testObj.HasOpenNotification(monitorId, rules[0].Field, AlertType.Alert));
-
-            DateTime dt = ParseUtc("2023-10-18T11:19:00");
-            NotificationDto existingNotification = new(id: Guid.NewGuid(),
-                                              notificationTime: dt,
-                                              limitOn: rules[0].LimitOn,
-                                              averagingPeriod: rules[0].AveragingPeriod,
-                                              level: 99.876,
-                                              closedTime: null,
-                                              closedByUser: null,
-                                              alertType: existing,
-                                              alertField: rules[0].Field,
-                                              monitorId: monitorId);
-
-            _testObj.WriteNotification(existingNotification);
-
-            Assert.AreEqual(expectedResult, _testObj.HasOpenNotification(monitorId, rules[0].Field, alertType));
-        }
-
-        [TestMethod]
-        public void TestUpdateAlertRule()
-        {
-            string connectionString = _database!.ConnectionString;
-            using NpgsqlConnection connection = new(connectionString);
-            connection.Open();
-            string serialId = "67731";
-            int customerId = 861;
-            List<DustMonitorDto> monitorsIn = CreateMonitorsList(1, customerId);
-            _testObj!.WriteMonitorList(monitorsIn);
-
-            foreach (DustMonitorDto monitorIn in monitorsIn)
-            {
-                _testObj.WriteFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
-            }
-
-            List<DustMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
-            Assert.HasCount(1, monitorsOut);
-            Guid monitorId = monitorsOut[0].Id;
-
-            InsertAlertRule(connection, 721, serialId, monitorId);
-            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
-            Assert.HasCount(1, rules);
-
-            RvtAlertRuleDto rule = rules[0];
-
-            bool isActive = !rule.IsActive;
-            rule.IsActive = isActive;
-
-            _testObj.UpdateAlertRule(rules[0]);
-
-            List<RvtAlertRuleDto> updatedRules = _testObj!.ReadRules(serialId);
-            Assert.HasCount(1, updatedRules);
-            Assert.AreEqual(isActive, updatedRules[0].IsActive);
-
-        }
-
-        [TestMethod]
         public async Task CommitDustImportAsync_PersistsMeasurementWatermarkRuleOccurrenceAndOutboxAtomically()
         {
             using NpgsqlConnection connection = _database!.OpenConnection();
@@ -1103,17 +900,7 @@ namespace MyAtmMonitorTests
             DustMonitorDto monitor = CreateMonitorsList(1, 861).Single();
             _testObj!.WriteMonitorList([monitor]);
             Guid notificationId = Guid.NewGuid();
-            _testObj.WriteNotification(new NotificationDto(
-                notificationId,
-                utcNow,
-                1,
-                60,
-                2,
-                null,
-                null,
-                AlertType.Alert,
-                "Pm10",
-                monitor.Id));
+            InsertNotificationRow(connection, notificationId, utcNow, monitor.Id);
             Guid completedId = Guid.NewGuid();
             Guid deadLetterId = Guid.NewGuid();
             InsertOutboxMessage(connection, completedId, "Pending", utcNow.AddMinutes(-1), 0, null, null);
@@ -1279,77 +1066,6 @@ namespace MyAtmMonitorTests
 
             double? avgPmTotal = _testObj!.GetAverageDustLevel(serialId, "PmTotal", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(pmTotalTotal / numDtos, avgPmTotal);
-        }
-
-        [TestMethod]
-        public void TestWriteNotificationAudit()
-        {
-
-            string connectionString = _database!.ConnectionString;
-            using NpgsqlConnection connection = new(connectionString);
-            connection.Open();
-
-            string serialId = "82731";
-            int customerId = 332;
-            List<DustMonitorDto> monitorsIn = CreateMonitorsList(1, customerId);
-            _testObj!.WriteMonitorList(monitorsIn);
-
-            foreach (DustMonitorDto monitorIn in monitorsIn)
-            {
-                _testObj.WriteFleetNr(monitorIn.SerialId, monitorIn.FleetNr!);
-            }
-
-            List<DustMonitorDto> monitorsOut = _testObj.ReadMonitorList(null);
-            Assert.HasCount(1, monitorsOut);
-            Guid monitorId = monitorsOut[0].Id;
-
-
-            // add an alert and contact as RvtAlertContacts table has foreign key constraints
-            InsertAlertRule(connection, 21, serialId, monitorId);
-            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(serialId);
-            Assert.HasCount(1, rules);
-            string email = "bad-email";
-            string phoneNo = "bad-phonenumber";
-            Guid siteUserId = Guid.NewGuid();
-            InsertContact(connection, monitorId, ContactMethod.Email, email, phoneNo, siteUserId);
-            List<RvtContactDto> contacts = ReadContacts(connection, siteUserId);
-            Assert.HasCount(1, contacts);
-
-            DateTime dt = ParseUtc("2023-10-18T11:19:00");
-            NotificationDto notificationIn = new(rules[0], 99.876, dt, monitorId);
-
-            // need to write a alert because NotificationsSent table has foreign key constraint
-            _testObj.WriteNotification(notificationIn);
-            _testObj.WriteNotificationAudit(notificationIn.Id, "mytest@email.net", "some error message");
-
-            List<NotificationDto> notifications = ReadNotifications(connection);
-            Assert.HasCount(1, notifications);
-
-            NotificationDto notificationOut = notifications[0];
-
-            Assert.AreEqual(notificationIn.Id, notificationOut.Id);
-            Assert.AreEqual(notificationIn.Level, notificationOut.Level);
-            Assert.AreEqual(notificationIn.NotificationTime, notificationOut.NotificationTime);
-            Assert.AreEqual(notificationIn.LimitOn, notificationOut.LimitOn);
-            Assert.AreEqual(notificationIn.AveragingPeriod, notificationOut.AveragingPeriod);
-            Assert.AreEqual(notificationIn.AlertType, notificationOut.AlertType);
-            Assert.AreEqual(notificationIn.AlertField, notificationOut.AlertField);
-            Assert.AreEqual(notificationIn.MonitorId, notificationOut.MonitorId);
-
-            List<Dictionary<string, object>> audits = ReadNotificationsSent(connection);
-            Assert.HasCount(1, audits);
-            Dictionary<string, object> audit = audits[0];
-
-            Assert.IsInstanceOfType<Guid>(audit["Id"]);
-            Assert.IsInstanceOfType<DateTime>(audit["SendTime"]);
-            DateTime sendTime = (DateTime)audit["SendTime"];
-            Assert.IsTrue(sendTime < DateTime.UtcNow.AddSeconds(10) && sendTime > DateTime.UtcNow.AddSeconds(-10));
-            Assert.IsInstanceOfType<string>(audit["Address"]);
-            Assert.AreEqual("mytest@email.net", (string)audit["Address"]);
-            Assert.IsInstanceOfType<string>(audit["ErrorMessage"]);
-            Assert.AreEqual("some error message", (string)audit["ErrorMessage"]);
-            Assert.IsInstanceOfType<Guid>(audit["NotificationId"]);
-
         }
 
         private static List<DustMonitorDto> CreateMonitorsList(int numMonitors, int customerId,
@@ -1580,6 +1296,26 @@ namespace MyAtmMonitorTests
             command.Parameters.AddWithValue("@LeaseId", (object?)leaseId ?? DBNull.Value);
             command.Parameters.AddWithValue("@LeaseUntil", (object?)leaseUntil ?? DBNull.Value);
             command.Parameters.AddWithValue("@CreatedAt", nextAttemptAt.AddMinutes(-1));
+            command.ExecuteNonQuery();
+        }
+
+        private static void InsertNotificationRow(
+            NpgsqlConnection connection,
+            Guid notificationId,
+            DateTime notificationTime,
+            Guid monitorId)
+        {
+            using NpgsqlCommand command = new(
+                @"INSERT INTO notification
+                    (id, notification_time, limit_on, averaging_period, level, closed_time,
+                     closed_by_user, alert_type, alert_field, monitor_id)
+                  VALUES
+                    (@Id, @NotificationTime, 1, 60, 2, NULL, NULL, @AlertType, 'Pm10', @MonitorId);",
+                connection);
+            command.Parameters.AddWithValue("@Id", notificationId);
+            command.Parameters.AddWithValue("@NotificationTime", notificationTime);
+            command.Parameters.AddWithValue("@AlertType", (int)AlertType.Alert);
+            command.Parameters.AddWithValue("@MonitorId", monitorId);
             command.ExecuteNonQuery();
         }
 
@@ -1862,69 +1598,6 @@ namespace MyAtmMonitorTests
             }
             return contacts;
         }
-
-        private static List<NotificationDto> ReadNotifications(NpgsqlConnection connection)
-        {
-
-            string sql = @"SELECT id, notification_time, limit_on, averaging_period, level, closed_time,
-                               closed_by_user, alert_type, alert_field, monitor_id
-                        FROM notification;";
-            using NpgsqlCommand cmd = new(sql, connection);
-            List<NotificationDto> alerts = [];
-            using NpgsqlDataReader reader = cmd.ExecuteReader();
-
-            while (reader.Read())
-            {
-                Guid id = reader.GetGuid(0);
-                DateTime notificationTime = reader.GetDateTime(1);
-                double limitOn = reader.GetDouble(2);
-                int averagingPeriod = reader.GetInt32(3);
-                double level = reader.GetDouble(4);
-                DateTime? closedTime = reader.IsDBNull(5) ? null : reader.GetDateTime(5);
-                Guid? closedByUser = reader.IsDBNull(6) ? null : reader.GetGuid(6);
-                AlertType alertType = (AlertType)reader.GetInt32(7);
-                string alertField = reader.GetString(8);
-                Guid monitorId = reader.GetGuid(9);
-
-                NotificationDto alert = new(id: id,
-                                                notificationTime: notificationTime,
-                                                limitOn: limitOn,
-                                                averagingPeriod: averagingPeriod,
-                                                level: level,
-                                                closedTime: closedTime,
-                                                closedByUser: closedByUser,
-                                                alertType: alertType,
-                                                alertField: alertField,
-                                                monitorId: monitorId);
-                alerts.Add(alert);
-            }
-            return alerts;
-        }
-
-        private static List<Dictionary<string, object>> ReadNotificationsSent(NpgsqlConnection connection)
-        {
-
-            string sql = @"SELECT id, send_time, address, error_message, notification_id
-                        FROM notification_sent;";
-            using NpgsqlCommand cmd = new(sql, connection);
-            List<Dictionary<string, object>> audits = [];
-            using NpgsqlDataReader reader = cmd.ExecuteReader();
-
-            while (reader.Read())
-            {
-                Dictionary<string, object> dict = new()
-                {
-                    ["Id"] = reader.GetGuid(0),
-                    ["SendTime"] = reader.GetDateTime(1),
-                    ["Address"] = reader.GetString(2),
-                    ["ErrorMessage"] = reader.GetString(3),
-                    ["NotificationId"] = reader.GetGuid(4)
-                };
-                audits.Add(dict);
-            }
-            return audits;
-        }
-
 
         private static List<DustDto> ReadDustDtos(NpgsqlConnection connection)
         {

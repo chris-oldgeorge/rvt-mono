@@ -90,7 +90,6 @@ public sealed class OfflineAlertCommitTests
         Assert.IsNull(payload.PortalBaseUrl);
 
         dbClient.Verify(client => client.SetMonitorOffline(It.IsAny<Guid>(), It.IsAny<bool>()), Times.Never);
-        dbClient.Verify(client => client.WriteNotification(It.IsAny<NotificationDto>()), Times.Never);
         messageService.VerifyNoOtherCalls();
         mqttClient.VerifyNoOtherCalls();
     }

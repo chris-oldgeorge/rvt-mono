@@ -12,8 +12,6 @@ using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
-using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace AirQ.Api.Db
 {
 
@@ -176,91 +174,6 @@ namespace AirQ.Api.Db
                 .Select(rule => ToRuleDto(rule, serialNumber))];
         }
 
-        public List<RvtContactDto> ReadAlertContacts(Guid monitorId, out Guid siteId)
-        {
-            using AirQMonitorContext context = CreateContext();
-
-            var contactRows = (from deployment in context.Deployments.AsNoTracking()
-                               join contract in context.Contracts.AsNoTracking() on deployment.ContractId equals contract.Id
-                               join siteUser in context.SiteUsers.AsNoTracking() on contract.SiteId equals siteUser.SiteId
-                               join setting in context.NotificationSettings.AsNoTracking() on siteUser.Id equals setting.SiteUserId
-                               join site in context.Sites.AsNoTracking() on siteUser.SiteId equals site.Id
-                               where deployment.MonitorId == monitorId &&
-                                     deployment.EndDate == null &&
-                                     (setting.Email || setting.SMS)
-                               select new
-                               {
-                                   siteUser.UserId,
-                                   setting.Email,
-                                   setting.SMS,
-                                   setting.StartTime,
-                                   setting.EndTime,
-                                   SiteId = site.Id
-                               }).ToList();
-
-            siteId = contactRows.FirstOrDefault()?.SiteId ?? Guid.Empty;
-
-            HashSet<string> userIds = contactRows
-                .Select(row => row.UserId.ToString())
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, AspNetUserEntity> usersById = context.Users
-                .AsNoTracking()
-                .Where(user => userIds.Contains(user.Id))
-                .ToDictionary(user => user.Id, StringComparer.OrdinalIgnoreCase);
-
-            return [.. contactRows
-                .Where(row => usersById.ContainsKey(row.UserId.ToString()))
-                .Select(row =>
-                {
-                    AspNetUserEntity user = usersById[row.UserId.ToString()];
-                    return new RvtContactDto(
-                        useEmail: row.Email,
-                        useSms: row.SMS,
-                        emailAddress: user.Email,
-                        phoneNumber: user.PhoneNumber,
-                        sendStartTime: row.StartTime,
-                        sendEndTime: row.EndTime);
-                })];
-        }
-
-        public List<RvtContactDto> ReadAlertContacts(string serialId, out Guid siteId)
-        {
-            using AirQMonitorContext context = CreateContext();
-            Guid monitorId = GetMonitorId(context, serialId);
-            return ReadAlertContacts(monitorId, out siteId);
-        }
-
-        public void WriteNotification(NotificationDto dto)
-        {
-            using AirQMonitorContext context = CreateContext();
-            context.Notifications.Add(new NotificationEntity
-            {
-                Id = dto.Id,
-                NotificationTime = dto.NotificationTime,
-                LimitOn = dto.LimitOn,
-                AveragingPeriod = dto.AveragingPeriod,
-                Level = dto.Level,
-                ClosedTime = dto.ClosedTime,
-                ClosedByUser = dto.ClosedByUser,
-                MonitorId = dto.MonitorId,
-                AlertType = (int)dto.AlertType,
-                AlertField = dto.AlertField
-            });
-            context.SaveChanges();
-        }
-
-        public bool HasOpenNotification(Guid monitorId, string alertField, AlertType alertType)
-        {
-            using AirQMonitorContext context = CreateContext();
-
-            return context.Notifications
-                .AsNoTracking()
-                .Any(row => row.MonitorId == monitorId &&
-                            row.AlertField == alertField &&
-                            row.AlertType == (int)alertType &&
-                            row.ClosedTime == null);
-        }
-
         public void UpdateAlertRule(RvtAlertRuleDto dto)
         {
             using AirQMonitorContext context = CreateContext();
@@ -286,26 +199,6 @@ namespace AirQ.Api.Db
             return (field.UseMaximum ? query.Max(field.Selector) : query.Average(field.Selector)) ?? 0.0;
         }
 
-        public void WriteNotificationAudit(Guid notificationId, string address, string message)
-        {
-            if (RvtLogger.Logger.IsEnabled(LogLevel.Information))
-            {
-                RvtLogger.Logger.LogInformation("WriteNotificationAudit address={Value1}, message={Value2}",
-                    SensitiveLogRedactor.Redact(address), message);
-            }
-
-            using AirQMonitorContext context = CreateContext();
-            context.NotificationAudits.Add(new NotificationSentEntity
-            {
-                Id = Guid.NewGuid(),
-                SendTime = DateTime.UtcNow,
-                Address = address,
-                ErrorMessage = message,
-                NotificationId = notificationId
-            });
-            context.SaveChanges();
-        }
-
         public void SetMonitorOffline(Guid monitorId, bool offline)
         {
             using AirQMonitorContext context = CreateContext();
@@ -326,24 +219,6 @@ namespace AirQ.Api.Db
 
             context.AirQErrorMessages.RemoveRange(messages);
             context.SaveChanges();
-        }
-
-        public SiteInfoDto ReadSiteInfo(Guid siteId)
-        {
-            using AirQMonitorContext context = CreateContext();
-            SiteEntity site = context.Sites
-                .AsNoTracking()
-                .FirstOrDefault(row => row.Id == siteId)
-                ?? throw AdapterException.Of(string.Format("No site info for site Id={0}", siteId));
-
-            return new SiteInfoDto(
-                siteId: siteId,
-                startTime: site.StartTime,
-                endTime: site.EndTime,
-                satStartTime: site.SatStartTime,
-                satEndTime: site.SatEndTime,
-                sunStartTime: site.SunStartTime,
-                sunEndTime: site.SunEndTime);
         }
 
         public List<SiteMonitorsWithSiteHoursDto> ReadSiteMonitorsWithSiteHours(DateTime Day)
@@ -448,23 +323,6 @@ namespace AirQ.Api.Db
             MonitorDbOptions monitorOptions = AirQMonitorDbOptions.Current;
             DbContextOptions<AirQMonitorContext> options = MonitorDbContextOptionsFactory.CreateOptions<AirQMonitorContext>(_connectionString);
             return new AirQMonitorContext(options, monitorOptions);
-        }
-
-        private static Guid GetMonitorId(AirQMonitorContext context, string serialId)
-        {
-            Guid monitorId = context.Monitors
-                .AsNoTracking()
-                .Where(row => row.TypeOfMonitor == NoiseMonitorDto.MONITOR_TYPE_NOISE)
-                .Where(row => row.SerialId == serialId)
-                .Select(row => row.Id)
-                .FirstOrDefault();
-
-            if (monitorId == Guid.Empty)
-            {
-                throw AdapterException.Of(string.Format("No monitor with serialId={0}", serialId));
-            }
-
-            return monitorId;
         }
 
         private static void UpsertMonitorStatus(

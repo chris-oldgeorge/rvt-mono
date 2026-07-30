@@ -14,7 +14,6 @@ using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 using RvtContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 namespace MyAtmMonitorTests
 {
@@ -311,7 +310,6 @@ namespace MyAtmMonitorTests
                 commit.Occurrences.Single().Level == offlineForSeconds &&
                 commit.Occurrences.Single().DeliveryPlan!.Deliveries.All(
                     delivery => delivery.Kind != MonitorDeliveryKind.MqttAlert)));
-            dbClient.Verify(c => c.WriteNotification(It.IsAny<NotificationDto>()), Times.Never);
             dbClient.Verify(c => c.SetMonitorOffline(It.IsAny<Guid>(), It.IsAny<bool>()), Times.Never);
             dbClient.Verify(c => c.ClaimNextDueAsync(
                 It.IsAny<string>(),
@@ -366,7 +364,6 @@ namespace MyAtmMonitorTests
                 commit.MonitorStateMutation.Offline == false &&
                 commit.Occurrences.Count == 0), It.IsAny<CancellationToken>()), Times.Exactly(monitors.Count));
             dbClient.Verify(c => c.SetMonitorOffline(It.IsAny<Guid>(), It.IsAny<bool>()), Times.Never);
-            dbClient.Verify(c => c.WriteNotification(It.IsAny<NotificationDto>()), Times.Never);
             dbClient.Verify(c => c.ClaimNextDueAsync(
                 It.IsAny<string>(),
                 It.IsAny<DateTime>(),

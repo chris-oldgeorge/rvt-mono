@@ -245,8 +245,6 @@ namespace OmnidotsAdapterTests
 
             List<RvtAlertRuleDto> rules = OmnidotsFixture.OfflineRules();
             dbClient.Setup(c => c.ReadRules(null)).Returns(rules);
-            //dbClient.Setup(c => c.ReadNotifications(It.IsAny<Guid>(), It.IsAny<DateTime>())).
-            //    Returns(new List<NotificationDto>());
             List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(
                 2,
                 DateTime.UtcNow.AddMinutes(-minutesOffline),

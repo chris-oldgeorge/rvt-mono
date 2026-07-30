@@ -296,51 +296,6 @@ namespace MyAtm.Api.Db
             context.SaveChanges();
         }
 
-        public void WriteNotification(NotificationDto dto)
-        {
-            using MyAtmMonitorContext context = CreateContext();
-            context.Notifications.Add(new NotificationEntity
-            {
-                Id = dto.Id,
-                NotificationTime = DateTimeUtil.AsUtc(dto.NotificationTime),
-                LimitOn = dto.LimitOn,
-                AveragingPeriod = dto.AveragingPeriod,
-                Level = dto.Level,
-                ClosedTime = DateTimeUtil.AsUtc(dto.ClosedTime),
-                ClosedByUser = dto.ClosedByUser,
-                MonitorId = dto.MonitorId,
-                AlertType = (int)dto.AlertType,
-                AlertField = dto.AlertField
-            });
-            context.SaveChanges();
-        }
-
-        public bool HasOpenNotification(Guid monitorId, string alertField, AlertType alertType)
-        {
-            using MyAtmMonitorContext context = CreateContext();
-
-            return context.Notifications
-                .AsNoTracking()
-                .Any(row => row.MonitorId == monitorId &&
-                            row.AlertField == alertField &&
-                            row.AlertType == (int)alertType &&
-                            row.ClosedTime == null);
-        }
-
-        public void UpdateAlertRule(RvtAlertRuleDto dto)
-        {
-            using MyAtmMonitorContext context = CreateContext();
-            RvtAlertRuleEntity? rule = context.AlertRules.FirstOrDefault(row => row.Id == dto.RuleId);
-            if (rule == null)
-            {
-                return;
-            }
-
-            rule.IsActive = dto.IsActive;
-            rule.Accessed = DateTimeUtil.AsUtc(dto.Accessed);
-            context.SaveChanges();
-        }
-
         public void InsertDustDtos(List<DustDto> dtos)
         {
             if (dtos.Count == 0)
@@ -936,20 +891,6 @@ namespace MyAtm.Api.Db
                 .Where(row => row.SampleTime > startUtc && row.SampleTime <= endUtc);
 
             return field.UseMaximum ? query.Max(field.Selector) : query.Average(field.Selector);
-        }
-
-        public void WriteNotificationAudit(Guid notificationId, string address, string message)
-        {
-            using MyAtmMonitorContext context = CreateContext();
-            context.NotificationAudits.Add(new NotificationSentEntity
-            {
-                Id = Guid.NewGuid(),
-                SendTime = DateTime.UtcNow,
-                Address = address,
-                ErrorMessage = message,
-                NotificationId = notificationId
-            });
-            context.SaveChanges();
         }
 
         public void ClearErrorMessages(DateTime before)

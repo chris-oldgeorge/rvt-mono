@@ -146,6 +146,27 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
         }
 
         string draftId = Uri.EscapeDataString(draftResponse.Id);
+
+        // Anything after the draft POST leaves the draft behind in the shared
+        // sender mailbox, and the outbox retries the whole flow — so a
+        // failing upload accumulated one orphan draft per attempt.
+        try
+        {
+            await UploadAndSendAsync(request, senderPath, draftId, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            await DeleteDraftAsync(senderPath, draftId).ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private async Task UploadAndSendAsync(
+        EmailDeliveryRequest request,
+        string senderPath,
+        string draftId,
+        CancellationToken cancellationToken)
+    {
         foreach (EmailAttachment attachment in request.Attachments)
         {
             if (attachment.Length < SmallAttachmentLimit)
@@ -174,6 +195,33 @@ public sealed class MicrosoftGraphEmailAdapter : IEmailDeliveryPort
             "{}",
             readResponseBody: false,
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Best-effort cleanup of a draft that was created but never sent. Its own
+    /// failures are swallowed so the caller always reports the original cause;
+    /// the request deliberately ignores the operation's cancellation token,
+    /// because a cancelled send is exactly when the draft must still go.
+    /// </summary>
+    private async Task DeleteDraftAsync(string senderPath, string draftId)
+    {
+        try
+        {
+            string token = await tokenProvider.GetAccessTokenAsync(CancellationToken.None).ConfigureAwait(false);
+            using HttpRequestMessage message = new(
+                HttpMethod.Delete,
+                new Uri(GraphBaseUri, $"{senderPath}/messages/{draftId}"));
+            message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            HttpResponseMessage response = await httpClient!
+                .SendAsync(message, CancellationToken.None)
+                .ConfigureAwait(false);
+            response.Dispose();
+        }
+        catch (Exception)
+        {
+            // Best-effort: the orphan draft is the lesser failure, and the
+            // delete's own error must never replace the original cause.
+        }
     }
 
     private async Task<MicrosoftGraphUploadSession> CreateUploadSessionAsync(

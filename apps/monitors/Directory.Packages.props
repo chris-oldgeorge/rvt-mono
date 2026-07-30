@@ -14,7 +14,7 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.10" Condition="'$(MSBuildProjectName)' == 'Rvt.Reporting.Messaging' Or '$(MSBuildProjectName)' == 'Rvt.Reporting.Storage'" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" Condition="'$(MSBuildProjectName)' == 'ReportingMonitorTests'" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" Condition="'$(MSBuildProjectName)' != 'ReportingMonitorTests'" />
-    <PackageVersion Include="Moq" Version="4.20.69" />
+    <PackageVersion Include="Moq" Version="4.20.72" />
     <PackageVersion Include="MSTest.TestAdapter" Version="4.0.2" />
     <PackageVersion Include="MSTest.TestFramework" Version="4.0.2" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />

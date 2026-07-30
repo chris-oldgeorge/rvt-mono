@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Rvt.Monitor.Common.Diagnostics;
+using Rvt.Monitor.IntegrationTesting;
 using Svantek.Model.Http;
 namespace SvantekMonitorTests
 {
@@ -15,7 +16,7 @@ namespace SvantekMonitorTests
         public void TestSampleResponse_ToNoiseDto_Success()
         {
 
-            string json = TestUtil.ReadTextFromFile("testdata/latest_samples.json");
+            string json = MonitorTestUtil.ReadTextFromFile("testdata/latest_samples.json");
 
             List<SampleResponse> samples = JsonSerializer.Deserialize<List<SampleResponse>>(json)!;
 
@@ -40,7 +41,7 @@ namespace SvantekMonitorTests
         public void TestSampleResponse_ToNoiseDto_ThrowsCorrectException()
         {
 
-            string json = TestUtil.ReadTextFromFile("testdata/latest_samples.json");
+            string json = MonitorTestUtil.ReadTextFromFile("testdata/latest_samples.json");
 
             List<SampleResponse> samples = JsonSerializer.Deserialize<List<SampleResponse>>(json)!;
 

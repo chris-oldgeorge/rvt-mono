@@ -17,6 +17,7 @@
 
 using System.Text.RegularExpressions;
 using RVT.DataAccess.Configuration;
+using RvtPortal.Spa.Tests.Support;
 
 namespace RvtPortal.Spa.Tests;
 
@@ -31,7 +32,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies post-load scripts use canonical names for Timescale tables and setup hooks.
     public void PostLoadScripts_UseCanonicalNames()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string postLoadDirectory = Path.Combine(root, "database", "postgres", "post-load");
         string postLoadSql = string.Join(
             Environment.NewLine,
@@ -64,7 +65,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies the migrator deploys canonical PostgreSQL views instead of a placeholder hook.
     public void PostLoadScripts_DeployCanonicalViews()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string postLoadSql = File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql"));
         int viewCount = postLoadSql.Split("CREATE OR REPLACE VIEW public.", StringSplitOptions.None).Length - 1;
         string[] requiredViews = new[]
@@ -93,7 +94,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies canonical PostgreSQL view SQL has no active retired database dialect dialect leftovers.
     public void PostLoadViews_AvoidRetiredDialect()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string postLoadSql = StripSqlComments(File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql")));
         string[] retiredDialectTokens = new[]
         {
@@ -123,7 +124,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies each canonical PostgreSQL view statement terminates before the next view deployment block.
     public void PostLoadViews_TerminateBeforeNextDrop()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string postLoadSql = StripSqlComments(File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql")));
         IEnumerable<string> viewBlocks = postLoadSql.Split("CREATE OR REPLACE VIEW public.", StringSplitOptions.None).Skip(1);
 
@@ -152,7 +153,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies PostgreSQL views preserve ASP.NET Identity physical names while using canonical app names.
     public void PostLoadViews_PreserveIdentityNames()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string postLoadSql = File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql"));
 
         Assert.Contains("public.\"AspNetUsers\"", postLoadSql, StringComparison.Ordinal);
@@ -168,7 +169,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies PostgreSQL views cast ASP.NET Identity string ids before joining canonical UUID user columns.
     public void PostLoadViews_CastIdentityIdsForCanonicalUserJoins()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string postLoadSql = StripSqlComments(File.ReadAllText(Path.Combine(root, "database", "postgres", "post-load", "03_views_and_routines.sql")));
 
         Assert.DoesNotContain("U.\"Id\"=SU.user_id", postLoadSql, StringComparison.Ordinal);
@@ -189,7 +190,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies exported retired database dialect routines have canonical PostgreSQL post-load definitions.
     public void PostLoadScripts_DeployCanonicalRoutines()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string routineScriptPath = Path.Combine(root, "database", "postgres", "post-load", "04_routines.sql");
         Assert.True(File.Exists(routineScriptPath), $"Missing PostgreSQL routine post-load script: {routineScriptPath}");
 
@@ -251,7 +252,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies post-load scripts rename Timescale-created indexes into the canonical ix_ style.
     public void PostLoadScripts_RenameTimescaleIndexes()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string indexScriptPath = Path.Combine(root, "database", "postgres", "post-load", "05_index_naming_cleanup.sql");
         Assert.True(File.Exists(indexScriptPath), $"Missing PostgreSQL index cleanup post-load script: {indexScriptPath}");
 
@@ -275,7 +276,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies application code does not start depending on the temporary legacy compatibility schema.
     public void ApplicationCode_DoesNotReferenceLegacyCompatibilitySchema()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         HashSet<string> scannedExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
             ".cs",
@@ -312,7 +313,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies new application-owned migrations use canonical physical names outside ASP.NET Identity.
     public void ApplicationMigrations_DoNotIntroduceLegacyApplicationOwnedNames()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
         HashSet<string> allowedFiles = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -376,7 +377,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies the active EF baseline and model snapshot no longer describe the retired legacy schema.
     public void EfBaselineAndSnapshot_DoNotReferenceRetiredPhysicalNames()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
         // Resolved rather than hard-coded: the migration chain was squashed onto a generated baseline, and
         // naming the old files here would silently stop inspecting anything.
@@ -440,7 +441,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies migrations added after the canonical baseline do not drop objects the baseline owns.
     public void PostCanonicalBaselineMigrations_DoNotDropBaselineObjects()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
 
         string[] migrations = [.. Directory.EnumerateFiles(migrationDirectory, "*_*.cs", SearchOption.TopDirectoryOnly)
@@ -481,7 +482,7 @@ public partial class CutoverReadinessTests
     // Function summary: Verifies canonical-era EF migrations create or alter only canonical application-owned physical identifiers.
     public void CanonicalEraEfMigrations_UseCanonicalPhysicalIdentifiers()
     {
-        string root = FindRepositoryRoot();
+        string root = RepositoryLayout.Root;
         string migrationDirectory = Path.Combine(root, "RVT.DataAccess", "Migrations");
         string[] migrationFiles = [.. Directory.EnumerateFiles(migrationDirectory, "*.cs", SearchOption.TopDirectoryOnly)
             .Where(path => !Path.GetFileName(path).EndsWith(".Designer.cs", StringComparison.OrdinalIgnoreCase))
@@ -538,23 +539,6 @@ public partial class CutoverReadinessTests
         return Regex.Matches(source, pattern)
             .Select(match => match.Groups[groupName].Value)
             .Where(value => !string.IsNullOrWhiteSpace(value));
-    }
-
-    // Function summary: Handles the find repository root workflow for this module.
-    private static string FindRepositoryRoot()
-    {
-        DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (directory is not null)
-        {
-            if (File.Exists(Path.Combine(directory.FullName, "RvtPortal.Spa.sln")))
-            {
-                return directory.FullName;
-            }
-
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find repository root from test output directory.");
     }
 
     // Function summary: Removes line comments so dialect guardrails focus on executable SQL.

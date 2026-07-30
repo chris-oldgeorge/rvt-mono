@@ -4,6 +4,7 @@ using Omnidots.Model.Dto;
 using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
+using Rvt.Monitor.IntegrationTesting;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 namespace OmnidotsAdapterTests
 {
@@ -25,7 +26,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestParseAlarmJson()
         {
-            string json = TestUtil.ReadTextFromFile("testdata/alarm_ignore.json");
+            string json = MonitorTestUtil.ReadTextFromFile("testdata/alarm_ignore.json");
             AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
             Assert.IsNotNull(alarm);
@@ -118,7 +119,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestParseOnlineJson()
         {
-            string json = TestUtil.ReadTextFromFile("testdata/online.json");
+            string json = MonitorTestUtil.ReadTextFromFile("testdata/online.json");
             AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
             Assert.IsNotNull(alarm);
@@ -140,7 +141,7 @@ namespace OmnidotsAdapterTests
         [TestMethod]
         public void TestParseOfflineJson()
         {
-            string json = TestUtil.ReadTextFromFile("testdata/stop_clipping.json");
+            string json = MonitorTestUtil.ReadTextFromFile("testdata/stop_clipping.json");
             AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
             Assert.IsNotNull(alarm);
@@ -205,7 +206,7 @@ namespace OmnidotsAdapterTests
                                                                   double expectedLevel,
                                                                   double expectedLimit)
         {
-            string json = TestUtil.ReadTextFromFile(filename);
+            string json = MonitorTestUtil.ReadTextFromFile(filename);
             AlarmData? alarm = JsonSerializer.Deserialize<AlarmData>(json);
 
             Assert.IsNotNull(alarm);

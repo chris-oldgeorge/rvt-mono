@@ -10,6 +10,7 @@ using Omnidots.Model.Json;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
+using Rvt.Monitor.IntegrationTesting;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using NotificationDto = Rvt.Monitor.Common.Notifications.NotificationDto;
 namespace OmnidotsAdapterTests
@@ -43,7 +44,7 @@ namespace OmnidotsAdapterTests
 
         public static string MeasuringPointsJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/measuring_points.json");
+            return MonitorTestUtil.ReadTextFromFile("testdata/measuring_points.json");
         }
 
         public static SiteTimes AlwaysOpenSiteTimes()
@@ -61,22 +62,22 @@ namespace OmnidotsAdapterTests
 
         public static string PeakRecordsJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/peak_response.json");
+            return MonitorTestUtil.ReadTextFromFile("testdata/peak_response.json");
         }
 
         public static string VeffRecordsJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/veff_response.json");
+            return MonitorTestUtil.ReadTextFromFile("testdata/veff_response.json");
         }
 
         public static string VdvRecordsJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/vdv_response.json");
+            return MonitorTestUtil.ReadTextFromFile("testdata/vdv_response.json");
         }
 
         public static string TracesResponseJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/traces.json");
+            return MonitorTestUtil.ReadTextFromFile("testdata/traces.json");
         }
 
 
@@ -253,9 +254,9 @@ namespace OmnidotsAdapterTests
         {
             return alertType switch
             {
-                AlertType.Ignore => TestUtil.ReadTextFromFile("testdata/alarm_ignore.json"),
-                AlertType.Alert => TestUtil.ReadTextFromFile("testdata/alarm_alert.json"),
-                AlertType.Caution => TestUtil.ReadTextFromFile("testdata/alarm_caution.json"),
+                AlertType.Ignore => MonitorTestUtil.ReadTextFromFile("testdata/alarm_ignore.json"),
+                AlertType.Alert => MonitorTestUtil.ReadTextFromFile("testdata/alarm_alert.json"),
+                AlertType.Caution => MonitorTestUtil.ReadTextFromFile("testdata/alarm_caution.json"),
                 _ => throw new Exception("No json for alert type"),
             };
         }

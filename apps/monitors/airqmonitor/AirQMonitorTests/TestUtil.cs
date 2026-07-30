@@ -4,9 +4,9 @@ using AirQ.Api.Http;
 using AirQ.Model.Dto;
 using Moq;
 using Rvt.Monitor.Common.Alerts;
-using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Rules;
+using Rvt.Monitor.IntegrationTesting;
 namespace AirQMonitorTests
 {
 
@@ -19,14 +19,7 @@ namespace AirQMonitorTests
             httpClient = new Mock<IHttpClient>();
             dbClient = new Mock<IDBClient>();
             mqttClient = new Mock<IMqttClient>();
-            messageClient = new Mock<IAlertIngressPort>();
-            messageClient
-                .Setup(ingress => ingress.AcceptAsync(It.IsAny<AlertSignal>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new AlertIngressResult(
-                    Guid.NewGuid(),
-                    Guid.NewGuid(),
-                    AlertOccurrenceOutcome.Accepted,
-                    IsDuplicate: false));
+            messageClient = MonitorTestUtil.CreateAcceptingAlertIngress();
             return new AirQApi(httpClient.Object, dbClient.Object, mqttClient.Object, messageClient.Object);
         }
 
@@ -41,24 +34,6 @@ namespace AirQMonitorTests
             Assert.AreEqual(actual.Second, expected.Second);
 
         }
-
-        public static string ReadTextFromFile(string fileName)
-        {
-            try
-            {
-                using StreamReader sr = new(fileName);
-                string txt = sr.ReadToEnd();
-                Console.WriteLine(txt);
-                return txt;
-            }
-            catch (IOException e)
-            {
-                Console.WriteLine("The file could not be read:");
-                Console.WriteLine(e.Message);
-                throw AdapterException.Of("Could not read file=" + fileName, e);
-            }
-        }
-
 
         public static bool AreEqual(List<NoiseMonitorDto> expected, List<NoiseMonitorDto> actual)
         {

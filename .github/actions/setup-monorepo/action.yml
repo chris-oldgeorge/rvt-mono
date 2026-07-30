@@ -1,0 +1,31 @@
+name: Set up monorepo toolchain
+description: >-
+  The shared setup preamble for the automatic pull-request workflows:
+  .NET 10, Node.js 24 with the Portal npm cache, the locked Portal client
+  install, and the locked monorepo restore.
+
+runs:
+  using: composite
+  steps:
+    - name: Set up .NET 10
+      uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Set up Node.js 24
+      uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+      with:
+        node-version: 24.x
+        cache: npm
+        cache-dependency-path: apps/portal/RvtPortal.Client/package-lock.json
+
+    # RvtPortal.Spa's Debug build restores the SPA client when node_modules is
+    # absent, so .NET jobs need the same prerequisite a developer machine has.
+    - name: Install Portal client dependencies
+      shell: bash
+      working-directory: apps/portal/RvtPortal.Client
+      run: npm ci --ignore-scripts
+
+    - name: Restore monorepo
+      shell: bash
+      run: dotnet restore Rvt.Mono.slnx --locked-mode --disable-parallel

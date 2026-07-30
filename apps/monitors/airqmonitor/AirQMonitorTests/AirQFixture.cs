@@ -3,6 +3,7 @@ using AirQ.Model.Dto;
 using AirQ.Model.Http;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
+using Rvt.Monitor.IntegrationTesting;
 
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 using ContactMethod = Rvt.Monitor.Common.Rules.ContactMethod;
@@ -19,12 +20,12 @@ namespace AirQMonitorTests
 
         public static string InstrumentsResponseJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/devices.json"); ;
+            return MonitorTestUtil.ReadTextFromFile("testdata/devices.json"); ;
         }
 
         public static string MetaDataResponseJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/latest_metadata.json"); ;
+            return MonitorTestUtil.ReadTextFromFile("testdata/latest_metadata.json"); ;
         }
 
         public static string TooManyRequestsJson()
@@ -67,7 +68,7 @@ namespace AirQMonitorTests
 
         public static string SamplesResponseJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/latest_samples.json");
+            return MonitorTestUtil.ReadTextFromFile("testdata/latest_samples.json");
         }
 
         public static List<SampleResponse> SamplesResponseObjects(DateTime? sampleTimeUtc = null)
@@ -90,7 +91,7 @@ namespace AirQMonitorTests
 
         public static string DateSamplesResponseJson()
         {
-            return TestUtil.ReadTextFromFile("testdata/date_samples.json");
+            return MonitorTestUtil.ReadTextFromFile("testdata/date_samples.json");
         }
 
         public static List<NoiseMonitorDto> MonitorDtos(DateTime? lastDataTime, string activityStatus, int errorCount = 0)

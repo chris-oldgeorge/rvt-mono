@@ -34,8 +34,8 @@ public sealed class OmnidotsAlertOutboxStoreTests
     {
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(45));
         _database = await PostgreSqlIntegrationDatabase.CreateAsync(
-            OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/create.postgres.sql"),
-            OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
+            Rvt.Monitor.IntegrationTesting.MonitorTestUtil.ReadTextFromFile("testdata/create.postgres.sql"),
+            Rvt.Monitor.IntegrationTesting.MonitorTestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
             timeout.Token);
     }
 
@@ -52,7 +52,7 @@ public sealed class OmnidotsAlertOutboxStoreTests
     public async Task TestInitialize()
     {
         await _database!.ResetAsync(
-            OmnidotsAdapterTests.TestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
+            Rvt.Monitor.IntegrationTesting.MonitorTestUtil.ReadTextFromFile("testdata/reset.postgres.sql"),
             TestContext.CancellationToken);
         await SeedAlertGraphAsync();
 

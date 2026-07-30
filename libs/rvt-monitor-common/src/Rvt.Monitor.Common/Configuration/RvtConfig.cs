@@ -97,10 +97,13 @@ public sealed class RvtConfig
     /// Resolves which monitor the process is running as.
     /// </summary>
     /// <remarks>
-    /// <c>RVT__MONITOR_KIND</c> is the only signal; every deployed monitor
-    /// declares it. The entry-assembly and base-directory sniffing that once
-    /// backed this up was deleted on 2026-07-29 (legacy-retirement step 7) —
-    /// library behaviour no longer depends on what the executable is named.
+    /// <c>RVT__MONITOR_KIND</c> is the only signal; every deployed vendor
+    /// monitor (airq/myatm/omnidots/svantek) declares it. The reporting
+    /// monitor deliberately declares no kind — it has no vendor defaults here
+    /// and runs on the neutral fallback. The entry-assembly and base-directory
+    /// sniffing that once backed this up was deleted on 2026-07-29
+    /// (legacy-retirement step 7) — library behaviour no longer depends on
+    /// what the executable is named.
     /// </remarks>
     private static string NormalizeMonitorKind(string? monitorKind)
     {

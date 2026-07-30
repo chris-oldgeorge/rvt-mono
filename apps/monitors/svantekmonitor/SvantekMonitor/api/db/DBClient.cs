@@ -721,14 +721,14 @@ namespace Svantek.Api.Db
                 {
                     SerialId = Convert.ToString(row["SerialId"]) ?? string.Empty,
                     SampleTime = Convert.ToDateTime(row["SampleTime"]),
-                    LAeq = Convert.ToDouble(row["LAeq"]),
-                    LAmax = Convert.ToDouble(row["LAmax"]),
-                    LA90 = Convert.ToDouble(row["LA90"]),
-                    LA10 = Convert.ToDouble(row["LA10"]),
-                    LCeq = Convert.ToDouble(row["LCeq"]),
-                    LCmax = Convert.ToDouble(row["LCmax"]),
-                    LC90 = Convert.ToDouble(row["LC90"]),
-                    LC10 = Convert.ToDouble(row["LC10"])
+                    LAeq = row.Field<double?>("LAeq"),
+                    LAmax = row.Field<double?>("LAmax"),
+                    LA90 = row.Field<double?>("LA90"),
+                    LA10 = row.Field<double?>("LA10"),
+                    LCeq = row.Field<double?>("LCeq"),
+                    LCmax = row.Field<double?>("LCmax"),
+                    LC90 = row.Field<double?>("LC90"),
+                    LC10 = row.Field<double?>("LC10")
                 })];
 
         private static void InsertNoiseDtos(SvantekMonitorContext context, IEnumerable<NoiseDto> dtos)

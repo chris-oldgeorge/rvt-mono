@@ -126,10 +126,20 @@ namespace AirQ.Api.UseCases
                     }
                     catch (Exception e)
                     {
-                        monitor.MonitorStatus.ErrorCount++;
-                        _monitorCommands.UpdateMonitorStatus(monitor.SerialId, monitor.MonitorStatus);
-                        _operationalCommands.HandleException(string.Format("StoreNoiseLevels SerialId={0}", monitor.SerialId), e);
                         failures.Add(e);
+                        try
+                        {
+                            // Recording is best-effort: a database outage while
+                            // writing the status/error rows must not replace the
+                            // original failure (MyAtm's collector semantics).
+                            monitor.MonitorStatus.ErrorCount++;
+                            _monitorCommands.UpdateMonitorStatus(monitor.SerialId, monitor.MonitorStatus);
+                            _operationalCommands.HandleException(string.Format("StoreNoiseLevels SerialId={0}", monitor.SerialId), e);
+                        }
+                        catch (Exception recordingException)
+                        {
+                            failures.Add(recordingException);
+                        }
                     }
                 }
 

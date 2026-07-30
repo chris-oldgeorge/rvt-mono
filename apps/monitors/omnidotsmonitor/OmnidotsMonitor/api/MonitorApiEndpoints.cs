@@ -152,6 +152,19 @@ public static class MonitorApiEndpoints
                 .LogWarning("Authenticated webhook payload rejected by validation.");
             return WebhookValidationProblem();
         }
+        catch (AlertUnknownMonitorException exception)
+        {
+            // Permanent outcome: the vendor must stop retrying this payload
+            // (typically a device that webhooks before the fleet import runs).
+            loggerFactory.CreateLogger("OmnidotsMonitorApi")
+                .LogWarning(
+                    "Authenticated webhook rejected for unknown monitor serialId={Value1}.",
+                    exception.SerialId);
+            return TypedResults.Problem(
+                statusCode: StatusCodes.Status422UnprocessableEntity,
+                title: "Unknown monitor serial.",
+                detail: $"Monitor serial '{exception.SerialId}' is not registered with this service.");
+        }
         catch (AlertTransientPersistenceException)
         {
             loggerFactory.CreateLogger("OmnidotsMonitorApi")

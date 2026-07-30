@@ -946,6 +946,47 @@ namespace OmnidotsAdapterTests
             messageClient.VerifyNoOtherCalls();
         }
 
+        [TestMethod]
+        public async Task TestNotifyBatteryLevels_IngressFailure_DoesNotLatchStatusAndProcessesNextMonitor()
+        {
+            OmnidotsApi testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,
+                                                 out Mock<IDBClient> dbClient,
+                                                 out Mock<IMqttClient> mqttClient,
+                                                 out Mock<IAlertIngressPort> messageClient);
+
+            List<VibrationMonitorDto> monitors = OmnidotsFixture.MonitorsList(numMonitors: 2,
+                                                        lastDataTime: null,
+                                                        alwaysMakeSensor: true,
+                                                        serialIdIn: 100,
+                                                        batteryLevel: 5);
+            dbClient.Setup(c => c.ReadMonitorList(null)).Returns(monitors);
+            messageClient.Setup(c => c.AcceptAsync(
+                    It.Is<AlertSignal>(signal => signal.SerialId == monitors[0].SerialId),
+                    It.IsAny<CancellationToken>())).
+                ThrowsAsync(new IOException("durable ingress unavailable"));
+
+            OmnidotsImportException importException = await Assert.ThrowsExactlyAsync<OmnidotsImportException>(
+                () => testObj.NotifyBatteryLevelsAsync(TestContext.CancellationToken));
+
+            // The rejected signal must NOT latch the status gate, so the next
+            // run retries the alert instead of suppressing it forever.
+            dbClient.Verify(c => c.SetMonitorBatteryStatus(monitors[0].Id, It.IsAny<byte>()), Times.Never);
+
+            // The failure is isolated per monitor: the next monitor still signals and latches.
+            messageClient.Verify(c => c.AcceptAsync(
+                It.Is<AlertSignal>(signal => signal.SerialId == monitors[1].SerialId),
+                It.IsAny<CancellationToken>()), Times.Exactly(1));
+            dbClient.Verify(c => c.SetMonitorBatteryStatus(monitors[1].Id, (byte)BatteryAlertType.BatteryAlert), Times.Exactly(1));
+            dbClient.Verify(c => c.HandleException($"NotifyBatteryLevels serialId={monitors[0].SerialId}", It.IsAny<IOException>()),
+                Times.Exactly(1));
+            Assert.HasCount(1, importException.Failures);
+            Assert.AreEqual(monitors[0].SerialId, importException.Failures[0].SerialId);
+            Assert.IsNull(importException.Failures[0].RecordingException);
+
+            httpClient.VerifyNoOtherCalls();
+            mqttClient.VerifyNoOtherCalls();
+        }
+
         //public void TestGetTracesList_Success()
         //{
         //    var testObj = TestUtil.CreateApiAndMocks(out Mock<IHttpClient> httpClient,

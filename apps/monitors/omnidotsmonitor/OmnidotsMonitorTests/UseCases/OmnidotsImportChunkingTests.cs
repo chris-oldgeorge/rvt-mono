@@ -5,11 +5,11 @@ using Omnidots.Api.Db;
 using Omnidots.Api.Http;
 using Omnidots.Model.Config;
 using Omnidots.Model.Dto;
+using OmnidotsAdapterTests;
 using Rvt.Monitor.Common.Alerts;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Utilities;
-using OmnidotsAdapterTests;
 
 namespace OmnidotsMonitorTests.UseCases;
 

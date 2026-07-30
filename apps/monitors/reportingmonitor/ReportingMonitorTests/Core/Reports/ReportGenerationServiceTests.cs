@@ -289,7 +289,7 @@ public sealed class ReportGenerationServiceTests
                 new DateTimeOffset(2026, 6, 28, 0, 0, 0, TimeSpan.Zero),
                 new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero)
             ],
-            commands.SaveRequests.Select(request => request.PeriodStartUtc).ToArray());
+            [.. commands.SaveRequests.Select(request => request.PeriodStartUtc)]);
     }
 
     [Fact]
@@ -324,7 +324,7 @@ public sealed class ReportGenerationServiceTests
                 new DateTimeOffset(2026, 6, 27, 0, 0, 0, TimeSpan.Zero),
                 new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero)
             ],
-            commands.SaveRequests.Select(request => request.PeriodStartUtc).ToArray());
+            [.. commands.SaveRequests.Select(request => request.PeriodStartUtc)]);
     }
 
     [Fact]

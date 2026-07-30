@@ -3,7 +3,6 @@ using AirQ.Api.Db;
 using AirQ.Api.Ports;
 using AirQ.Api.UseCases;
 using AirQ.Model.Dto;
-using AirQ.Model.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Rvt.Monitor.Common.Diagnostics;

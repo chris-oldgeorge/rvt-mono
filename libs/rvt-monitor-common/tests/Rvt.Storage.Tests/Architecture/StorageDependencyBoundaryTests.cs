@@ -199,7 +199,7 @@ public sealed class StorageDependencyBoundaryTests
                      directory is not null;
                      directory = directory.Parent)
                 {
-                    if (File.Exists(Path.Combine(directory.FullName, "project_state.md"))
+                    if (File.Exists(Path.Combine(directory.FullName, "Rvt.Mono.slnx"))
                         && Directory.Exists(Path.Combine(
                             directory.FullName,
                             "libs",

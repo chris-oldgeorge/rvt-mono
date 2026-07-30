@@ -1,7 +1,6 @@
 
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
-using Rvt.Monitor.Common.Utilities;
 
 namespace Rvt.Monitor.Common.Rules;
 
@@ -57,10 +56,11 @@ public class AlertActivityTimeDto
             return true;
         }
 
-        // Convert given time of day to local time to allow for daylight saving
-        TimeSpan localTimeOfDay = DateTimeUtil.UtcToLocal(dateTime.TimeOfDay);
+        // Product ruling 2026-07-30: all alert timing is UTC wall-clock, matching
+        // the contact send-windows. Configured hours do not track DST.
+        TimeSpan utcTimeOfDay = dateTime.TimeOfDay;
 
-        return TimeSpan.Compare((TimeSpan)StartTime, localTimeOfDay) <= 0 &&
-            TimeSpan.Compare((TimeSpan)EndTime, localTimeOfDay) >= 0;
+        return TimeSpan.Compare((TimeSpan)StartTime, utcTimeOfDay) <= 0 &&
+            TimeSpan.Compare((TimeSpan)EndTime, utcTimeOfDay) >= 0;
     }
 }

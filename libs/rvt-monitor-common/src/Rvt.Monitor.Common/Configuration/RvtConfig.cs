@@ -194,7 +194,6 @@ public sealed class RvtConfig
     public static readonly bool TESTLOCAL = GetBoolSetting("testlocal");
     public static string PORTAL_BASE_URL => GetSetting("RVT__PORTAL_BASE_URL", Defaults.PortalBaseUrl);
     public static string BASE_URL => GetSetting("RVT__BASE_URL", Defaults.BaseUrl);
-    public static readonly string LOCAL_TIME_ZONE = GetSetting("RVT__LOCAL_TIME_ZONE", "GMT Standard Time");
     public static string INSERT_TOPIC => GetSetting("RVT__INSERT_TOPIC", Defaults.InsertTopic);
     public static string ALERT_TOPIC => GetSetting("RVT__ALERT_TOPIC", Defaults.AlertTopic);
 

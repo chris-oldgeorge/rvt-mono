@@ -2,22 +2,19 @@ using Microsoft.Extensions.Logging;
 using Rvt.Monitor.Common.Configuration;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Rules;
-using Rvt.Monitor.Common.Utilities;
 
 namespace Rvt.Monitor.CommonTests.Rules;
 
 /// <summary>
-/// Verifies alert activity day/time matching against local-time rule windows.
+/// Verifies alert activity day/time matching against UTC wall-clock windows.
 /// </summary>
 /// <remarks>
-/// All four monitor test projects carried a copy of these cases, each pinning
-/// the behaviour under its own monitor's ambient <c>RvtConfig.RulePolicy</c>:
-/// AirQ and Svantek held the local-time-hardened variant, MyAtm's copy encoded
-/// its day-only policy implicitly (the same window case asserted the opposite
-/// result), and Omnidots padded its windows by an hour to absorb the timezone
-/// conversion it did not perform. This single copy makes each policy explicit
-/// instead of depending on which process the test happens to run in, and also
-/// covers the <see cref="Rvt.Monitor.Common.Notifications.AlertActivityTimeDto"/>
+/// Product ruling 2026-07-30: all alert timing is UTC wall-clock. Rule
+/// activity windows previously converted the evaluated moment into the
+/// configured local timezone, which made quiet hours drift against the
+/// contact send-windows (evaluated in UTC) whenever DST applied. Configured
+/// hours are now UTC and deliberately do not track DST. These cases also
+/// cover the <see cref="Rvt.Monitor.Common.Notifications.AlertActivityTimeDto"/>
 /// legacy twin, which inherits the behaviour.
 /// </remarks>
 [TestClass]
@@ -34,21 +31,45 @@ public sealed class AlertActivityTimeDtoTests
             nameof(AlertActivityTimeDtoTests));
 
     [TestMethod]
-    public void InsideTheLocalTimeWindow_IsActive()
+    public void InsideTheUtcTimeWindow_IsActive()
     {
         Assert.IsTrue(WindowedRule(_weekday, startOffsetMinutes: -1, endOffsetMinutes: 1).IsActive(_weekday));
     }
 
     [TestMethod]
-    public void BeforeTheLocalTimeWindow_IsInactive()
+    public void BeforeTheUtcTimeWindow_IsInactive()
     {
         Assert.IsFalse(WindowedRule(_weekday, startOffsetMinutes: -2, endOffsetMinutes: -1).IsActive(_weekday));
     }
 
     [TestMethod]
-    public void AfterTheLocalTimeWindow_IsInactive()
+    public void AfterTheUtcTimeWindow_IsInactive()
     {
         Assert.IsFalse(WindowedRule(_weekday, startOffsetMinutes: 1, endOffsetMinutes: 2).IsActive(_weekday));
+    }
+
+    [TestMethod]
+    public void EvaluatesTheWindowInUtcWallClockTime()
+    {
+        // Pins the 2026-07-30 timezone ruling: the moment's UTC time of day is
+        // compared to the configured hours as-is, with no local-timezone (and
+        // therefore no DST) conversion. Under the old local evaluation a
+        // BST-summer run shifted 07:22 UTC to 08:22 local and this window
+        // missed, splitting rule windows from the UTC contact send-windows.
+        DateTime utcMoment = new(2026, 7, 28, 7, 22, 16, DateTimeKind.Utc); // a Tuesday in BST
+        AlertActivityTimeDto rule = new()
+        {
+            Weekdays = true,
+            Saturdays = true,
+            Sundays = true,
+            StartTime = TimeSpan.FromHours(7),
+            EndTime = TimeSpan.FromHours(8),
+            Policy = MonitorRulePolicy.Default
+        };
+
+        Assert.IsTrue(rule.IsActive(utcMoment));                // 07:22 UTC
+        Assert.IsFalse(rule.IsActive(utcMoment.AddHours(1)));   // 08:22 UTC
+        Assert.IsFalse(rule.IsActive(utcMoment.AddHours(-1)));  // 06:22 UTC
     }
 
     [TestMethod]
@@ -123,14 +144,14 @@ public sealed class AlertActivityTimeDtoTests
     [TestMethod]
     public void NotificationsTwin_InheritsTheSameBehaviour()
     {
-        TimeSpan localTime = DateTimeUtil.UtcToLocal(_weekday.TimeOfDay);
+        TimeSpan utcTime = _weekday.TimeOfDay;
         Rvt.Monitor.Common.Notifications.AlertActivityTimeDto twin = new()
         {
             Weekdays = true,
             Saturdays = false,
             Sundays = false,
-            StartTime = localTime.Add(TimeSpan.FromMinutes(-1)),
-            EndTime = localTime.Add(TimeSpan.FromMinutes(1)),
+            StartTime = utcTime.Add(TimeSpan.FromMinutes(-1)),
+            EndTime = utcTime.Add(TimeSpan.FromMinutes(1)),
             Policy = MonitorRulePolicy.Default
         };
 
@@ -140,16 +161,16 @@ public sealed class AlertActivityTimeDtoTests
 
     private static AlertActivityTimeDto WindowedRule(DateTime moment, int startOffsetMinutes, int endOffsetMinutes)
     {
-        // Built through the same local-time conversion the rule itself applies,
-        // so the expectation holds in any host timezone.
-        TimeSpan localTime = DateTimeUtil.UtcToLocal(moment.TimeOfDay);
+        // Windows are UTC wall-clock, so they are built straight from the
+        // moment's UTC time of day and hold in any host timezone.
+        TimeSpan utcTime = moment.TimeOfDay;
         return new AlertActivityTimeDto
         {
             Weekdays = true,
             Saturdays = false,
             Sundays = false,
-            StartTime = localTime.Add(TimeSpan.FromMinutes(startOffsetMinutes)),
-            EndTime = localTime.Add(TimeSpan.FromMinutes(endOffsetMinutes)),
+            StartTime = utcTime.Add(TimeSpan.FromMinutes(startOffsetMinutes)),
+            EndTime = utcTime.Add(TimeSpan.FromMinutes(endOffsetMinutes)),
             Policy = MonitorRulePolicy.Default
         };
     }

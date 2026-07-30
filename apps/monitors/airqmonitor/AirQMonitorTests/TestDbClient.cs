@@ -131,6 +131,21 @@ namespace AirQMonitorTests
         }
 
         [TestMethod]
+        public void TestReadGlobalRulesExcludesDeletedRules()
+        {
+            string connectionString = _database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
+            connection.Open();
+
+            InsertDeletedGlobalOfflineRule(connection);
+
+            List<RvtAlertRuleDto> rules = _testObj!.ReadRules(null);
+
+            Assert.HasCount(1, rules);
+            Assert.IsFalse(rules[0].IsDeleted);
+        }
+
+        [TestMethod]
         public void TestWriteLatestTimestamp()
         {
             List<NoiseMonitorDto> monitors = CreateMonitorsList(1, "E123");
@@ -482,6 +497,20 @@ namespace AirQMonitorTests
                 value,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+
+        private static void InsertDeletedGlobalOfflineRule(NpgsqlConnection connection)
+        {
+            string sql = @"INSERT INTO rvt_alert_rule
+                            (id, serial_id, alert_field, limit_on, limit_off, alert_type, is_active, averaging_period,
+                             weekdays, saturdays, sundays, is_deleted, created)
+                        VALUES (@Id, NULL, @AlertField, 0, 0, 2, true, 86400, true, true, true, true, @Created);";
+
+            using NpgsqlCommand cmd = new(sql, connection);
+            cmd.Parameters.AddWithValue("@Id", Guid.NewGuid());
+            cmd.Parameters.AddWithValue("@AlertField", RuleConstants.OFFLINE_RULE);
+            cmd.Parameters.AddWithValue("@Created", DateTime.UtcNow);
+            cmd.ExecuteNonQuery();
+        }
 
         private static void InsertAlertRule(NpgsqlConnection connection, int index, string serialId, Guid monitorId,
                                             AlertType? alertType = null)

@@ -1,5 +1,6 @@
 // File summary: Provides canonical PostgreSQL SQL definitions for site archive CSV and report exports.
 // Major updates:
+// - 2026-07-30 pending Read the deployment coordinates from the columns that exist (lat/lng).
 // - 2026-07-30 pending Resolved archive tables through SearchPath instead of pinning the public schema.
 // - 2026-07-30 pending Normalized the date-only off-hire end.
 // - 2026-07-25 pending Made public-schema PostgreSQL SQL canonical.
@@ -85,8 +86,8 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
             SELECT m.fleet_nr as "Monitor",
                    m.serial_id as "SerialId",
                    {MonitorTypeCase()} as "Type",
-                   d.latitude as "Latitude",
-                   d.longitude as "Longitude",
+                   d.lat as "Latitude",
+                   d.lng as "Longitude",
                    d.what_3_words as "What3words",
                    c.contract_number as "ContractNumber",
                    c.on_hire_date as "OnHireDate",

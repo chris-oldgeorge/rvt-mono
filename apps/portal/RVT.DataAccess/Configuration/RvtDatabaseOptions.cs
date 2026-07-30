@@ -40,7 +40,6 @@ public sealed class RvtDatabaseOptions
     /// <summary>
     /// Verifies at startup that every relation and column the EF model maps to exists in the database, so
     /// mapping drift fails immediately and visibly instead of on the first request that touches it.
-    /// Non-relational providers (the InMemory test provider) are skipped.
     /// </summary>
     public bool ValidateSchemaOnStartup { get; set; } = DefaultValidateSchemaOnStartup;
 

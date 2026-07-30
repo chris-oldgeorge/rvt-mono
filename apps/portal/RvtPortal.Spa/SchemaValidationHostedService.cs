@@ -14,7 +14,7 @@ namespace RvtPortal.Spa;
 /// Without this, a model change - or a change to the canonical naming rules - can silently map an entity onto a
 /// table or column that is not there, and nothing notices until a request touches it and returns a 500 from
 /// deep inside a query. Checking at boot turns that into an immediate, legible failure listing exactly what is
-/// missing. Non-relational providers (the InMemory test provider) have no information schema and are skipped.
+/// missing.
 /// </summary>
 public sealed class SchemaValidationHostedService : IHostedService
 {

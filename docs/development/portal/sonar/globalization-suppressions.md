@@ -16,7 +16,12 @@ EF predicate, neither works, and the current form is correct on both providers t
 
 ## Why it can't be rewritten (verified 2026-07-15 via `ToQueryString`)
 
-The app is tested on the **EF InMemory** provider (`SpaTestApplicationFactory`) and runs on **Npgsql**. Six-plus
+> 2026-07-30: `SpaTestApplicationFactory` has since replatformed onto real PostgreSQL (throwaway schemas), so
+> the workflow suites now exercise these endpoints on Npgsql. The intersection argument below still applies:
+> several unit suites (e.g. `SearchQueryExecutorTests`) still construct EF InMemory contexts around these same
+> query builders, and converting the remaining `ToLower()` sites to `EF.Functions.ILike` is a separate decision.
+
+The app is tested on the **EF InMemory** provider in unit suites and runs on **Npgsql**. Six-plus
 tests exercise these search endpoints (`/api/companies?searchText=`, `/api/report-rules?searchText=`,
 `/api/users?searchText=`, …). A replacement has to work on both.
 

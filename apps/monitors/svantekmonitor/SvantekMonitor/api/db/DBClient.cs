@@ -265,7 +265,7 @@ namespace Svantek.Api.Db
             IQueryable<RvtAlertRuleEntity> query;
             if (serialNumber == null)
             {
-                query = context.AlertRules.AsNoTracking().Where(row => row.SerialId == null);
+                query = context.AlertRules.AsNoTracking().Where(row => row.SerialId == null && !row.IsDeleted);
             }
             else
             {

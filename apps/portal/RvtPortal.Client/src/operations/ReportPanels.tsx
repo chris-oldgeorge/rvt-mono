@@ -44,7 +44,7 @@ import {
 } from '../api/client';
 import { DataGrid } from '../components/DataGrid';
 import type { DataGridColumn } from '../components/DataGrid';
-import { FormField, Notice, SubmitButton } from '../components/FormControls';
+import { ConfirmDialog, FormField, Notice, SubmitButton } from '../components/FormControls';
 import { currentRoutePath, returnToOr, withReturnTo } from '../navigation';
 import { formatDate, formatDateTime } from '../format';
 import { normalizeSortDirection, parsePositiveInt, useGridSortHandler } from '../gridQuery';
@@ -294,6 +294,7 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   const [sortDir, setSortDir] = useState<SortDirection>(normalizeSortDirection(initialParams.get('sortDir')));
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeleteRule, setConfirmDeleteRule] = useState<ReportRuleListItem | null>(null);
   const [completedExecution, setCompletedExecution] = useState<ListExecution<QueryReportRulesRequest> | null>(null);
   const [refreshExecution, setRefreshExecution] = useState<ListExecution<QueryReportRulesRequest> | null>(null);
   const { claimRequest, ownsRequest, currentGeneration } = useRequestLifecycle();
@@ -389,9 +390,6 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
   const returnPath = currentRoutePath(locationPath);
 
   async function handleDelete(rule: ReportRuleListItem) {
-    if (!globalThis.confirm(`Delete ${rule.reportName || rule.frequencyLabel} report rule?`)) {
-      return;
-    }
     const deleteGeneration = currentGeneration();
     setNotice(null);
     setError(null);
@@ -464,9 +462,23 @@ function ReportRulesListPanel({ locationPath, onNavigate, onRequestError }: Repo
           {
             label: 'Delete report rule',
             icon: <Trash2 size={16} aria-hidden="true" />,
-            onClick: handleDelete,
+            onClick: (rule) => setConfirmDeleteRule(rule),
           },
         ]}
+      />
+      <ConfirmDialog
+        open={confirmDeleteRule !== null}
+        title="Delete report rule"
+        message={`Delete ${confirmDeleteRule?.reportName || confirmDeleteRule?.frequencyLabel || 'this'} report rule?`}
+        confirmLabel="Delete"
+        onCancel={() => setConfirmDeleteRule(null)}
+        onConfirm={() => {
+          const rule = confirmDeleteRule;
+          setConfirmDeleteRule(null);
+          if (rule) {
+            void handleDelete(rule);
+          }
+        }}
       />
     </section>
   );
@@ -716,6 +728,7 @@ function ReportRuleUsersPanel({
   const [assignedSortDir, setAssignedSortDir] = useState<SortDirection>('Ascending');
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [confirmRemoveUser, setConfirmRemoveUser] = useState<UserListItem | null>(null);
   const usersRequestGeneration = useRef(0);
 
   const availableQuery = useMemo<QueryCompaniesRequest>(
@@ -992,12 +1005,26 @@ function ReportRuleUsersPanel({
             {
               label: 'Remove report user',
               icon: <Trash2 size={16} aria-hidden="true" />,
-              onClick: (user) => runMutation(() => removeReportRuleUser(ruleId, user.id)),
+              onClick: (user) => setConfirmRemoveUser(user),
               disabled: () => isBusy,
             },
           ]}
         />
       </section>
+      <ConfirmDialog
+        open={confirmRemoveUser !== null}
+        title="Remove report user"
+        message={`Remove ${confirmRemoveUser?.email ?? 'this user'} from this report rule?`}
+        confirmLabel="Remove"
+        onCancel={() => setConfirmRemoveUser(null)}
+        onConfirm={() => {
+          const user = confirmRemoveUser;
+          setConfirmRemoveUser(null);
+          if (user) {
+            void runMutation(() => removeReportRuleUser(ruleId, user.id));
+          }
+        }}
+      />
     </section>
   );
 }

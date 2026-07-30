@@ -646,6 +646,8 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
     };
   }, [suggestionExecution]);
 
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<UserListItem | null>(null);
+
   async function handleAction(user: UserListItem, action: 'resend' | 'reset' | 'disable' | 'enable' | 'delete') {
     setNotice(null);
     setError(null);
@@ -796,9 +798,23 @@ function UserListPanel({ locationPath, onNavigate, onRequestError }: AdminPanelP
             label: 'Delete user',
             icon: <Trash2 size={16} aria-hidden="true" />,
             disabled: (user) => !user.canDelete,
-            onClick: (user) => void handleAction(user, 'delete'),
+            onClick: (user) => setConfirmDeleteUser(user),
           },
         ]}
+      />
+      <ConfirmDialog
+        open={confirmDeleteUser !== null}
+        title="Delete user"
+        message={`Delete ${confirmDeleteUser?.email ?? 'this user'}?`}
+        confirmLabel="Delete"
+        onCancel={() => setConfirmDeleteUser(null)}
+        onConfirm={() => {
+          const user = confirmDeleteUser;
+          setConfirmDeleteUser(null);
+          if (user) {
+            void handleAction(user, 'delete');
+          }
+        }}
       />
     </section>
   );

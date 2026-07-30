@@ -126,7 +126,7 @@ public class DataViewTests
     public async Task MonitorService_TimeSeriesBounds_AreUnspecifiedAtDatabaseBoundary()
     {
         RecordingSearchQueryReader reader = new();
-        MonitorService service = new(null!, null!, reader, null!, null!);
+        MonitorService service = new(null!, reader, null!, null!);
         DateTime from = new(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
         DateTime to = from.AddHours(1);
 
@@ -147,7 +147,7 @@ public class DataViewTests
     public async Task MonitorService_TimeSeriesBounds_RejectNonUtcInputs(DateTimeKind kind)
     {
         RecordingSearchQueryReader reader = new();
-        MonitorService service = new(null!, null!, reader, null!, null!);
+        MonitorService service = new(null!, reader, null!, null!);
         DateTime from = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 14, 0, 0), kind);
         DateTime to = DateTime.SpecifyKind(new DateTime(2026, 7, 1, 15, 0, 0), kind);
 
@@ -352,7 +352,7 @@ public class DataViewTests
             INSERT INTO omnidots_trace (omnidots_trace_index_id, x, y, z)
             VALUES ({traceId}, {0.1}, {0.2}, {0.3})
             """);
-        MonitorService service = new(null!, null!, null!, searchContext, null!);
+        MonitorService service = new(null!, null!, searchContext, null!);
 
         SearchQueryResult<OmnidotsTrace> result = await service.GetVibrationTraces(traceId);
 
@@ -567,7 +567,7 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
                 FromDate = trace.Index.StartTime,
                 ToDate = trace.Index.EndTime,
                 FilterOptions = [],
-                VibrationTraces = new SearchQueryResult<OmnidotsTrace>(true, "", trace.Samples, trace.Samples.Count, "")
+                VibrationTraces = new SearchQueryResult<OmnidotsTrace>(trace.Samples, trace.Samples.Count, "")
             });
         }
 
@@ -610,7 +610,7 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
                 ToDate = today.AddHours(3),
                 FilterOption = "60",
                 FilterOptions = new Dictionary<string, string> { ["60"] = "All Readings", ["900"] = "15 Min Averages" },
-                DustLevels = new SearchQueryResult<MyAtmDustLevel>(true, "", values, rows.Count, "") { HasMore = hasMore }
+                DustLevels = new SearchQueryResult<MyAtmDustLevel>(values, rows.Count, "") { HasMore = hasMore }
             };
         };
     }
@@ -681,6 +681,6 @@ internal sealed class RecordingSearchQueryReader : ISearchQueryReader
         where TSource : class
     {
         LastFilters = whereFilter;
-        return Task.FromResult(new SearchQueryResult<TResult>(true, string.Empty, [], 0, string.Empty));
+        return Task.FromResult(new SearchQueryResult<TResult>([], 0, string.Empty));
     }
 }

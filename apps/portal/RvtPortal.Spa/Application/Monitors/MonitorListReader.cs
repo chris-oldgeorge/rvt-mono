@@ -5,6 +5,7 @@
 // - 2026-06-26 pending Split base row projection helpers for Sonar complexity cleanup.
 // - 2026-06-25 pending Moved monitor inventory and unattached list shaping out of controllers and into EF query projections.
 // - 2026-07-22 pending Reused inclusive active site-assignment windows for company-user inventory visibility.
+// - 2026-07-30 pending Converged on the injected TimeProvider clock used by the sibling readers.
 
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
@@ -63,18 +64,20 @@ public interface IMonitorListReader
 
 public sealed class MonitorListReader : IMonitorListReader
 {
-    private readonly RVTDbContext domainContext;
+    private readonly RVTDbContext _domainContext;
+    private readonly TimeProvider _timeProvider;
 
     // Function summary: Initializes the database-backed monitor list reader.
-    public MonitorListReader(RVTDbContext domainContext)
+    public MonitorListReader(RVTDbContext domainContext, TimeProvider timeProvider)
     {
-        this.domainContext = domainContext;
+        _domainContext = domainContext;
+        _timeProvider = timeProvider;
     }
 
     // Function summary: Builds a paged monitor inventory list from database-side filters.
     public async Task<MonitorListPage> QueryAsync(MonitorListQuery query, CancellationToken cancellationToken)
     {
-        DateTime cutoff = DateTime.UtcNow.AddHours(-1);
+        DateTime cutoff = _timeProvider.GetUtcNow().UtcDateTime.AddHours(-1);
         IQueryable<MonitorListRow> rows = BuildBaseRows(query.MonitorType);
         rows = await ApplyRoleVisibilityAsync(rows, query.State, query.RoleContext, cancellationToken);
         rows = ApplyState(rows, query.State, cutoff);
@@ -85,7 +88,7 @@ public sealed class MonitorListReader : IMonitorListReader
     // Function summary: Builds a paged unattached monitor removal candidate list from database-side filters.
     public Task<MonitorListPage> QueryUnattachedAsync(MonitorListQuery query, CancellationToken cancellationToken)
     {
-        DateTime cutoff = DateTime.UtcNow.AddHours(-1);
+        DateTime cutoff = _timeProvider.GetUtcNow().UtcDateTime.AddHours(-1);
         IQueryable<MonitorListRow> rows = BuildBaseRows(query.MonitorType)
             .Where(row => row.DeploymentId == null && row.SiteId == null);
         rows = ApplyUnattachedSearch(rows, query.SearchText);
@@ -99,7 +102,7 @@ public sealed class MonitorListReader : IMonitorListReader
         MonitorListRoleContext roleContext,
         CancellationToken cancellationToken)
     {
-        DateTime cutoff = DateTime.UtcNow.AddHours(-1);
+        DateTime cutoff = _timeProvider.GetUtcNow().UtcDateTime.AddHours(-1);
         IQueryable<MonitorListRow> rows = BuildBaseRows(null);
         List<MonitorListRow> availableRows = await ApplyState(rows, MonitorListStates.NotInUse, cutoff)
             .OrderBy(row => row.FleetNumber)
@@ -126,7 +129,7 @@ public sealed class MonitorListReader : IMonitorListReader
     // Function summary: Builds the shared monitor entity scope for list projections.
     private IQueryable<MonitorEntity> BuildMonitorScope(MonitorTypeEnum? monitorType)
     {
-        return domainContext.MonitorsList
+        return _domainContext.MonitorsList
             .AsNoTracking()
             .Where(monitor => !monitor.Archived)
             .Where(monitor => !monitorType.HasValue || monitor.TypeOfMonitor == monitorType.Value);
@@ -178,7 +181,7 @@ public sealed class MonitorListReader : IMonitorListReader
         // EF's optimizer pushes the subquery back down into each member access, restoring all nine copies.
         // MonitorListReaderSqlTests asserts the generated SQL orders by start_date at most once.
         return rows.SelectMany(
-            row => domainContext.Deployments
+            row => _domainContext.Deployments
                 .Where(deployment => deployment.MonitorId == row.Monitor.Id && deployment.EndDate == null)
                 .OrderByDescending(deployment => deployment.StartDate)
                 .ThenByDescending(deployment => deployment.Id)
@@ -236,9 +239,9 @@ public sealed class MonitorListReader : IMonitorListReader
             return rows.Where(_ => false);
         }
 
-        List<Guid> visibleSiteIds = await domainContext.SiteUsers
+        List<Guid> visibleSiteIds = await _domainContext.SiteUsers
             .AsNoTracking()
-            .Where(ActiveSiteAssignment.ForUser(roleContext.CurrentUserId.Value, DateTime.UtcNow))
+            .Where(ActiveSiteAssignment.ForUser(roleContext.CurrentUserId.Value, _timeProvider.GetUtcNow().UtcDateTime))
             .Select(siteUser => siteUser.SiteId)
             .ToListAsync(cancellationToken);
         return rows.Where(row => row.SiteId != null && visibleSiteIds.Contains(row.SiteId ?? Guid.Empty));
@@ -346,14 +349,14 @@ public sealed class MonitorListReader : IMonitorListReader
             return;
         }
 
-        List<Deployment> deployments = await domainContext.Deployments
+        List<Deployment> deployments = await _domainContext.Deployments
             .AsNoTracking()
             .Include(deployment => deployment.Contract)
             .Where(deployment => deploymentIds.Contains(deployment.Id))
             .ToListAsync(cancellationToken);
         Dictionary<Guid, Deployment> deploymentByMonitor = deployments.ToDictionary(deployment => deployment.MonitorId);
         List<Guid> monitorIds = [.. deploymentByMonitor.Keys];
-        List<Notification> notifications = await domainContext.Notifications
+        List<Notification> notifications = await _domainContext.Notifications
             .AsNoTracking()
             .Where(notification => monitorIds.Contains(notification.MonitorId) && notification.ClosedTime == null)
             .ToListAsync(cancellationToken);

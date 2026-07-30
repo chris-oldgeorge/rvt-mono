@@ -453,7 +453,7 @@ public sealed class UserAccountWorkflowService : IUserAccountWorkflowService
             {
                 AddError(errors, nameof(UserMutationRequest.CompanyId), "Company is required for Company User and Installer accounts.");
             }
-            else if (await _companyService.ReadOneAsync(request.CompanyId.Value) == null)
+            else if (await _companyService.ReadOneAsync(request.CompanyId.Value, cancellationToken) == null)
             {
                 AddError(errors, nameof(UserMutationRequest.CompanyId), "Company was not found.");
             }

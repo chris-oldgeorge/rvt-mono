@@ -277,7 +277,6 @@ public sealed class SearchTimestampPostgresTests
         await using RVTDbContext domainContext = CreateDomainContext(deployment);
         MonitorService monitorService = new(
             null!,
-            null!,
             new SearchQueryReader(searchContext),
             searchContext,
             null!);
@@ -500,7 +499,7 @@ public sealed class SearchTimestampPostgresTests
                 Monitor = _monitor,
                 FromDate = index.StartTime,
                 ToDate = index.EndTime,
-                VibrationTraces = new SearchQueryResult<OmnidotsTrace>(true, string.Empty, [], 0, string.Empty)
+                VibrationTraces = new SearchQueryResult<OmnidotsTrace>([], 0, string.Empty)
             };
         }
 

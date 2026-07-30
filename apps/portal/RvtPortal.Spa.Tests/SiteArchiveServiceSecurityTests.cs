@@ -1,5 +1,6 @@
 // File summary: Covers canonical PostgreSQL SQL and parameterization behavior for site archive exports.
 // Major updates:
+// - 2026-07-30 pending Replaced the timing-based no-request race with a deterministic completed-task assertion.
 // - 2026-07-25 pending Replaced provider-dialect coverage with canonical PostgreSQL archive and site-write guards.
 // - 2026-07-25 pending Added stable URL canonicalization and effective-port cleanup coverage.
 // - 2026-07-09 pending Added guardrails for split archive SQL, unique workspaces, and streaming CSV output.
@@ -121,12 +122,12 @@ public sealed class SiteArchiveServiceSecurityTests
                 siteId,
                 durableArchiveUrl,
                 CancellationToken.None));
-        Task noRequestWindow = Task.Delay(TimeSpan.FromMilliseconds(250));
-        Task completedTask = await Task.WhenAny(server.Request, noRequestWindow);
 
+        // Deterministic negative assertion: the delete awaits any blob call before returning, so once it
+        // has failed closed, a request that was never started can never arrive - no timing window needed.
         Assert.Multiple(
             () => Assert.IsType<InvalidOperationException>(exception),
-            () => Assert.Same(noRequestWindow, completedTask));
+            () => Assert.False(server.Request.IsCompleted, "The fail-closed path must not reach blob storage."));
     }
 
     [Theory]

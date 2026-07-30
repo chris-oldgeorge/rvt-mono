@@ -165,7 +165,7 @@ public sealed class CompanyApplicationService : ICompanyApplicationService
     // Function summary: Returns company detail by id, or null when absent.
     public async Task<CompanyDetailResponse?> GetAsync(Guid companyId, CancellationToken cancellationToken)
     {
-        Company company = await _companyService.ReadOneAsync(companyId);
+        Company? company = await _companyService.ReadOneAsync(companyId, cancellationToken);
         return company == null ? null : await BuildDetailAsync(company, cancellationToken);
     }
 

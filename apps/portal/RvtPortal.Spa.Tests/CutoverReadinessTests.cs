@@ -36,6 +36,8 @@ public partial class CutoverReadinessTests
         string postLoadSql = string.Join(
             Environment.NewLine,
             Directory.GetFiles(postLoadDirectory, "*.sql").Select(File.ReadAllText));
+        // Retired physical names that must not reappear in post-load SQL. NotificationsSent is fully
+        // retired: its unmapped C# entity was deleted too (no DbSet, absent from migrations).
         string[] retiredNames = new[]
         {
             "AirQNoiseLevels",

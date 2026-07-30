@@ -489,7 +489,7 @@ public sealed class SiteMutationUseCaseTests
             false,
             false,
             true);
-        fixture.Reads.AssignmentWindow = new SiteAssignmentWindow(
+        fixture.Reads.AssignmentWindow = new AssignmentWindow(
             userId,
             fixture.Now.UtcDateTime.AddDays(startOffsetDays),
             fixture.Now.UtcDateTime.AddDays(endOffsetDays));
@@ -732,13 +732,18 @@ public sealed class SiteMutationUseCaseTests
         }
     }
 
+    private sealed record AssignmentWindow(
+        Guid UserId,
+        DateTime StartDateUtc,
+        DateTime? EndDateUtc);
+
     private sealed class MutationSiteReadPort : FakeSiteReadPort
     {
         public required SiteMutationValidationData MutationData { get; set; }
         public required SiteDetailModel Detail { get; init; }
         public SiteNotificationSettingTarget? NotificationTarget { get; set; }
         public SiteNotificationSettingsData? NotificationData { get; set; }
-        public SiteAssignmentWindow? AssignmentWindow { get; set; }
+        public AssignmentWindow? AssignmentWindow { get; set; }
         public Func<bool>? IsTransactionActive { get; set; }
         public bool? ExistsReadInsideTransaction { get; private set; }
         public int MutationValidationReadCount { get; private set; }
@@ -761,11 +766,11 @@ public sealed class SiteMutationUseCaseTests
             ExistsReadInsideTransaction = IsTransactionActive?.Invoke();
             if (AssignmentWindow is not null)
             {
+                // Mirrors the production adapter's inclusive assignment-window filter (the Spa EF expression).
                 Exists = scope.UserId.HasValue &&
-                    ActiveSiteAssignment.IsActive(
-                        AssignmentWindow,
-                        scope.UserId.Value,
-                        scope.NowUtc);
+                    AssignmentWindow.UserId == scope.UserId.Value &&
+                    AssignmentWindow.StartDateUtc <= scope.NowUtc &&
+                    (!AssignmentWindow.EndDateUtc.HasValue || AssignmentWindow.EndDateUtc.Value >= scope.NowUtc);
             }
 
             return base.ExistsAsync(siteId, scope, cancellationToken);

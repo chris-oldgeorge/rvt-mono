@@ -20,18 +20,6 @@ public interface ISiteApplicationService
         Guid id,
         CancellationToken cancellationToken);
 
-    Task<UseCaseResult<PagedResult<SiteMonitorModel>>> QueryMonitorsAsync(
-        PortalUserContext user,
-        Guid siteId,
-        PageRequest page,
-        CancellationToken cancellationToken);
-
-    Task<UseCaseResult<PagedResult<SiteNotificationModel>>> QueryOpenNotificationsAsync(
-        PortalUserContext user,
-        Guid siteId,
-        PageRequest page,
-        CancellationToken cancellationToken);
-
     Task<bool> CanReadSiteAsync(
         PortalUserContext user,
         Guid id,

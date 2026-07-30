@@ -62,18 +62,6 @@ internal class FakeSiteReadPort : ISiteReadPort
         CancellationToken token) =>
         Task.FromResult<SiteArchiveState?>(null);
 
-    public virtual Task<PagedResult<SiteMonitorModel>> QueryMonitorsAsync(
-        Guid siteId,
-        PageRequest page,
-        CancellationToken token) =>
-        Task.FromResult(new PagedResult<SiteMonitorModel>());
-
-    public virtual Task<PagedResult<SiteNotificationModel>> QueryOpenNotificationsAsync(
-        Guid siteId,
-        PageRequest page,
-        CancellationToken token) =>
-        Task.FromResult(new PagedResult<SiteNotificationModel>());
-
     public virtual Task<SiteNotificationSettingsData?> GetNotificationSettingsAsync(
         Guid siteId,
         CancellationToken token) =>

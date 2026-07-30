@@ -119,42 +119,6 @@ public static class SiteApiMapper
                 hours.IsClosed)).ToList());
     }
 
-    // Function summary: Maps paged site monitor results to the existing API response contract.
-    public static QuerySiteMonitorsResponse ToMonitorQueryResponse(PagedResult<SiteMonitorModel> result)
-    {
-        return new QuerySiteMonitorsResponse
-        {
-            Results = [.. result.Results.Select(ToMonitorItem)],
-            Total = result.Total,
-            Page = result.Page,
-            PageSize = result.PageSize,
-            TotalPages = result.TotalPages,
-            HasPreviousPage = result.HasPreviousPage,
-            HasNextPage = result.HasNextPage,
-            SearchText = result.SearchText,
-            Sort = result.Sort,
-            SortDir = result.SortDir
-        };
-    }
-
-    // Function summary: Maps paged site open-notification results to the existing API response contract.
-    public static QuerySiteNotificationsResponse ToNotificationQueryResponse(PagedResult<SiteNotificationModel> result)
-    {
-        return new QuerySiteNotificationsResponse
-        {
-            Results = [.. result.Results.Select(ToNotificationItem)],
-            Total = result.Total,
-            Page = result.Page,
-            PageSize = result.PageSize,
-            TotalPages = result.TotalPages,
-            HasPreviousPage = result.HasPreviousPage,
-            HasNextPage = result.HasNextPage,
-            SearchText = result.SearchText,
-            Sort = result.Sort,
-            SortDir = result.SortDir
-        };
-    }
-
     // Function summary: Maps notification-setting business models to the existing API response contract.
     public static SiteNotificationSettingsResponse ToNotificationSettingsResponse(SiteNotificationSettingsModel model)
     {

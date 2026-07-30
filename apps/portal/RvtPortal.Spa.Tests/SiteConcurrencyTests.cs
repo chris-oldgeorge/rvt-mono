@@ -401,18 +401,6 @@ public sealed class SiteConcurrencyTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task<PagedResult<SiteMonitorModel>> QueryMonitorsAsync(
-            Guid siteId,
-            PageRequest page,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
-        public Task<PagedResult<SiteNotificationModel>> QueryOpenNotificationsAsync(
-            Guid siteId,
-            PageRequest page,
-            CancellationToken cancellationToken) =>
-            throw new NotSupportedException();
-
         public Task<SiteNotificationSettingsData?> GetNotificationSettingsAsync(
             Guid siteId,
             CancellationToken cancellationToken) =>

@@ -136,9 +136,6 @@ public class SiteArchiveResponse
     public string? CreatedBy { get; set; }
     public string? PictureLink { get; set; }
 }
-public class QuerySiteMonitorsResponse : PagedResponse<SiteMonitorItem>
-{
-}
 public class SiteMonitorItem
 {
     public Guid Id { get; set; }
@@ -154,9 +151,6 @@ public class SiteMonitorItem
     public double? Lat { get; set; }
     public double? Lng { get; set; }
     public string? What3words { get; set; }
-}
-public class QuerySiteNotificationsResponse : PagedResponse<SiteNotificationItem>
-{
 }
 public class SiteNotificationItem
 {

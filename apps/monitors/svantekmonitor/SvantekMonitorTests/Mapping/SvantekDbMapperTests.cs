@@ -1,8 +1,6 @@
 using Rvt.Monitor.Common.Data.Entities;
-using Svantek.Api;
 using Svantek.Api.Db.EntityFramework;
 using Svantek.Api.Db.Mapping;
-using Svantek.Model.Dto;
 
 namespace SvantekMonitorTests.Mapping;
 

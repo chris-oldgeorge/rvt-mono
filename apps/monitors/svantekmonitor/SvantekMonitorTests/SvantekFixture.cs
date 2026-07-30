@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
-using Svantek.Api;
 using Svantek.Model.Http;
 using AlertActivityTimeDto = Rvt.Monitor.Common.Rules.AlertActivityTimeDto;
 namespace SvantekMonitorTests

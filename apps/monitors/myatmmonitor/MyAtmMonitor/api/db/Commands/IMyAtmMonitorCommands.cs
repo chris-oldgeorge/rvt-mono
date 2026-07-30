@@ -1,4 +1,3 @@
-using MyAtm.Model;
 using MyAtm.Model.Dto;
 
 namespace MyAtm.Api.Db

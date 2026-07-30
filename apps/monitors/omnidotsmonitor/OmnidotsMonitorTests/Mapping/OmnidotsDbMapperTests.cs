@@ -1,4 +1,3 @@
-using Omnidots.Api;
 using Omnidots.Api.Db.EntityFramework;
 using Omnidots.Api.Db.Mapping;
 using Omnidots.Model.Dto;

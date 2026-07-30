@@ -6,12 +6,12 @@ namespace MyAtmMonitorTests;
 [TestClass]
 public sealed partial class MonitorDeliveryMigrationContractTests
 {
-    private const string PostgreSqlMigration = "2026-07-15-add-monitor-delivery-outbox.postgres.sql";
+    private const string _postgreSqlMigration = "2026-07-15-add-monitor-delivery-outbox.postgres.sql";
 
     [TestMethod]
     public void PostgreSqlMigration_CreatesSharedDeliveryOutboxContract()
     {
-        string sql = ReadMigration(PostgreSqlMigration);
+        string sql = ReadMigration(_postgreSqlMigration);
 
         Assert.Contains("CREATE TABLE IF NOT EXISTS monitor_delivery_outbox", sql);
         Assert.Contains("UNIQUE (producer, delivery_key)", sql);

@@ -1,6 +1,5 @@
 
 using Svantek.Api;
-using Svantek.Model.Dto;
 namespace SvantekMonitorTests;
 
 [TestClass]

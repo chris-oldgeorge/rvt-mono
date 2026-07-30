@@ -9,7 +9,6 @@ using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;
 using Rvt.Monitor.IntegrationTesting;
 using Svantek.Api.Db;
-using Svantek.Model.Dto;
 using Svantek.Model.Http;
 namespace SvantekMonitorTests
 {

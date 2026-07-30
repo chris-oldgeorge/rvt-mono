@@ -1,5 +1,4 @@
 using System.Data;
-using Svantek.Model.Dto;
 
 namespace Svantek.Api.Db;
 

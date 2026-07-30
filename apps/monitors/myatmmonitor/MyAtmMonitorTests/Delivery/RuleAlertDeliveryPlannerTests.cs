@@ -1,7 +1,6 @@
 using System.Reflection;
 using MyAtm.Delivery;
 using Rvt.Monitor.Common.Notifications;
-using Rvt.Monitor.Common.Rules;
 using RulesContactDto = Rvt.Monitor.Common.Rules.RvtContactDto;
 
 namespace MyAtmMonitorTests.Delivery;

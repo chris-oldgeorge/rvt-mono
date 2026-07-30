@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Rvt.Monitor.Common.Diagnostics;
-using Svantek.Model.Dto;
 using Svantek.Model.Http;
 namespace SvantekMonitorTests
 {

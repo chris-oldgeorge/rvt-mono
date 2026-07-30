@@ -21,7 +21,7 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
 
     // Keep the outbox row's error the same length as the audit trail's
     // (DeliveryDispatchPolicy.SafeError) instead of re-truncating to 256.
-    private const int MaximumErrorLength = Delivery.DeliveryDispatchPolicy.MaximumErrorLength;
+    private const int _maximumErrorLength = Delivery.DeliveryDispatchPolicy.MaximumErrorLength;
 
     public async Task<ClaimedAlertDelivery?> ClaimNextDueAsync(
         DateTime utcNow,
@@ -99,9 +99,9 @@ public sealed class EfAlertOutboxStore<TContext>(IMonitorDbContextFactory<TConte
     {
         ArgumentNullException.ThrowIfNull(error);
         cancellationToken.ThrowIfCancellationRequested();
-        string persistedError = error.Length <= MaximumErrorLength
+        string persistedError = error.Length <= _maximumErrorLength
             ? error
-            : error[..MaximumErrorLength];
+            : error[.._maximumErrorLength];
         string status = deadLetter ? DeadLetterStatus : PendingStatus;
         DateTime? completedAt = deadLetter ? nextAttemptAt : null;
 

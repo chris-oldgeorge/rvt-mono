@@ -83,11 +83,19 @@ namespace AirQ.Api.UseCases
             DateTime date,
             CancellationToken cancellationToken)
         {
-            double level = _ruleQueries.GetAverageNoiseLevel(serialNumber: monitor.SerialId,
+            double? average = _ruleQueries.GetAverageNoiseLevel(serialNumber: monitor.SerialId,
                                           columnName: "LAeq", // Assuming that is enough for now.
                                           start: date + monitor.StartTime!.Value,
                                           end: date + monitor.EndTime!.Value);
+            if (!average.HasValue)
+            {
+                // A site-day with no samples has no average. Writing 0.0 would
+                // put a fabricated silent day into the reports table and clear
+                // any latched site-hours rule.
+                return;
+            }
 
+            double level = average.Value;
             _measurementCommands.WriteDailyAverage(siteId: monitor.SiteId,
                                        monitorId: monitor.Id,
                                        field: "lAeq",

@@ -207,7 +207,9 @@ namespace Svantek.Api.Db
             context.SaveChanges();
         }
 
-        public double GetAverageNoiseLevel(string serialNumber, string columnName, DateTime start, DateTime end)
+        // An empty window returns null rather than 0.0: a fabricated silent
+        // reading would clear latched rules and fabricate daily averages.
+        public double? GetAverageNoiseLevel(string serialNumber, string columnName, DateTime start, DateTime end)
         {
             using SvantekMonitorContext context = CreateContext();
             MonitorAggregateField<SvantekNoiseLevelEntity> field = SvantekAggregateFields.Resolve(columnName);
@@ -217,7 +219,7 @@ namespace Svantek.Api.Db
                 .Where(row => row.SerialId == serialNumber)
                 .Where(row => row.SampleTime > normalizedStart && row.SampleTime <= normalizedEnd);
 
-            return (field.UseMaximum ? query.Max(field.Selector) : query.Average(field.Selector)) ?? 0.0;
+            return field.UseMaximum ? query.Max(field.Selector) : query.Average(field.Selector);
         }
 
         public async Task SetMonitorOfflineAsync(

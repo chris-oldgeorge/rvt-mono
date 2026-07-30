@@ -414,22 +414,22 @@ namespace AirQMonitorTests
                 _testObj!.InsertNoiseDtos(serialId, [dto]);
             }
 
-            double avgLAeq = _testObj!.GetAverageNoiseLevel(serialId, "LAeq", startTime, startTime.AddMinutes(15));
+            double? avgLAeq = _testObj!.GetAverageNoiseLevel(serialId, "LAeq", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LAeqTotal / numDtos, avgLAeq);
-            double avgLAMax = _testObj!.GetAverageNoiseLevel(serialId, "LAMax", startTime, startTime.AddMinutes(15));
+            double? avgLAMax = _testObj!.GetAverageNoiseLevel(serialId, "LAMax", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LAMaxTotal / numDtos, avgLAMax);
-            double avgLA90 = _testObj!.GetAverageNoiseLevel(serialId, "LA90", startTime, startTime.AddMinutes(15));
+            double? avgLA90 = _testObj!.GetAverageNoiseLevel(serialId, "LA90", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LA90Total / numDtos, avgLA90);
-            double avgLA10 = _testObj!.GetAverageNoiseLevel(serialId, "LA10", startTime, startTime.AddMinutes(15));
+            double? avgLA10 = _testObj!.GetAverageNoiseLevel(serialId, "LA10", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LA10Total / numDtos, avgLA10);
 
-            double avgLCeq = _testObj!.GetAverageNoiseLevel(serialId, "LCeq", startTime, startTime.AddMinutes(15));
+            double? avgLCeq = _testObj!.GetAverageNoiseLevel(serialId, "LCeq", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LCeqTotal / numDtos, avgLCeq);
-            double avgLCMax = _testObj!.GetAverageNoiseLevel(serialId, "LCMax", startTime, startTime.AddMinutes(15));
+            double? avgLCMax = _testObj!.GetAverageNoiseLevel(serialId, "LCMax", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LCMaxTotal / numDtos, avgLCMax);
-            double avgLC90 = _testObj!.GetAverageNoiseLevel(serialId, "LC90", startTime, startTime.AddMinutes(15));
+            double? avgLC90 = _testObj!.GetAverageNoiseLevel(serialId, "LC90", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LC90Total / numDtos, avgLC90);
-            double avgLC10 = _testObj!.GetAverageNoiseLevel(serialId, "LC10", startTime, startTime.AddMinutes(15));
+            double? avgLC10 = _testObj!.GetAverageNoiseLevel(serialId, "LC10", startTime, startTime.AddMinutes(15));
             Assert.AreEqual(LC10Total / numDtos, avgLC10);
 
         }

@@ -131,7 +131,15 @@ namespace Svantek.Api
                 string serialId = monitorDto.SerialId!;
                 foreach (RvtAlertRuleDto rule in rules)
                 {
-                    double level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, StartTime, StartTime.AddSeconds(averagingPeriod));
+                    double? level = _ruleQueries.GetAverageNoiseLevel(serialId, rule.Field, StartTime, StartTime.AddSeconds(averagingPeriod));
+                    if (!level.HasValue)
+                    {
+                        // No samples in the window is no reading, not 0.0 dB:
+                        // evaluating it would clear a latched rule and re-fire
+                        // the breach on the next populated window.
+                        continue;
+                    }
+
                     previousAlert = await ruleEvaluator.EvaluateAsync(
                         NewRuleEvaluationRequest(
                             monitorDto,
@@ -140,7 +148,7 @@ namespace Svantek.Api
                             publishTime: end,
                             deactivateDeletedRules: false),
                         rule,
-                        level,
+                        level.Value,
                         previousAlert,
                         cancellationToken);
                 }

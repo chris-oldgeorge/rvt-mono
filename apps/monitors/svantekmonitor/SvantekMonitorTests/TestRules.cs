@@ -220,6 +220,28 @@ public class TestRules
         operationalCommands.VerifyNoOtherCalls();
     }
 
+    // An averaging window holding no samples used to score 0.0 dB, which reads
+    // as silence and unlatched the rule, so the next populated window re-fired
+    // a breach contacts had already been told about.
+    [TestMethod]
+    public async Task TestProcessRules_EmptyWindow_LeavesALatchedRuleLatched()
+    {
+        SvantekRuleProcessor processor = CreateProcessor(out Mock<ISvantekRuleQueries> ruleQueries,
+                                                         out Mock<ISvantekOperationalCommands> operationalCommands,
+                                                         out Mock<IAlertIngressPort> alertIngress);
+        RvtAlertRuleDto rule = CreateRule(10.0, 1.0, SvantekFixture.CreateActiveRuleActivity(null, null), isActive: true);
+        ruleQueries.Setup(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime)).
+            Returns((double?)null);
+
+        await processor.ProcessRulesAsync(SvantekFixture.ReadMonitorDto(_serialId), [rule], _periodStart, _rangeEnd, TestContext.CancellationToken);
+
+        Assert.IsTrue(rule.IsActive);
+        ruleQueries.Verify(q => q.GetAverageNoiseLevel(_serialId, "LAeq", _periodStart, _alertTime), Times.Exactly(1));
+        ruleQueries.VerifyNoOtherCalls();
+        operationalCommands.VerifyNoOtherCalls();
+        alertIngress.VerifyNoOtherCalls();
+    }
+
     [TestMethod]
     public async Task TestSignalAlert_EmitsHandlerSignalWithEmailAndSmsChannels()
     {

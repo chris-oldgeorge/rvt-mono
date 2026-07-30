@@ -80,6 +80,28 @@ HTTPS URLs or root-relative `/help-assets/` paths, and the write adapter derives
 `InternalPath`; the browser cannot supply it. Persisted asset IDs are immutable
 across edits.
 
+## Recorded Decisions
+
+### Email delivery: one provider, chosen at compile time (2026-07-30)
+
+`IEmailDelivery` is a port, but the portal binds exactly one adapter behind it.
+`ServiceCollectionExtensions` calls `AddSendGridMail` directly, and
+`scripts/verify-rvt-common-source-boundary.sh` requires
+`RvtPortal.Spa.csproj` to reference `Rvt.Communication.Abstractions` and
+`Rvt.Communication.SendGridMail`.
+
+The monitors are not wired this way: each reads `RVT__EMAIL_PROVIDER` at startup
+and registers SendGrid or Microsoft Graph. The asymmetry is deliberate. The
+portal has one sender identity and one deployment, no operator has asked to
+switch it, and provider selection would add a configuration surface and a
+failure mode (a mistyped provider name) for a capability nobody currently uses.
+
+The cost is stated rather than hidden: an organization-wide move to Microsoft
+Graph is a configuration change for the monitors and a code change plus a guard
+edit for the portal. If that move is planned, do the provider-selection refactor
+as its own change - do not widen the boundary guard as a side effect of
+unrelated work.
+
 ## Follow-Up Candidates
 
 - Evaluate remaining monitor, report, company/user, contract, notification, dashboard, and alert-level slices independently; this catalog does not select the next extraction.

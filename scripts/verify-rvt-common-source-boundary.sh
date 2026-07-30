@@ -165,6 +165,16 @@ for project in \
   require_project_reference "${project}" "${integration_testing_project}"
 done
 
+# The portal references exactly one email provider, deliberately. The monitors
+# select theirs at startup from RVT__EMAIL_PROVIDER and so reference both, but
+# the portal has one sender identity, one deployment, and no operator asking to
+# switch it, so it is wired to SendGrid at compile time and this guard pins that
+# decision rather than recording an accident. The cost is known and accepted: an
+# org-wide move to Microsoft Graph would switch the monitors by configuration and
+# would need a code change plus an edit here for the portal. If that move is ever
+# planned, do the provider-selection refactor first - do not quietly widen this
+# guard as a side effect of something else.
+# Recorded in docs/architecture/portal/ports-and-adapters-catalog.md.
 require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${communication_abstractions_project}"
 require_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${sendgrid_mail_project}"
 reject_project_reference apps/portal/RvtPortal.Spa/RvtPortal.Spa.csproj "${removed_infrastructure_project}"

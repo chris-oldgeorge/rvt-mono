@@ -10,8 +10,8 @@ This repository contains three RVT modules:
 
 This reviewable build advances the client release from monorepo source commit
 `a9b1bd2` (the source recorded by the previous `RVT-monitors`
-`release-candidate`) through `62794d3b`. The range contains 90 commits and
-changes 444 files.
+`release-candidate`) through `f0da1401`. The range contains 99 commits and
+changes 445 files.
 
 ### Monitor correctness, resilience, and security
 
@@ -77,6 +77,9 @@ changes 444 files.
   testing, and Sonar workflows.
 - Added change detection so documentation-only changes avoid unnecessary code
   work while main-branch code changes remain covered.
+- Kept product and architecture checks active in curated client releases while
+  gating only the internal documentation and repository-contract fixtures that
+  those releases intentionally exclude.
 - Strengthened direct-project-reference, source-boundary, technology-
   confinement, PostgreSQL-only, and workflow-ordering guards.
 - Converted architecture conventions discovered during review into executable

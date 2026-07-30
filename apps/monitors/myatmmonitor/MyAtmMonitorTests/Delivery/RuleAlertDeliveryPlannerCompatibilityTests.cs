@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;

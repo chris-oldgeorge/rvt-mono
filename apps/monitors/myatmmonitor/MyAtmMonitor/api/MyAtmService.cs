@@ -2,7 +2,7 @@ using MyAtm.Api.UseCases;
 using MyAtm.Model;
 using MyAtm.Model.Config;
 using MyAtm.Model.Json;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 
 namespace MyAtm.Api
 {

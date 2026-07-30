@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Options;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 
 namespace MyAtm.Model.Config;
 

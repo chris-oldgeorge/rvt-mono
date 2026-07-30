@@ -1,9 +1,6 @@
-// The namespace is retained from the shared-kernel folder this file moved out
-// of, so its consumers keep compiling; IDE0130 would force a rename ripple.
-#pragma warning disable IDE0130
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 
-namespace Rvt.Monitor.Common.Data.Entities;
+namespace MyAtm.Api.Db.EntityFramework;
 
 public sealed class MonitorDeliveryOutboxEntity
 {

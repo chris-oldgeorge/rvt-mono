@@ -13,7 +13,7 @@ using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
 using Rvt.Monitor.Common.Data.Queries;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;

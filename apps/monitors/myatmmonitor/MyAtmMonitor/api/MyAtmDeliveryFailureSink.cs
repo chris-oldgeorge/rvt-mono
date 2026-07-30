@@ -1,5 +1,5 @@
 using MyAtm.Api.Db;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 
 namespace MyAtm.Api;
 

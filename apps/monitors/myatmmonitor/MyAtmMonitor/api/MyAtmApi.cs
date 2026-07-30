@@ -8,7 +8,7 @@ using MyAtm.Model.Config;
 using MyAtm.Model.Json;
 using Rvt.Communication.Abstractions;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 
 namespace MyAtm.Api

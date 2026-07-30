@@ -13,7 +13,7 @@ using Rvt.Communication.MicrosoftGraphMail;
 using Rvt.Communication.SendGridMail;
 using Rvt.Communication.TransmitSms;
 using Rvt.Monitor.Common.Configuration;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 

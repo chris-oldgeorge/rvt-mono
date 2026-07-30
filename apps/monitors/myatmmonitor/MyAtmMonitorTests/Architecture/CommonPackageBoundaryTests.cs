@@ -254,7 +254,7 @@ public sealed class CommonPackageBoundaryTests
             Path.Combine(RepositoryLayout.Root, "docs/modules/monitors/myatmmonitor/README.md"));
 
         Assert.DoesNotContain("gh run download", readme);
-        Assert.Contains("libs/rvt-monitor-common/database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql", readme);
+        Assert.Contains("apps/monitors/myatmmonitor/database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql", readme);
         Assert.Contains("apps/monitors/myatmmonitor/database/migrations/2026-07-15-migrate-myatm-outbox-to-shared.postgres.sql", readme);
         Assert.Contains("apps/monitors/myatmmonitor/database/migrations/2026-07-15-rollback-myatm-outbox-to-local.postgres.sql", readme);
         Assert.Contains("0b9ec190b7a37b06044842d7a582128bc354a83463ddf5c2b027ec4658154170", readme);

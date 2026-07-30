@@ -1,6 +1,6 @@
 using System.Reflection;
 using MyAtm.Api.Db;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.IntegrationTesting;
 
 namespace MyAtmMonitorTests;

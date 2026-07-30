@@ -2,7 +2,7 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Rules;
 using MyAtm.Model;
 using MyAtm.Model.Dto;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;
 using Rvt.Monitor.Common.Utilities;

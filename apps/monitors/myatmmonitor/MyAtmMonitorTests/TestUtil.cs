@@ -5,7 +5,7 @@ using MyAtm.Api.Db;
 using MyAtm.Api.Http;
 using MyAtm.Model.Dto;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.Common.Diagnostics;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Rules;

@@ -71,8 +71,8 @@ Offline duration is elapsed active-site time, not raw wall-clock time. The monit
 
 Run the cutover from the repository root against PostgreSQL. Keep credentials outside the repository and pause every MyATM scheduler and one-shot trigger before applying schema or moving rows.
 
-1. Verify the checked-in PostgreSQL migrations before use. The SHA-256 for `libs/rvt-monitor-common/database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql` is `0b9ec190b7a37b06044842d7a582128bc354a83463ddf5c2b027ec4658154170`; the SHA-256 for `apps/monitors/myatmmonitor/database/migrations/2026-07-15-migrate-myatm-outbox-to-shared.postgres.sql` is `62d1259161576b6fe4f225f9d356dfd59263f7c0187ca961a8f4a544a1afcba9`.
-2. Apply `libs/rvt-monitor-common/database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql` with `psql -v ON_ERROR_STOP=1`.
+1. Verify the checked-in PostgreSQL migrations before use. The SHA-256 for `apps/monitors/myatmmonitor/database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql` is `0b9ec190b7a37b06044842d7a582128bc354a83463ddf5c2b027ec4658154170`; the SHA-256 for `apps/monitors/myatmmonitor/database/migrations/2026-07-15-migrate-myatm-outbox-to-shared.postgres.sql` is `62d1259161576b6fe4f225f9d356dfd59263f7c0187ca961a8f4a544a1afcba9`.
+2. Apply `apps/monitors/myatmmonitor/database/migrations/2026-07-15-add-monitor-delivery-outbox.postgres.sql` with `psql -v ON_ERROR_STOP=1`.
 3. Apply `apps/monitors/myatmmonitor/database/migrations/2026-07-15-migrate-myatm-outbox-to-shared.postgres.sql` with the same stop-on-error setting.
 4. Reconcile legacy and shared counts by mapped status. `Leased` maps to `InProgress`; the reconciliation query must return no rows.
 5. Deploy the shared-outbox application with Quartz and external triggers still disabled.

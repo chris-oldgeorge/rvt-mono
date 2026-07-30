@@ -7,7 +7,7 @@ using MyAtm.Model;
 using MyAtm.Model.Dto;
 using MyAtm.Model.Json;
 using Rvt.Communication.Abstractions;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.Common.Mqtt;
 using Rvt.Monitor.Common.Notifications;
 using Rvt.Monitor.Common.Rules;

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 using MyAtm.Model.Config;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 
 namespace MyAtmMonitorTests;
 

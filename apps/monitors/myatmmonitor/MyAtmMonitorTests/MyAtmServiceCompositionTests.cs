@@ -3,7 +3,7 @@ using MyAtm.Api;
 using MyAtm.Api.Db;
 using MyAtm.Api.UseCases;
 using MyAtm.Model.Config;
-using Rvt.Monitor.Common.Delivery;
+using MyAtm.Delivery;
 using Rvt.Monitor.IntegrationTesting;
 
 namespace MyAtmMonitorTests;

@@ -40,7 +40,7 @@ namespace Omnidots.Api.UseCases
         public async Task RunAsync(CancellationToken cancellationToken = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _ruleQueries.ReadRules(null);
+            List<Rvt.Monitor.Common.Rules.RvtAlertRuleDto> rules = _ruleQueries.ReadRules();
 
             DateTime utcNow = DateTime.UtcNow;
             List<OmnidotsMonitorFailure> failures = [];

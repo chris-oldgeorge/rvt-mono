@@ -374,27 +374,15 @@ namespace Omnidots.Api.Db
             });
         }
 
-        public List<RvtAlertRuleDto> ReadRules(string? serialId)
+        public List<RvtAlertRuleDto> ReadRules()
         {
             using OmnidotsMonitorContext context = CreateContext();
 
-            IQueryable<RvtAlertRuleEntity> query;
-            if (serialId == null)
-            {
-                query = context.AlertRules.AsNoTracking().Where(row => row.SerialId == null && !row.IsDeleted);
-            }
-            else
-            {
-                query = from rule in context.AlertRules.AsNoTracking()
-                        join monitor in context.Monitors.AsNoTracking() on rule.MonitorId equals monitor.Id
-                        where monitor.TypeOfMonitor == VibrationMonitorDto.MONITOR_TYPE_VIBRATION &&
-                              rule.SerialId == serialId
-                        select rule;
-            }
-
-            return [.. query
+            return [.. context.AlertRules
+                .AsNoTracking()
+                .Where(row => row.SerialId == null && !row.IsDeleted)
                 .AsEnumerable()
-                .Select(rule => ToRuleDto(rule, serialId))];
+                .Select(rule => ToRuleDto(rule, null))];
         }
 
         public void WriteTraces(string serialId, IReadOnlyList<TraceData> traces)

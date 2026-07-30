@@ -245,6 +245,31 @@ namespace MyAtmMonitorTests
         }
 
 
+        // The per-serial branches relied on a downstream evaluator guard while
+        // the site-rule branch filtered at the query; the two could drift. The
+        // fleet-wide ReadRules(Period) deliberately still returns deleted rules
+        // so ProcessDustLevels can deactivate a latched one.
+        [TestMethod]
+        public void TestReadPerSerialRulesExcludeDeletedRules()
+        {
+            string connectionString = _database!.ConnectionString;
+            using NpgsqlConnection connection = new(connectionString);
+            connection.Open();
+
+            const string serialId = "54321";
+            List<DustMonitorDto> monitorsIn = CreateMonitorsList(1, 862);
+            _testObj!.WriteMonitorList(monitorsIn);
+            SetFleetNr(monitorsIn[0].SerialId, monitorsIn[0].FleetNr!);
+            Guid monitorId = _testObj.ReadMonitorList(null)[0].Id;
+            InsertAlertRule(connection, 1, serialId, monitorId);
+            InsertAlertRule(connection, 2, serialId, monitorId, isDeleted: true);
+
+            List<RvtAlertRuleDto> rules = _testObj.ReadRules(serialId);
+
+            Assert.HasCount(1, rules);
+            Assert.IsFalse(rules[0].IsDeleted);
+        }
+
         [TestMethod]
         public void TestReadAlertRules()
         {
@@ -1516,7 +1541,7 @@ namespace MyAtmMonitorTests
         }
 
         private static void InsertAlertRule(NpgsqlConnection connection, int index, string serialId, Guid monitorId,
-                                            AlertType? alertType = null)
+                                            AlertType? alertType = null, bool isDeleted = false)
         {
             string sql = @"INSERT INTO rvt_alert_rule
                             (id, serial_id, alert_field, limit_on, limit_off, alert_type, is_active, averaging_period,
@@ -1542,7 +1567,7 @@ namespace MyAtmMonitorTests
                 "@StartTime", NpgsqlDbType.Time, isEven ? new TimeSpan(9, 0, 0) : (object)DBNull.Value);
             cmd.Parameters.AddWithValue(
                 "@EndTime", NpgsqlDbType.Time, isEven ? new TimeSpan(17, 0, 0) : (object)DBNull.Value);
-            cmd.Parameters.AddWithValue("@IsDeleted", false);
+            cmd.Parameters.AddWithValue("@IsDeleted", isDeleted);
             cmd.Parameters.AddWithValue("@MonitorId", monitorId);
             cmd.Parameters.AddWithValue("@Created", DateTime.UtcNow);
             cmd.ExecuteNonQuery();

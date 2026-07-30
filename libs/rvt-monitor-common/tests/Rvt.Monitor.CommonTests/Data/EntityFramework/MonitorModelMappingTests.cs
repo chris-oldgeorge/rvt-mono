@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore.Metadata;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
 using Rvt.Monitor.Common.Data.EntityFramework;
-using Rvt.Monitor.Common.Delivery;
 
 namespace Rvt.Monitor.CommonTests.Data.EntityFramework;
 
@@ -30,7 +29,6 @@ public sealed class MonitorModelMappingTests
     [DataRow(typeof(MonitorEntity), "monitor")]
     [DataRow(typeof(RvtAlertRuleEntity), "rvt_alert_rule")]
     [DataRow(typeof(NotificationEntity), "notification")]
-    [DataRow(typeof(MonitorDeliveryOutboxEntity), "monitor_delivery_outbox")]
     [DataRow(typeof(NotificationSentEntity), "notification_sent")]
     [DataRow(typeof(DeploymentEntity), "deployment")]
     [DataRow(typeof(ContractEntity), "contract")]
@@ -114,12 +112,6 @@ public sealed class MonitorModelMappingTests
         Assert.Contains("Unsafe SQL identifier", exception.Message);
     }
 
-    private static readonly string[] _monitorDeliveryOutboxIndexes =
-    [
-        "ix_monitor_delivery_outbox_due",
-        "ix_monitor_delivery_outbox_notification_id",
-        "uq_monitor_delivery_outbox_producer_delivery_key"
-    ];
     private static readonly string[] _alertOccurrenceIndexes =
     [
         "ix_alert_occurrence_monitor_id",
@@ -132,55 +124,6 @@ public sealed class MonitorModelMappingTests
         "ix_alert_delivery_outbox_occurrence_id",
         "uq_alert_delivery_outbox_delivery_key"
     ];
-
-    [TestMethod]
-    public void SharedModel_MapsDeliveryOutboxCanonicalContract()
-    {
-        using TestMonitorContext context = CreateContext();
-        IEntityType? entity = context.Model.FindEntityType(typeof(MonitorDeliveryOutboxEntity));
-
-        Assert.IsNotNull(entity);
-        Assert.AreEqual("monitor_delivery_outbox", entity.GetTableName());
-        Assert.IsNull(entity.GetSchema());
-        AssertProperties(
-            entity,
-            new PropertyExpectation("Id", "id", typeof(Guid), false, "uuid"),
-            new PropertyExpectation("Producer", "producer", typeof(string), false, "text", 64),
-            new PropertyExpectation("NotificationId", "notification_id", typeof(Guid?), true, "uuid"),
-            new PropertyExpectation("CorrelationKey", "correlation_key", typeof(string), true, "text", 450),
-            new PropertyExpectation("DeliveryKey", "delivery_key", typeof(string), false, "text", 450),
-            new PropertyExpectation("Kind", "kind", typeof(MonitorDeliveryKind), false, "text", 64),
-            new PropertyExpectation("Destination", "destination", typeof(string), false, "text", 512),
-            new PropertyExpectation("PayloadVersion", "payload_version", typeof(int), false, "integer"),
-            new PropertyExpectation("Payload", "payload", typeof(string), false, "text"),
-            new PropertyExpectation("Status", "status", typeof(string), false, "text", 32),
-            new PropertyExpectation("AttemptCount", "attempt_count", typeof(int), false, "integer"),
-            new PropertyExpectation("NextAttemptAt", "next_attempt_at", typeof(DateTime), false, "timestamp with time zone"),
-            new PropertyExpectation("LeaseId", "lease_id", typeof(Guid?), true, "uuid"),
-            new PropertyExpectation("LeaseUntil", "lease_until", typeof(DateTime?), true, "timestamp with time zone"),
-            new PropertyExpectation("CompletedAt", "completed_at", typeof(DateTime?), true, "timestamp with time zone"),
-            new PropertyExpectation("DeadLetteredAt", "dead_lettered_at", typeof(DateTime?), true, "timestamp with time zone"),
-            new PropertyExpectation("LastError", "last_error", typeof(string), true, "text", 1024),
-            new PropertyExpectation("CreatedAt", "created_at", typeof(DateTime), false, "timestamp with time zone"));
-
-        Assert.IsNull(context.GetService<IDesignTimeModel>()
-            .Model
-            .FindEntityType(typeof(MonitorDeliveryOutboxEntity))!
-            .FindProperty(nameof(MonitorDeliveryOutboxEntity.DeliveryKey))!
-            .GetCollation());
-        CollectionAssert.AreEqual(
-            _monitorDeliveryOutboxIndexes,
-            entity.GetIndexes()
-                .Select(index => index.GetDatabaseName())
-                .Order(StringComparer.Ordinal)
-                .ToArray());
-        Assert.IsTrue(entity.GetIndexes().Single(index =>
-            index.GetDatabaseName() == "uq_monitor_delivery_outbox_producer_delivery_key").IsUnique);
-
-        IForeignKey notificationForeignKey = entity.GetForeignKeys().Single();
-        Assert.AreEqual(typeof(NotificationEntity), notificationForeignKey.PrincipalEntityType.ClrType);
-        Assert.AreEqual(DeleteBehavior.SetNull, notificationForeignKey.DeleteBehavior);
-    }
 
     private static readonly string[] _alertOccurrenceConstraints =
             [

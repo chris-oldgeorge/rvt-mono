@@ -1,14 +1,24 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using MyAtm.Api.Db.EntityFramework;
 using Rvt.Monitor.Common.Data;
 using Rvt.Monitor.Common.Data.Entities;
+using Rvt.Monitor.Common.Delivery;
 
 namespace MyAtmMonitorTests.EntityFramework;
 
 [TestClass]
 public sealed class MyAtmModelMappingTests
 {
+    private sealed record PropertyExpectation(
+        string PropertyName,
+        string Column,
+        Type ClrType,
+        bool IsNullable,
+        string StoreType,
+        int? MaxLength = null);
+
     [TestMethod]
     [DataRow(typeof(MyAtmDustLevelEntity), "my_atm_dust_level")]
     [DataRow(typeof(MyAtmAccessoryInfoEntity), "my_atm_accessory_info")]
@@ -179,6 +189,84 @@ public sealed class MyAtmModelMappingTests
         AssertTimestamp(context, typeof(MonitorDeliveryOutboxEntity), nameof(MonitorDeliveryOutboxEntity.CompletedAt));
         AssertTimestamp(context, typeof(MonitorDeliveryOutboxEntity), nameof(MonitorDeliveryOutboxEntity.DeadLetteredAt));
         AssertTimestamp(context, typeof(MonitorDeliveryOutboxEntity), nameof(MonitorDeliveryOutboxEntity.CreatedAt));
+    }
+
+    private static readonly string[] _monitorDeliveryOutboxIndexes =
+    [
+        "ix_monitor_delivery_outbox_due",
+        "ix_monitor_delivery_outbox_notification_id",
+        "uq_monitor_delivery_outbox_producer_delivery_key"
+    ];
+
+    // Moved with the outbox mapping from the shared monitor model (hexagonal
+    // convergence M2): pins the full canonical column, index, and FK contract.
+    [TestMethod]
+    public void MyAtmContext_MapsDeliveryOutboxCanonicalContract()
+    {
+        using MyAtmMonitorContext context = CreateContext();
+        IEntityType? entity = context.Model.FindEntityType(typeof(MonitorDeliveryOutboxEntity));
+
+        Assert.IsNotNull(entity);
+        Assert.AreEqual("monitor_delivery_outbox", entity.GetTableName());
+        Assert.IsNull(entity.GetSchema());
+        AssertProperties(
+            entity,
+            new PropertyExpectation("Id", "id", typeof(Guid), false, "uuid"),
+            new PropertyExpectation("Producer", "producer", typeof(string), false, "text", 64),
+            new PropertyExpectation("NotificationId", "notification_id", typeof(Guid?), true, "uuid"),
+            new PropertyExpectation("CorrelationKey", "correlation_key", typeof(string), true, "text", 450),
+            new PropertyExpectation("DeliveryKey", "delivery_key", typeof(string), false, "text", 450),
+            new PropertyExpectation("Kind", "kind", typeof(MonitorDeliveryKind), false, "text", 64),
+            new PropertyExpectation("Destination", "destination", typeof(string), false, "text", 512),
+            new PropertyExpectation("PayloadVersion", "payload_version", typeof(int), false, "integer"),
+            new PropertyExpectation("Payload", "payload", typeof(string), false, "text"),
+            new PropertyExpectation("Status", "status", typeof(string), false, "text", 32),
+            new PropertyExpectation("AttemptCount", "attempt_count", typeof(int), false, "integer"),
+            new PropertyExpectation("NextAttemptAt", "next_attempt_at", typeof(DateTime), false, "timestamp with time zone"),
+            new PropertyExpectation("LeaseId", "lease_id", typeof(Guid?), true, "uuid"),
+            new PropertyExpectation("LeaseUntil", "lease_until", typeof(DateTime?), true, "timestamp with time zone"),
+            new PropertyExpectation("CompletedAt", "completed_at", typeof(DateTime?), true, "timestamp with time zone"),
+            new PropertyExpectation("DeadLetteredAt", "dead_lettered_at", typeof(DateTime?), true, "timestamp with time zone"),
+            new PropertyExpectation("LastError", "last_error", typeof(string), true, "text", 1024),
+            new PropertyExpectation("CreatedAt", "created_at", typeof(DateTime), false, "timestamp with time zone"));
+
+        Assert.IsNull(context.GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(MonitorDeliveryOutboxEntity))!
+            .FindProperty(nameof(MonitorDeliveryOutboxEntity.DeliveryKey))!
+            .GetCollation());
+        CollectionAssert.AreEqual(
+            _monitorDeliveryOutboxIndexes,
+            entity.GetIndexes()
+                .Select(index => index.GetDatabaseName())
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+        Assert.IsTrue(entity.GetIndexes().Single(index =>
+            index.GetDatabaseName() == "uq_monitor_delivery_outbox_producer_delivery_key").IsUnique);
+
+        IForeignKey notificationForeignKey = entity.GetForeignKeys().Single();
+        Assert.AreEqual(typeof(NotificationEntity), notificationForeignKey.PrincipalEntityType.ClrType);
+        Assert.AreEqual(DeleteBehavior.SetNull, notificationForeignKey.DeleteBehavior);
+    }
+
+    private static void AssertProperties(
+        IReadOnlyEntityType entity,
+        params PropertyExpectation[] expectedProperties)
+    {
+        Assert.HasCount(expectedProperties.Length, entity.GetProperties());
+        foreach (PropertyExpectation expected in expectedProperties)
+        {
+            IReadOnlyProperty? property = entity.FindProperty(expected.PropertyName);
+            Assert.IsNotNull(property, $"Missing property {expected.PropertyName}.");
+            Assert.AreEqual(expected.Column, property.GetColumnName(), expected.PropertyName);
+            Assert.AreEqual(expected.ClrType, property.ClrType, expected.PropertyName);
+            Assert.AreEqual(expected.IsNullable, property.IsNullable, expected.PropertyName);
+            Assert.AreEqual(
+                expected.StoreType,
+                property.GetRelationalTypeMapping().StoreType,
+                expected.PropertyName);
+            Assert.AreEqual(expected.MaxLength, property.GetMaxLength(), expected.PropertyName);
+        }
     }
 
     private static void AssertColumns(

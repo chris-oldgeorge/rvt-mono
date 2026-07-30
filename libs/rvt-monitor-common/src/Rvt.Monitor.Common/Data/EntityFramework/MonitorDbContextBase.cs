@@ -16,7 +16,6 @@ public abstract class MonitorDbContextBase(DbContextOptions options, MonitorDbOp
     public DbSet<SiteEntity> Sites => Set<SiteEntity>();
     public DbSet<RvtAlertRuleEntity> AlertRules => Set<RvtAlertRuleEntity>();
     public DbSet<NotificationEntity> Notifications => Set<NotificationEntity>();
-    public DbSet<MonitorDeliveryOutboxEntity> DeliveryOutbox => Set<MonitorDeliveryOutboxEntity>();
     public DbSet<NotificationSentEntity> NotificationAudits => Set<NotificationSentEntity>();
     public DbSet<NotificationSettingEntity> NotificationSettings => Set<NotificationSettingEntity>();
     public DbSet<AspNetUserEntity> Users => Set<AspNetUserEntity>();

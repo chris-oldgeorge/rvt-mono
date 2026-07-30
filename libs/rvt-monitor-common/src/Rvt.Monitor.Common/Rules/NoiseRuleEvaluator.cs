@@ -170,14 +170,3 @@ public sealed record RuleEvaluationRequest(
     DateTime AlertTime,
     DateTime PublishTime,
     bool DeactivateDeletedRules = true);
-
-public sealed record RuleNotificationRequest(
-    string FleetNr,
-    string SerialId,
-    DateTime AlertTime,
-    double LimitOn,
-    int AveragingPeriod,
-    double Level,
-    AlertType AlertType,
-    string Field,
-    Guid MonitorId);

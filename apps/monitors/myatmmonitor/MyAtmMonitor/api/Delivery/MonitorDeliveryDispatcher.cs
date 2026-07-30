@@ -1,3 +1,6 @@
+// The namespace is retained from the shared-kernel folder this file moved out
+// of, so its consumers keep compiling; IDE0130 would force a rename ripple.
+#pragma warning disable IDE0130
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -9,13 +12,13 @@ namespace Rvt.Monitor.Common.Delivery;
 
 public sealed class MonitorDeliveryDispatcher
 {
-    private readonly IMonitorDeliveryOutboxQueries queries;
-    private readonly IMonitorDeliveryOutboxCommands commands;
-    private readonly IMonitorDeliveryFailureSink failureSink;
-    private readonly IMqttClient mqttClient;
-    private readonly INotificationDeliveryService notificationDelivery;
-    private readonly ILogger<MonitorDeliveryDispatcher> logger;
-    private readonly MonitorDeliveryOptions options;
+    private readonly IMonitorDeliveryOutboxQueries _queries;
+    private readonly IMonitorDeliveryOutboxCommands _commands;
+    private readonly IMonitorDeliveryFailureSink _failureSink;
+    private readonly IMqttClient _mqttClient;
+    private readonly INotificationDeliveryService _notificationDelivery;
+    private readonly ILogger<MonitorDeliveryDispatcher> _logger;
+    private readonly MonitorDeliveryOptions _options;
 
     public MonitorDeliveryDispatcher(
         IMonitorDeliveryOutboxQueries queries,
@@ -26,26 +29,26 @@ public sealed class MonitorDeliveryDispatcher
         ILogger<MonitorDeliveryDispatcher> logger,
         MonitorDeliveryOptions options)
     {
-        this.queries = queries ?? throw new ArgumentNullException(nameof(queries));
-        this.commands = commands ?? throw new ArgumentNullException(nameof(commands));
-        this.failureSink = failureSink ?? throw new ArgumentNullException(nameof(failureSink));
-        this.mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
-        this.notificationDelivery = notificationDelivery ?? throw new ArgumentNullException(nameof(notificationDelivery));
-        this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        this.options = options ?? throw new ArgumentNullException(nameof(options));
-        this.options.Validate();
+        _queries = queries ?? throw new ArgumentNullException(nameof(queries));
+        _commands = commands ?? throw new ArgumentNullException(nameof(commands));
+        _failureSink = failureSink ?? throw new ArgumentNullException(nameof(failureSink));
+        _mqttClient = mqttClient ?? throw new ArgumentNullException(nameof(mqttClient));
+        _notificationDelivery = notificationDelivery ?? throw new ArgumentNullException(nameof(notificationDelivery));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _options.Validate();
     }
 
     public async Task DispatchDueAsync(CancellationToken cancellationToken = default)
     {
         List<Exception> failures = [];
-        for (int index = 0; index < options.BatchSize; index++)
+        for (int index = 0; index < _options.BatchSize; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            MonitorDeliveryMessage? message = await queries.ClaimNextDueAsync(
-                options.Producer,
+            MonitorDeliveryMessage? message = await _queries.ClaimNextDueAsync(
+                _options.Producer,
                 DateTime.UtcNow,
-                options.LeaseDuration,
+                _options.LeaseDuration,
                 cancellationToken).ConfigureAwait(false);
             if (message is null)
             {
@@ -73,7 +76,7 @@ public sealed class MonitorDeliveryDispatcher
             try
             {
                 using CancellationTokenSource deliveryCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                deliveryCancellation.CancelAfter(options.DeliveryTimeout);
+                deliveryCancellation.CancelAfter(_options.DeliveryTimeout);
                 audit = await DeliverAsync(message, payload, deliveryCancellation.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -92,7 +95,7 @@ public sealed class MonitorDeliveryDispatcher
                 continue;
             }
 
-            bool completed = await commands.CompleteAsync(
+            bool completed = await _commands.CompleteAsync(
                 message.Id,
                 message.LeaseId,
                 DateTime.UtcNow,
@@ -112,7 +115,7 @@ public sealed class MonitorDeliveryDispatcher
 
     private MonitorDeliveryPayloadV1 ValidateAndDecode(MonitorDeliveryMessage message)
     {
-        if (!string.Equals(message.Producer, options.Producer, StringComparison.Ordinal))
+        if (!string.Equals(message.Producer, _options.Producer, StringComparison.Ordinal))
         {
             throw new InvalidDataException("Delivery producer does not match the configured producer.");
         }
@@ -133,17 +136,17 @@ public sealed class MonitorDeliveryDispatcher
         switch (message.Kind)
         {
             case MonitorDeliveryKind.MqttDataInserted:
-                await PublishMqttAsync(options.InsertTopic, payload, "Dto Inserted", cancellationToken)
+                await PublishMqttAsync(_options.InsertTopic, payload, "Dto Inserted", cancellationToken)
                     .ConfigureAwait(false);
                 return null;
             case MonitorDeliveryKind.MqttAlert:
                 string prefix = message.Producer == MonitorDeliveryProducers.MyAtm ? "Dust" : "Noise";
                 string text = $"{prefix} {payload.AlertType} {payload.Field} level={payload.Level}";
-                await PublishMqttAsync(options.AlertTopic, payload, text, cancellationToken)
+                await PublishMqttAsync(_options.AlertTopic, payload, text, cancellationToken)
                     .ConfigureAwait(false);
                 return null;
             case MonitorDeliveryKind.Email:
-                await notificationDelivery.SendAsync(
+                await _notificationDelivery.SendAsync(
                     new NotificationDeliveryRequest(
                         ToNotificationKind(payload.AlertType),
                         NotificationChannel.Email,
@@ -153,7 +156,7 @@ public sealed class MonitorDeliveryDispatcher
                     cancellationToken).ConfigureAwait(false);
                 return CreateAudit(message, payload, NotificationConstants.SENT_OK, DateTime.UtcNow);
             case MonitorDeliveryKind.Sms:
-                await notificationDelivery.SendAsync(
+                await _notificationDelivery.SendAsync(
                     new NotificationDeliveryRequest(
                         ToNotificationKind(payload.AlertType),
                         NotificationChannel.Sms,
@@ -176,7 +179,7 @@ public sealed class MonitorDeliveryDispatcher
         RvtMqttMessage mqttMessage = payload.CustomerId.HasValue
             ? new RvtMqttMessage(payload.Timestamp, payload.CustomerId.Value, payload.SerialId, text)
             : new RvtMqttMessage(payload.Timestamp, payload.SerialId, text);
-        await mqttClient.PublishAsync(
+        await _mqttClient.PublishAsync(
             topic,
             JsonSerializer.Serialize(mqttMessage),
             cancellationToken).ConfigureAwait(false);
@@ -197,7 +200,7 @@ public sealed class MonitorDeliveryDispatcher
             MonitorDeliveryAudit? audit = payload is null
                 ? null
                 : CreateAudit(message, payload, error, DateTime.UtcNow);
-            outcomeRecorded = await commands.DeadLetterAsync(
+            outcomeRecorded = await _commands.DeadLetterAsync(
                 message.Id,
                 message.LeaseId,
                 DateTime.UtcNow,
@@ -207,7 +210,7 @@ public sealed class MonitorDeliveryDispatcher
         }
         else
         {
-            outcomeRecorded = await commands.RetryAsync(
+            outcomeRecorded = await _commands.RetryAsync(
                 message.Id,
                 message.LeaseId,
                 DateTime.UtcNow.Add(RetryDelay(message.AttemptCount, exception)),
@@ -224,7 +227,7 @@ public sealed class MonitorDeliveryDispatcher
         await RecordFailureBestEffortAsync(message, error, terminal, cancellationToken)
             .ConfigureAwait(false);
 
-        if (terminal || options.FailureMode == MonitorDeliveryFailureMode.AnyDeliveryFailure)
+        if (terminal || _options.FailureMode == MonitorDeliveryFailureMode.AnyDeliveryFailure)
         {
             failures.Add(new InvalidOperationException(
                 $"Delivery message {message.Id} failed during this dispatch pass."));
@@ -243,7 +246,7 @@ public sealed class MonitorDeliveryDispatcher
     {
         try
         {
-            await failureSink.RecordFailureAsync(message, error, terminal, cancellationToken)
+            await _failureSink.RecordFailureAsync(message, error, terminal, cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -252,7 +255,7 @@ public sealed class MonitorDeliveryDispatcher
         }
         catch
         {
-            logger.LogWarning(
+            _logger.LogWarning(
                 "Delivery failure sink failed for message {DeliveryMessageId}; the fenced outbox outcome remains authoritative.",
                 message.Id);
         }
@@ -286,7 +289,7 @@ public sealed class MonitorDeliveryDispatcher
             return string.Empty;
         }
 
-        return $"{options.PortalBaseUrl.TrimEnd('/')}/Notification/View/{payload.NotificationId}";
+        return $"{_options.PortalBaseUrl.TrimEnd('/')}/Notification/View/{payload.NotificationId}";
     }
 
     private static NotificationMessageKind ToNotificationKind(AlertType alertType) =>
@@ -300,13 +303,13 @@ public sealed class MonitorDeliveryDispatcher
         };
 
     private bool IsTerminal(Exception exception, int attemptCount) =>
-        DeliveryDispatchPolicy.IsTerminal(exception, attemptCount, options.MaxAttempts);
+        DeliveryDispatchPolicy.IsTerminal(exception, attemptCount, _options.MaxAttempts);
 
     private TimeSpan RetryDelay(int attemptCount, Exception exception) =>
         DeliveryRetrySchedule.NextDelay(
             attemptCount,
-            options.InitialRetryDelay,
-            options.RetryCap,
+            _options.InitialRetryDelay,
+            _options.RetryCap,
             exception);
 
     private static string DeliveryError(Exception exception) =>
@@ -315,7 +318,7 @@ public sealed class MonitorDeliveryDispatcher
             $"Delivery failed ({exception.GetType().Name}).");
 
     private void LogOwnershipLoss(MonitorDeliveryMessage message) =>
-        logger.LogWarning(
+        _logger.LogWarning(
             "Delivery ownership was lost for message {DeliveryMessageId}; no further mutation will be attempted.",
             message.Id);
 }

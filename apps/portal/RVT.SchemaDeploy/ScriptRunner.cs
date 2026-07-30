@@ -1,6 +1,7 @@
 // File summary: Resolves the deployable SQL scripts in dependency order and applies them to PostgreSQL.
 // Major updates:
 // - 2026-07-14 pending Added to replace the post-load half of the retired RVT.DatabaseMigrator.
+// - 2026-07-30 pending Bounded the deploy transaction's lock wait with SET LOCAL lock_timeout.
 
 using Npgsql;
 
@@ -78,19 +79,41 @@ public sealed class ScriptRunner
     }
 
     // Function summary: Applies one already-resolved list to the supplied open PostgreSQL connection.
-    private static async Task<int> ApplyResolvedScriptsAsync(
+    private async Task<int> ApplyResolvedScriptsAsync(
         NpgsqlConnection connection,
         NpgsqlTransaction? transaction,
         IReadOnlyList<string> scripts,
         CancellationToken cancellationToken)
     {
         await RequireTimescaleAsync(connection, transaction, cancellationToken);
+        await ApplyLockTimeoutAsync(connection, transaction, cancellationToken);
         foreach (string script in scripts)
         {
             await ApplyAsync(connection, transaction, script, cancellationToken);
         }
 
         return scripts.Count;
+    }
+
+    /// <summary>
+    /// The whole deploy is one transaction, and several scripts take ACCESS EXCLUSIVE locks. Without a
+    /// lock_timeout a single idle-in-transaction reader blocks the deploy indefinitely while the deploy in turn
+    /// queues every writer behind itself - the tool waits forever and takes the application down with it. With
+    /// one, the deploy gives up and rolls back, which is recoverable. Same idiom as
+    /// database/postgres/canonical_database_naming.sql. SET LOCAL keeps it scoped to this transaction; the
+    /// value is an integer count of milliseconds, so nothing is interpolated into SQL text.
+    /// </summary>
+    private async Task ApplyLockTimeoutAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction? transaction,
+        CancellationToken cancellationToken)
+    {
+        await using NpgsqlCommand command = new(
+            $"SET LOCAL lock_timeout = {options.LockTimeoutMilliseconds}",
+            connection,
+            transaction);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     /// <summary>

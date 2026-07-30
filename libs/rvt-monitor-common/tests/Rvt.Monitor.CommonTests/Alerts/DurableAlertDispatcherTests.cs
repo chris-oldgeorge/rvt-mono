@@ -135,6 +135,163 @@ public sealed class DurableAlertDispatcherTests
     }
 
     [TestMethod]
+    public async Task DispatchAsync_BackfilledAlertOutsideTheSendWindow_IsDeferredNotDroppedOrDeadLettered()
+    {
+        // The dispatcher clock is 14:00 UTC. A backfill run committing a
+        // 14:00 breach at 00:03 used to SMS the contact at midnight because
+        // the window was checked at plan time against the event time.
+        ClaimedAlertDelivery message = DeliveryWithWindow(
+            new TimeSpan(9, 0, 0),
+            new TimeSpan(12, 0, 0));
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        store.Verify(x => x.DeferAsync(
+            message.Id,
+            message.LeaseId,
+            UtcNow.Date.AddDays(1).AddHours(9),
+            It.IsAny<CancellationToken>()), Times.Once);
+        adapter.Verify(
+            x => x.DeliverAsync(It.IsAny<ClaimedAlertDelivery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        store.Verify(x => x.RetryAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<DateTime>(),
+            It.IsAny<string>(),
+            It.IsAny<bool>(),
+            It.IsAny<AlertDeliveryAudit?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        store.Verify(x => x.CompleteAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<DateTime>(),
+            It.IsAny<AlertDeliveryAudit?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_InsideTheSendWindow_DeliversImmediately()
+    {
+        ClaimedAlertDelivery message = DeliveryWithWindow(
+            new TimeSpan(9, 0, 0),
+            new TimeSpan(17, 0, 0));
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        adapter.Verify(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+        store.Verify(x => x.DeferAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<DateTime>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_MidnightSpanningWindowThatIsOpenNow_DeliversImmediately()
+    {
+        ClaimedAlertDelivery message = DeliveryWithWindow(
+            new TimeSpan(13, 0, 0),
+            new TimeSpan(2, 0, 0));
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        adapter.Verify(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_MidnightSpanningWindowThatIsClosedNow_DefersToTonightsOpening()
+    {
+        ClaimedAlertDelivery message = DeliveryWithWindow(
+            new TimeSpan(22, 0, 0),
+            new TimeSpan(6, 0, 0));
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        store.Verify(x => x.DeferAsync(
+            message.Id,
+            message.LeaseId,
+            UtcNow.Date.AddHours(22),
+            It.IsAny<CancellationToken>()), Times.Once);
+        adapter.Verify(
+            x => x.DeliverAsync(It.IsAny<ClaimedAlertDelivery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_ContactWithNoConfiguredWindow_DeliversImmediately()
+    {
+        ClaimedAlertDelivery message = CreateDelivery("Sms", "+15550001111");
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        adapter.Verify(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+        store.Verify(x => x.DeferAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<DateTime>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_WhenTheDeferLosesOwnership_LogsAndMovesOn()
+    {
+        ClaimedAlertDelivery message = DeliveryWithWindow(
+            new TimeSpan(9, 0, 0),
+            new TimeSpan(12, 0, 0));
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        store.Setup(x => x.DeferAsync(
+                message.Id,
+                message.LeaseId,
+                It.IsAny<DateTime>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        TestLogger<DurableAlertDispatcher> logger = new();
+        DurableAlertDispatcher dispatcher = CreateDispatcher(
+            store.Object,
+            [CreateAdapter("Sms").Object],
+            logger: logger);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        Assert.IsTrue(logger.Messages.Any(entry =>
+            entry.Contains("ownership was lost", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [TestMethod]
+    public async Task DispatchAsync_WhenTheEnvelopeCannotBeRead_IsNotTreatedAsAQuietHoursDecision()
+    {
+        ClaimedAlertDelivery message = CreateDelivery("Sms", "+15550001111") with { Payload = "{bad-json" };
+        Mock<IAlertOutboxStore> store = StoreWithSingleClaim(message);
+        Mock<IAlertDeliveryAdapter> adapter = CreateAdapter("Sms");
+        DurableAlertDispatcher dispatcher = CreateDispatcher(store.Object, [adapter.Object]);
+
+        await dispatcher.DispatchAsync(CancellationToken.None);
+
+        store.Verify(x => x.DeferAsync(
+            It.IsAny<Guid>(),
+            It.IsAny<Guid>(),
+            It.IsAny<DateTime>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        adapter.Verify(x => x.DeliverAsync(message, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [TestMethod]
     public async Task DispatchAsync_WhenAdapterIsMissing_UsesBoundedRetryPath()
     {
         ClaimedAlertDelivery message = CreateDelivery("Unknown", "private-destination");
@@ -643,8 +800,24 @@ public sealed class DurableAlertDispatcherTests
                 It.IsAny<AlertDeliveryAudit?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        store.Setup(x => x.DeferAsync(
+                message.Id,
+                message.LeaseId,
+                It.IsAny<DateTime>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
         return store;
     }
+
+    private static ClaimedAlertDelivery DeliveryWithWindow(TimeSpan start, TimeSpan end) =>
+        CreateDelivery("Sms", "+15550001111") with
+        {
+            Payload = JsonSerializer.Serialize(CreateEnvelope() with
+            {
+                SendWindowStart = start,
+                SendWindowEnd = end
+            })
+        };
 
     private static ClaimedAlertDelivery CreateDelivery(
         string kind,

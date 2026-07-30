@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Rvt.Communication.Abstractions;
@@ -52,6 +53,11 @@ public sealed class DurableAlertDispatcher
 
             try
             {
+                if (await TryDeferOutsideSendWindowAsync(message, claimTime, cancellationToken))
+                {
+                    continue;
+                }
+
                 if (!_adapters.TryGetValue(message.Kind, out IAlertDeliveryAdapter? adapter))
                 {
                     throw new InvalidOperationException("No alert delivery adapter is registered for the message kind.");
@@ -118,6 +124,66 @@ public sealed class DurableAlertDispatcher
                 .Select(id => new InvalidOperationException($"Alert delivery {id} was dead-lettered."));
             throw new AggregateException("One or more alert deliveries were dead-lettered.", failures);
         }
+    }
+
+    /// <summary>
+    /// Holds a delivery back while its recipient's quiet-hours window is
+    /// closed <em>now</em>, rescheduling it for the next time the window
+    /// opens. Quiet hours used to be evaluated at plan time against the
+    /// alert's event time, so a backfill run could SMS someone at midnight
+    /// for a 14:00 breach — and an alert that arrived during quiet hours was
+    /// dropped outright rather than delayed.
+    /// </summary>
+    private async Task<bool> TryDeferOutsideSendWindowAsync(
+        ClaimedAlertDelivery message,
+        DateTime utcNow,
+        CancellationToken cancellationToken)
+    {
+        if (ReadSendWindow(message) is not { } window || window.IsOpenAt(utcNow))
+        {
+            return false;
+        }
+
+        DateTime nextOpening = window.NextOpeningAfter(utcNow);
+        bool deferred = await store.DeferAsync(
+            message.Id,
+            message.LeaseId,
+            nextOpening,
+            cancellationToken);
+        if (!deferred)
+        {
+            LogOwnershipLoss(message.Id);
+            return true;
+        }
+
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Alert delivery {AlertDeliveryId} is outside its send window and was deferred to {NextAttemptAt}.",
+                message.Id,
+                nextOpening);
+        }
+
+        return true;
+    }
+
+    private static AlertSendWindow? ReadSendWindow(ClaimedAlertDelivery message)
+    {
+        AlertDeliveryEnvelope? envelope;
+        try
+        {
+            envelope = JsonSerializer.Deserialize<AlertDeliveryEnvelope>(message.Payload);
+        }
+        catch (JsonException)
+        {
+            // A payload the dispatcher cannot read is the adapter's problem to
+            // classify; never let it look like a quiet-hours decision.
+            return null;
+        }
+
+        return envelope is null
+            ? null
+            : AlertSendWindow.TryCreate(envelope.SendWindowStart, envelope.SendWindowEnd);
     }
 
     private static bool IsTerminal(

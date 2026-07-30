@@ -207,7 +207,7 @@ public sealed class MonitorModelMappingTests
             new PropertyExpectation("LeaseId", "lease_id", typeof(Guid?), true, "uuid"),
             new PropertyExpectation("LeaseUntil", "lease_until", typeof(DateTime?), true, "timestamp with time zone"),
             new PropertyExpectation("CompletedAt", "completed_at", typeof(DateTime?), true, "timestamp with time zone"),
-            new PropertyExpectation("LastError", "last_error", typeof(string), true, "varchar(256)", 256),
+            new PropertyExpectation("LastError", "last_error", typeof(string), true, "varchar(1024)", 1024),
             new PropertyExpectation("CreatedAt", "created_at", typeof(DateTime), false, "timestamp with time zone"));
 
         IEntityType designTimeEntity = context.GetService<IDesignTimeModel>()

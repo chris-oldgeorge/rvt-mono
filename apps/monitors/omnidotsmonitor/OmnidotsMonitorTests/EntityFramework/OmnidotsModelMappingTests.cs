@@ -306,7 +306,7 @@ public sealed class OmnidotsModelMappingTests
         AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.LeaseId), "lease_id", "uuid", true);
         AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.LeaseUntil), "lease_until", "timestamp with time zone", true);
         AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.CompletedAt), "completed_at", "timestamp with time zone", true);
-        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.LastError), "last_error", "varchar(256)", true, 256);
+        AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.LastError), "last_error", "varchar(1024)", true, 1024);
         AssertAlertColumn(entity, nameof(AlertDeliveryOutboxEntity.CreatedAt), "created_at", "timestamp with time zone", false);
 
         AssertIndex(

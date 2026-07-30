@@ -72,7 +72,7 @@ public sealed class MonitorDeliveryDispatcherTests
     }
 
     [TestMethod]
-    public async Task DispatchDueAsync_FormatsSvantekAlertMqttWithNoisePrefixAndCustomerId()
+    public async Task DispatchDueAsync_FormatsAlertMqttWithCustomerId()
     {
         DispatcherHarness harness = new();
         MonitorDeliveryPayloadV1 payload = DeliveryFixture.ValidPayload with { CustomerId = 41 };
@@ -87,7 +87,7 @@ public sealed class MonitorDeliveryDispatcherTests
 
         using JsonDocument document = JsonDocument.Parse(json!);
         Assert.AreEqual(41, document.RootElement.GetProperty("CustomerId").GetInt32());
-        Assert.AreEqual("Noise Alert LAeq level=75", document.RootElement.GetProperty("Message").GetString());
+        Assert.AreEqual("Dust Alert LAeq level=75", document.RootElement.GetProperty("Message").GetString());
     }
 
     [TestMethod]
@@ -495,7 +495,7 @@ public sealed class MonitorDeliveryDispatcherTests
     public async Task DispatchDueAsync_ProducerMismatchDeadLettersImmediately()
     {
         DispatcherHarness harness = new();
-        harness.Queries.Enqueue(Message(producer: MonitorDeliveryProducers.MyAtm));
+        harness.Queries.Enqueue(Message(producer: "OtherProducer"));
 
         await Assert.ThrowsExactlyAsync<MonitorDeliveryDispatchException>(
             () => harness.Dispatcher.DispatchDueAsync(TestContext.CancellationToken));

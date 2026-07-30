@@ -1115,7 +1115,7 @@ namespace MyAtmMonitorTests
             using NpgsqlConnection connection = _database!.OpenConnection();
             connection.Open();
             using NpgsqlCommand command = new(
-                "UPDATE monitor SET fleet_nr = $1 WHERE serial_id = $2;",
+                "UPDATE monitor SET fleet_row_count = $1 WHERE serial_id = $2;",
                 connection);
             command.Parameters.AddWithValue(fleetNr);
             command.Parameters.AddWithValue(serialId);

@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS alert_delivery_outbox
     lease_id uuid NULL,
     lease_until timestamp with time zone NULL,
     completed_at timestamp with time zone NULL,
-    last_error varchar(256) NULL,
+    last_error varchar(1024) NULL,
     created_at timestamp with time zone NOT NULL,
     CONSTRAINT pk_alert_delivery_outbox PRIMARY KEY (id),
     CONSTRAINT fk_alert_delivery_outbox_occurrence FOREIGN KEY (occurrence_id) REFERENCES alert_occurrence(id) ON DELETE CASCADE,

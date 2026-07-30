@@ -1,5 +1,6 @@
 // File summary: Provides canonical PostgreSQL SQL definitions for site archive CSV and report exports.
 // Major updates:
+// - 2026-07-31 pending Replaced the six inert RIGHT JOINs with the INNER JOIN they already behaved as.
 // - 2026-07-30 pending Read the deployment coordinates from the columns that exist (lat/lng).
 // - 2026-07-30 pending Resolved archive tables through SearchPath instead of pinning the public schema.
 // - 2026-07-30 pending Normalized the date-only off-hire end.
@@ -127,7 +128,16 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
             """;
     }
 
-    // Function summary: Builds the dust measurement archive query.
+    /// <summary>
+    /// Builds the dust measurement archive query.
+    /// <para>
+    /// The measurement relation joins with <c>INNER JOIN</c>, as do its four siblings below. They were written
+    /// as <c>RIGHT JOIN</c>, which keeps measurement rows whose monitor, contract or site is missing - and then
+    /// <c>WHERE s.id = @SiteId</c> discards exactly those rows again, because <c>s.id</c> is NULL for them. The
+    /// outer join was therefore inert; saying inner join says what the query does. Pinned by
+    /// <c>SiteArchiveExportPostgresTests</c>, which counts the rows every export returns.
+    /// </para>
+    /// </summary>
     private static string DustSql()
     {
         return $"""
@@ -143,7 +153,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
             LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
             LEFT JOIN {Table("site")} s ON s.id = c.site_id
             LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
-            RIGHT JOIN {Table("my_atm_dust_level")} l ON l.serial_id = m.serial_id
+            INNER JOIN {Table("my_atm_dust_level")} l ON l.serial_id = m.serial_id
                 AND l.sample_time >= {EffectiveStartExpression()}
                 AND l.sample_time < {EffectiveEndExpression()}
             WHERE s.id = @SiteId
@@ -170,7 +180,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
             LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
             LEFT JOIN {Table("site")} s ON s.id = c.site_id
             LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
-            RIGHT JOIN {Table(tableName)} l ON l.serial_id = m.serial_id
+            INNER JOIN {Table(tableName)} l ON l.serial_id = m.serial_id
                 AND l.sample_time >= {EffectiveStartExpression()}
                 AND l.sample_time < {EffectiveEndExpression()}
             WHERE s.id = @SiteId
@@ -198,7 +208,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
             LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
             LEFT JOIN {Table("site")} s ON s.id = c.site_id
             LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
-            RIGHT JOIN {Table("omnidots_peak_level")} l ON l.serial_id = m.serial_id
+            INNER JOIN {Table("omnidots_peak_level")} l ON l.serial_id = m.serial_id
                 AND l.sample_time >= {EffectiveStartExpression()}
                 AND l.sample_time < {EffectiveEndExpression()}
             WHERE s.id = @SiteId
@@ -219,7 +229,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
             LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
             LEFT JOIN {Table("site")} s ON s.id = c.site_id
             LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
-            RIGHT JOIN {Table("omnidots_trace_index")} l ON l.serial_id = m.serial_id
+            INNER JOIN {Table("omnidots_trace_index")} l ON l.serial_id = m.serial_id
                 AND l.start_time >= {EffectiveStartExpression()}
                 AND l.start_time < {EffectiveEndExpression()}
             WHERE s.id = @SiteId
@@ -242,7 +252,7 @@ internal sealed class SiteArchiveQueryCatalog : ISiteArchiveQueryCatalog
                 LEFT JOIN {Table(ContractTable)} c ON c.id = d.contract_id
                 LEFT JOIN {Table("site")} s ON s.id = c.site_id
                 LEFT JOIN {Table(MonitorTable)} m ON m.id = d.monitor_id
-                RIGHT JOIN {Table("omnidots_trace_index")} l ON l.serial_id = m.serial_id
+                INNER JOIN {Table("omnidots_trace_index")} l ON l.serial_id = m.serial_id
                     AND l.start_time >= {EffectiveStartExpression()}
                     AND l.start_time < {EffectiveEndExpression()}
                 WHERE s.id = @SiteId

@@ -110,10 +110,26 @@ public sealed class CreateDefaultMonitorAlertLevelsCommandHandler
             .Where(monitor => !monitor.Archived && !string.IsNullOrWhiteSpace(monitor.FleetNr))
             .OrderBy(monitor => monitor.FleetNr)
             .ToListAsync(cancellationToken);
+
+        // Which monitors already have rules, in one query. This used to be an AnyAsync per monitor inside the
+        // loop below - a round trip per monitor across the whole fleet to answer a question one grouped read
+        // covers.
+        List<Guid> monitorIds = [.. monitors.Select(monitor => monitor.Id)];
+        HashSet<Guid> monitorsWithAlertLevels = [.. await _domainContext.RvtAlertRules
+            .AsNoTracking()
+            .Where(level => !level.IsDeleted && monitorIds.Contains(level.MonitorId))
+            .Select(level => level.MonitorId)
+            .Distinct()
+            .ToListAsync(cancellationToken)];
+
         DefaultMonitorsResponse response = new() { Processed = monitors.Count };
         foreach (MonitorEntity? monitor in monitors)
         {
-            int created = await MonitorMutationWorkflow.AddDefaultAlertLevelsAsync(_domainContext, monitor, cancellationToken);
+            int created = await MonitorMutationWorkflow.AddDefaultAlertLevelsAsync(
+                _domainContext,
+                monitor,
+                cancellationToken,
+                monitorsWithAlertLevels);
             if (created > 0)
             {
                 response.CreatedAlertLevels += created;
@@ -174,9 +190,15 @@ internal static class MonitorMutationWorkflow
     public static async Task<int> AddDefaultAlertLevelsAsync(
         RVTDbContext domainContext,
         MonitorEntity monitor,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlySet<Guid>? monitorsWithAlertLevels = null)
     {
-        if (await domainContext.RvtAlertRules.AnyAsync(level => level.MonitorId == monitor.Id && !level.IsDeleted, cancellationToken))
+        // A caller processing the whole fleet resolves this once for every monitor and passes the set; the
+        // single-monitor callers ask for just their own.
+        bool hasAlertLevels = monitorsWithAlertLevels is null
+            ? await domainContext.RvtAlertRules.AnyAsync(level => level.MonitorId == monitor.Id && !level.IsDeleted, cancellationToken)
+            : monitorsWithAlertLevels.Contains(monitor.Id);
+        if (hasAlertLevels)
         {
             return 0;
         }

@@ -1,5 +1,6 @@
 // File summary: Renders the site detail panel with its assignments, map, and notification-settings sections.
 // Major updates:
+// - 2026-07-30 pending Closed the archive confirmation on failure so the error notice is not covered.
 // - 2026-07-30 pending Extracted from ContractSitePanels.tsx during the contracts/sites split.
 
 import {
@@ -100,14 +101,17 @@ export function SiteDetailPanel({
   }, [onRequestError, siteId]);
   async function handleArchive() {
     setIsArchiving(true);
+    setError(null);
     try {
       const response = await archiveSite(siteId);
       setSite(response.item ?? null);
-      setConfirmArchive(false);
     } catch (err) {
       setError((err as Error).message);
       onRequestError(err);
     } finally {
+      // Close on failure too: the error notice renders on the panel, which a modal
+      // confirmation would cover, so leaving it open hides the reason it failed.
+      setConfirmArchive(false);
       setIsArchiving(false);
     }
   }

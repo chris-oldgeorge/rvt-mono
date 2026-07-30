@@ -1,5 +1,6 @@
 // File summary: Renders the company administration list, detail, and form panels.
 // Major updates:
+// - 2026-07-30 pending Dropped the decoy "Delete company" row action that only showed a notice.
 // - 2026-07-30 pending Split from AdminPanels.tsx so company and user admin panels live in separate modules.
 
 import { Building2, CheckCircle2, Edit3, Eye, Plus, Save, Search, Trash2, UsersRound } from 'lucide-react';
@@ -69,7 +70,6 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
     results: string[];
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   const columns = useMemo<DataGridColumn<CompanyListItem>[]>(
     () => [
@@ -206,7 +206,6 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
           ))}
         </div>
       )}
-      {notice && <Notice tone="info" message={notice} />}
       <DataGrid
         columns={columns}
         rows={companies}
@@ -243,11 +242,6 @@ function CompanyListPanel({ locationPath, onNavigate, onRequestError }: AdminPan
                   returnPath,
                 ),
               ),
-          },
-          {
-            label: 'Delete company',
-            icon: <Trash2 size={16} aria-hidden="true" />,
-            onClick: (company) => setNotice(`Open ${company.companyName} to delete with confirmation.`),
           },
         ]}
       />

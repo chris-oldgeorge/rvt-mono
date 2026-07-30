@@ -555,6 +555,11 @@ function InstallerDeploymentPanel({
         setLatError(null);
         setLngError(null);
         setNotice(result.nearestPlace ? `Converted near ${result.nearestPlace}.` : result.message);
+      } else {
+        // A 200 without coordinates is the API's "could not resolve that address" answer and
+        // carries its own message; silently doing nothing left the button looking broken.
+        setNotice(null);
+        setError(result.message || 'That what3words address could not be converted to coordinates.');
       }
     } catch (err) {
       setError((err as Error).message);

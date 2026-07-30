@@ -1,5 +1,6 @@
 // File summary: Renders the admin unattached-monitor removal panel with archive/delete confirmation.
 // Major updates:
+// - 2026-07-30 pending Closed the removal confirmation on failure so the error notice is not covered.
 // - 2026-07-30 pending Moved the removal reason inside the confirmation so it can actually be typed.
 // - 2026-07-30 pending Extracted from MonitorPanels.tsx during the monitor panel split.
 
@@ -142,8 +143,6 @@ export function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequ
     try {
       const response = await removeUnattachedMonitor(selectedMonitor.id, { reason });
       setNotice(response.message);
-      setSelectedMonitor(null);
-      setReason('');
       if (currentGeneration() !== removeGeneration) {
         return;
       }
@@ -152,6 +151,10 @@ export function UnattachedMonitorRemovalPanel({ locationPath, onNavigate, onRequ
       setError((err as Error).message);
       onRequestError(err);
     } finally {
+      // Close on failure too: the error notice renders on the panel, which the modal
+      // confirmation would cover, so leaving it open hides the reason it failed.
+      setSelectedMonitor(null);
+      setReason('');
       setIsRemoving(false);
     }
   }

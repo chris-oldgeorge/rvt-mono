@@ -97,4 +97,22 @@ describe('UnattachedMonitorRemovalPanel', () => {
 
     expect(await screen.findByPlaceholderText('Reason recorded for audit history')).toHaveValue('');
   });
+
+  it('closes the confirmation when removal fails so the error notice is readable', async () => {
+    const user = userEvent.setup();
+    api.removeUnattachedMonitor.mockRejectedValue(new Error('Monitor is still deployed.'));
+    render(
+      <UnattachedMonitorRemovalPanel
+        locationPath="/monitors/unattached"
+        onNavigate={vi.fn()}
+        onRequestError={vi.fn()}
+      />,
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Remove monitor' }));
+    await user.click(await screen.findByRole('button', { name: 'Archive' }));
+
+    expect(await screen.findAllByText('Monitor is still deployed.')).not.toHaveLength(0);
+    expect(screen.queryByPlaceholderText('Reason recorded for audit history')).not.toBeInTheDocument();
+  });
 });

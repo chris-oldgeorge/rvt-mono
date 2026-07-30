@@ -217,7 +217,7 @@ def verify_workflow(source)
     elsif step.key?("run")
       expected_keys =
         if name == "Verify changed-range engineering standards"
-          %w[env name run]
+          %w[env if name run]
         else
           %w[name run]
         end
@@ -271,6 +271,11 @@ def verify_workflow(source)
   end
 
   changed_range = named_step.call("Verify changed-range engineering standards")
+  assert(
+    scalar(changed_range.fetch("if"), "changed-range condition") ==
+      "${{ hashFiles('RELEASE_SOURCE.json') == '' }}",
+    "changed-range verification must skip only for curated client releases"
+  )
   changed_range_env = mapping(changed_range.fetch("env"), "changed-range environment")
   assert(
     changed_range_env.keys == ["BASE_SHA"],
@@ -488,6 +493,10 @@ workflow_mutations = {
     'scripts/verify-engineering-standards.sh --base "${BASE_SHA}" --head HEAD',
     "scripts/verify-engineering-standards.sh --all"
   ],
+  "wrong client-release standards gate" => [
+    "        if: ${{ hashFiles('RELEASE_SOURCE.json') == '' }}\n",
+    "        if: ${{ false }}\n"
+  ],
   "hard-coded main standards base" => [
     "          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}\n",
     "          BASE_SHA: origin/main\n"
@@ -514,6 +523,7 @@ workflow_contract_block =
   "        run: tests/verify-engineering-standards-workflow.test.sh\n"
 changed_range_block =
   "      - name: Verify changed-range engineering standards\n" \
+  "        if: ${{ hashFiles('RELEASE_SOURCE.json') == '' }}\n" \
   "        env:\n" \
   "          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}\n" \
   "        run: scripts/verify-engineering-standards.sh --base \"${BASE_SHA}\" --head HEAD\n"

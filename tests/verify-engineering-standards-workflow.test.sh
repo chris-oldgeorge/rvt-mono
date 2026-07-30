@@ -215,7 +215,13 @@ def verify_workflow(source)
         assert_pinned_action(reference, name)
       end
     elsif step.key?("run")
-      assert_exact_keys(step, %w[name run], name)
+      expected_keys =
+        if name == "Verify changed-range engineering standards"
+          %w[env name run]
+        else
+          %w[name run]
+        end
+      assert_exact_keys(step, expected_keys, name)
     else
       assert(false, "#{name} must be an action or run step")
     end
@@ -253,7 +259,7 @@ def verify_workflow(source)
     "Verify automatic workflow contract" =>
       "tests/verify-engineering-standards-workflow.test.sh",
     "Verify changed-range engineering standards" =>
-      "scripts/verify-engineering-standards.sh --base auto --head HEAD"
+      'scripts/verify-engineering-standards.sh --base "${BASE_SHA}" --head HEAD'
   }
 
   canonical.each do |name, command|
@@ -263,6 +269,18 @@ def verify_workflow(source)
       "#{name} must use its canonical command"
     )
   end
+
+  changed_range = named_step.call("Verify changed-range engineering standards")
+  changed_range_env = mapping(changed_range.fetch("env"), "changed-range environment")
+  assert(
+    changed_range_env.keys == ["BASE_SHA"],
+    "changed-range verification must receive exactly BASE_SHA"
+  )
+  assert(
+    scalar(changed_range_env.fetch("BASE_SHA"), "changed-range BASE_SHA") ==
+      "${{ github.event.pull_request.base.sha || github.event.before }}",
+    "changed-range verification must use the event's exact base commit"
+  )
 
   ordered_names = [
     "Check out repository",
@@ -467,8 +485,12 @@ workflow_mutations = {
     "      - name: Verify automatic workflow contract\n        continue-on-error: true\n"
   ],
   "changed-range bypass" => [
-    "scripts/verify-engineering-standards.sh --base auto --head HEAD",
+    'scripts/verify-engineering-standards.sh --base "${BASE_SHA}" --head HEAD',
     "scripts/verify-engineering-standards.sh --all"
+  ],
+  "hard-coded main standards base" => [
+    "          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}\n",
+    "          BASE_SHA: origin/main\n"
   ],
   "secret exposure" => [
     "    timeout-minutes: 30\n",
@@ -492,7 +514,9 @@ workflow_contract_block =
   "        run: tests/verify-engineering-standards-workflow.test.sh\n"
 changed_range_block =
   "      - name: Verify changed-range engineering standards\n" \
-  "        run: scripts/verify-engineering-standards.sh --base auto --head HEAD\n"
+  "        env:\n" \
+  "          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}\n" \
+  "        run: scripts/verify-engineering-standards.sh --base \"${BASE_SHA}\" --head HEAD\n"
 workflow_mutations["workflow contract after changed-range gate"] = [
   "#{workflow_contract_block}\n#{changed_range_block}",
   "#{changed_range_block}\n#{workflow_contract_block}"
@@ -506,9 +530,10 @@ workflow_mutations["workflow contract after changed-range gate"] = [
   "RVT_STANDARDS_EXCEPTIONS_PATH"
 ].each do |override|
   workflow_mutations["#{override} step override"] = [
-    "      - name: Verify changed-range engineering standards\n",
-    "      - name: Verify changed-range engineering standards\n" \
-      "        env:\n" \
+    "        env:\n" \
+      "          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}\n",
+    "        env:\n" \
+      "          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}\n" \
       "          #{override}: unsafe\n"
   ]
 end

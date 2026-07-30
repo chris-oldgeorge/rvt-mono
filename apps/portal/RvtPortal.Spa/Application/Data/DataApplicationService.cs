@@ -380,7 +380,7 @@ public sealed class DataApplicationService : IDataApplicationService
         (DateTime From, DateTime To)? clampedWindow = ClampRequestToOwnershipWindow(deployment, request.FromDate, request.ToDate);
         IReadOnlyList<OmnidotsTracesIndex> traceIndexes = clampedWindow is null
             ? []
-            : await _dataSource.GetTraceIndexesAsync(deployment.Monitor.SerialId, clampedWindow.Value.From, clampedWindow.Value.To);
+            : await _dataSource.GetTraceIndexesAsync(deployment.Monitor.SerialId, clampedWindow.Value.From, clampedWindow.Value.To, cancellationToken);
         return DataWorkflowResult<TraceListResponse>.Success(new TraceListResponse
         {
             DeploymentId = deployment.Id,
@@ -412,7 +412,7 @@ public sealed class DataApplicationService : IDataApplicationService
             return DataWorkflowResult<TraceDetailResponse>.Failed(DataWorkflowFailure.DeploymentNotFound(deploymentId));
         }
 
-        OmnidotsTracesIndex? traceIndex = await _dataSource.GetTraceIndexAsync(traceId);
+        OmnidotsTracesIndex? traceIndex = await _dataSource.GetTraceIndexAsync(traceId, cancellationToken);
         if (traceIndex is null || !string.Equals(traceIndex.SerialId, deployment.Monitor.SerialId, StringComparison.OrdinalIgnoreCase))
         {
             return DataWorkflowResult<TraceDetailResponse>.Failed(DataWorkflowFailure.TraceNotFound(traceId));

@@ -126,10 +126,11 @@ public sealed class MonitorDetailSummaryServiceTests
         public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
             string serialId,
             DateTime fromDate,
-            DateTime toDate) =>
+            DateTime toDate,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId) =>
+        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }
 
@@ -148,10 +149,11 @@ public sealed class MonitorDetailSummaryServiceTests
         public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
             string serialId,
             DateTime fromDate,
-            DateTime toDate) =>
+            DateTime toDate,
+            CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
 
-        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId) =>
+        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default) =>
             throw new NotSupportedException();
     }
 }

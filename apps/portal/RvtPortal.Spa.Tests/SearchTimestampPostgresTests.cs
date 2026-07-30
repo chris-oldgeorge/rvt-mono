@@ -468,12 +468,13 @@ public sealed class SearchTimestampPostgresTests
         public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
             string serialId,
             DateTime fromDate,
-            DateTime toDate)
+            DateTime toDate,
+            CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<OmnidotsTracesIndex>>([]);
         }
 
-        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
+        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<OmnidotsTracesIndex?>(null);
         }
@@ -492,7 +493,7 @@ public sealed class SearchTimestampPostgresTests
 
         public async Task<MonitorData> GetDeploymentDataAsync(DeploymentDataQuery request, CancellationToken cancellationToken = default)
         {
-            OmnidotsTracesIndex? index = await _inner.GetTraceIndexAsync(request.TraceId!.Value);
+            OmnidotsTracesIndex? index = await _inner.GetTraceIndexAsync(request.TraceId!.Value, cancellationToken);
             Assert.NotNull(index);
             return new MonitorData
             {
@@ -506,14 +507,15 @@ public sealed class SearchTimestampPostgresTests
         public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
             string serialId,
             DateTime fromDate,
-            DateTime toDate)
+            DateTime toDate,
+            CancellationToken cancellationToken = default)
         {
-            return _inner.GetTraceIndexesAsync(serialId, fromDate, toDate);
+            return _inner.GetTraceIndexesAsync(serialId, fromDate, toDate, cancellationToken);
         }
 
-        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
+        public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default)
         {
-            return _inner.GetTraceIndexAsync(traceId);
+            return _inner.GetTraceIndexAsync(traceId, cancellationToken);
         }
     }
 }

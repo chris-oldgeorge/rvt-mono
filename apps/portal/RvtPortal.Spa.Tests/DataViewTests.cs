@@ -189,6 +189,54 @@ public class DataViewTests
         Assert.All(probe.DateTimeParameters, value => Assert.Equal(DateTimeKind.Unspecified, value.Kind));
     }
 
+    [Fact]
+    /// <summary>
+    /// PR #50 threaded cancellation through the data-view path but left the two trace-index port methods
+    /// tokenless, so an abandoned request kept querying. Both now take the caller's token and hand it to EF; a
+    /// token that is already cancelled must reach the provider rather than being dropped on the way.
+    /// </summary>
+    public async Task MonitorDataSource_TraceReads_ObserveTheCallersCancellation()
+    {
+        await using SqliteConnection connection = new("Data Source=:memory:");
+        await connection.OpenAsync();
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.Sqlite<RVTSearchContext>(connection);
+        await using RVTSearchContext searchContext = new(options);
+        await searchContext.Database.EnsureCreatedAsync();
+        MonitorDataSource dataSource = new(null!, searchContext, null!);
+        DateTime from = new(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
+        using CancellationTokenSource cancelled = new();
+        await cancelled.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => dataSource.GetTraceIndexesAsync("TRACE-CANCELLED", from, from.AddHours(1), cancelled.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => dataSource.GetTraceIndexAsync(Guid.NewGuid(), cancelled.Token));
+    }
+
+    [Fact]
+    /// <summary>
+    /// The range read is bounded like its sibling <c>MonitorService.GetVibrationTraces</c>: a wide date range on
+    /// a busy vibration monitor used to materialize every index row it matched.
+    /// </summary>
+    public async Task MonitorDataSource_TraceIndexes_AreBounded()
+    {
+        await using SqliteConnection connection = new("Data Source=:memory:");
+        await connection.OpenAsync();
+        TraceBoundCommandProbe probe = new();
+        DbContextOptions<RVTSearchContext> options = TestDbContexts.Sqlite<RVTSearchContext>(connection, probe);
+        await using RVTSearchContext searchContext = new(options);
+        await searchContext.Database.EnsureCreatedAsync();
+        probe.Clear();
+        MonitorDataSource dataSource = new(null!, searchContext, null!);
+        DateTime from = new(2026, 7, 1, 14, 0, 0, DateTimeKind.Utc);
+
+        await dataSource.GetTraceIndexesAsync("TRACE-BOUNDED", from, from.AddHours(1));
+
+        Assert.Contains(
+            probe.CommandTexts,
+            text => text.Contains("LIMIT", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Theory]
     [InlineData(DateTimeKind.Local)]
     [InlineData(DateTimeKind.Unspecified)]
@@ -502,9 +550,12 @@ public class DataViewTests
     {
         public List<DateTime> DateTimeParameters { get; } = [];
 
+        public List<string> CommandTexts { get; } = [];
+
         public void Clear()
         {
             DateTimeParameters.Clear();
+            CommandTexts.Clear();
         }
 
         public override InterceptionResult<DbDataReader> ReaderExecuting(
@@ -512,6 +563,7 @@ public class DataViewTests
             CommandEventData eventData,
             InterceptionResult<DbDataReader> result)
         {
+            CommandTexts.Add(command.CommandText);
             DateTimeParameters.AddRange(
                 command.Parameters
                     .Cast<DbParameter>()
@@ -575,7 +627,11 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
     }
 
     // Function summary: Retrieves trace indexes data for callers.
-    public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(string serialId, DateTime fromDate, DateTime toDate)
+    public Task<IReadOnlyList<OmnidotsTracesIndex>> GetTraceIndexesAsync(
+        string serialId,
+        DateTime fromDate,
+        DateTime toDate,
+        CancellationToken cancellationToken = default)
     {
         IReadOnlyList<OmnidotsTracesIndex> indexes = [.. traces.Values
             .Where(trace => trace.Monitor.SerialId == serialId && trace.Index.StartTime >= fromDate && trace.Index.StartTime < toDate)
@@ -584,7 +640,7 @@ internal sealed class FakeMonitorDataSource : IMonitorDataSource
     }
 
     // Function summary: Retrieves trace index data for callers.
-    public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId)
+    public Task<OmnidotsTracesIndex?> GetTraceIndexAsync(Guid traceId, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(traces.TryGetValue(traceId, out (RVT.Entities.Monitor Monitor, OmnidotsTracesIndex Index, List<OmnidotsTrace> Samples) trace) ? trace.Index : null);
     }

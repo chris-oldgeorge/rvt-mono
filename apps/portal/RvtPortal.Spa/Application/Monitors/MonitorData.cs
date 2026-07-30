@@ -220,8 +220,11 @@ public class MonitorData
     {
         Deployment deployment = (await monitorService.DeploymentReadOneAsync(deploymentId, cancellationToken))!;
 
-        DateTime defaultFromDate = DateTime.Today.AddDays(-1).LocalToUtc(dateTimeProvider);
-        DateTime defaultToDate = DateTime.Today.AddDays(1).LocalToUtc(dateTimeProvider);
+        // The default window is seeded from the provider's UTC business day; DateTime.Today read the
+        // server-local clock and could not be faked in tests.
+        DateTime todayUtc = dateTimeProvider.UtcNow.Date;
+        DateTime defaultFromDate = todayUtc.AddDays(-1);
+        DateTime defaultToDate = todayUtc.AddDays(1);
         (DateTime chosenFromDate, DateTime chosenToDate) = NormalizeDeploymentDateRange(fromDate, toDate, defaultFromDate, defaultToDate);
         TimeSpan chosenTimeSpan = chosenToDate - chosenFromDate;
         RVT.Entities.Monitor? monitor = await monitorService.ReadOneAsync(deployment.MonitorId, cancellationToken);
@@ -303,7 +306,7 @@ public class MonitorData
     private static (DateTime MinDate, DateTime MaxDate) GetDeploymentBounds(Deployment deployment, IRvtDateTimeProvider dateTimeProvider)
     {
         DateTime minDate = deployment.StartDate;
-        DateTime maxDate = deployment.EndDate ?? DateTime.Today.AddDays(2).LocalToUtc(dateTimeProvider).AddMilliseconds(-1);
+        DateTime maxDate = deployment.EndDate ?? dateTimeProvider.UtcNow.Date.AddDays(2).AddMilliseconds(-1);
         return (minDate, maxDate);
     }
 

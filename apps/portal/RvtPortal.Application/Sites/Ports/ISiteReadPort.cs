@@ -26,16 +26,6 @@ public interface ISiteReadPort
         Guid siteId,
         CancellationToken cancellationToken);
 
-    Task<PagedResult<SiteMonitorModel>> QueryMonitorsAsync(
-        Guid siteId,
-        PageRequest page,
-        CancellationToken cancellationToken);
-
-    Task<PagedResult<SiteNotificationModel>> QueryOpenNotificationsAsync(
-        Guid siteId,
-        PageRequest page,
-        CancellationToken cancellationToken);
-
     Task<SiteNotificationSettingsData?> GetNotificationSettingsAsync(
         Guid siteId,
         CancellationToken cancellationToken);

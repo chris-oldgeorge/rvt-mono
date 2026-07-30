@@ -85,11 +85,6 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
 
     public async Task<UseCaseResult<PagedResult<ReportRuleListModel>>> QueryAsync(ReportRuleQuery request, CancellationToken cancellationToken)
     {
-        if (_searchContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return UseCaseResult<PagedResult<ReportRuleListModel>>.Success(await QueryRulesFromTableAsync(request, cancellationToken));
-        }
-
         IQueryable<ReportRuleSearch> query = _searchContext.ReportRuleSearches.AsNoTracking();
         if (request.SiteId.HasValue)
         {
@@ -311,55 +306,6 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
         return exists
             ? await _reportGenerationGateway.RequestGenerationAsync(id, request, cancellationToken)
             : UseCaseResult<ReportGenerationResponseModel>.NotFound($"Report rule '{id}' was not found.");
-    }
-
-    // Function summary: Queries persisted report rules for test providers that cannot seed keyless search views.
-    [SuppressMessage("Globalization", "CA1304:Specify CultureInfo", Justification = "EF query predicate; ToLower() is the only case-insensitive form that translates on Npgsql and runs on the InMemory test provider. See docs/development/portal/sonar/globalization-suppressions.md")]
-    [SuppressMessage("Globalization", "CA1311:Specify a culture or use an invariant version", Justification = "EF query predicate; see docs/development/portal/sonar/globalization-suppressions.md")]
-    [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]
-    private async Task<PagedResult<ReportRuleListModel>> QueryRulesFromTableAsync(ReportRuleQuery request, CancellationToken cancellationToken)
-    {
-        IQueryable<ReportRule> query = _searchContext.ReportRules
-            .AsNoTracking()
-            .Where(rule => !rule.Deleted);
-
-        if (request.SiteId.HasValue)
-        {
-            query = query.Where(rule => rule.SiteId == request.SiteId.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.Page.SearchText))
-        {
-            string search = request.Page.SearchText.Trim().ToLower();
-            List<Guid> matchingSiteIds = await _domainContext.Sites
-                .AsNoTracking()
-                .Where(site => site.SiteName.ToLower().Contains(search))
-                .Select(site => site.Id)
-                .ToListAsync(cancellationToken);
-            ReportFrequencyType[] frequencyMatches = [.. MatchingFrequencies(search)];
-            query = query.Where(rule =>
-                (rule.ReportName != null && rule.ReportName.ToLower().Contains(search)) ||
-                matchingSiteIds.Contains(rule.SiteId) ||
-                frequencyMatches.Contains(rule.Frequency));
-        }
-
-        int total = await query.CountAsync(cancellationToken);
-        List<ReportRule> pageRows = await ApplySort(query, request.Page.Sort, request.Page.SortDir)
-            .Skip((request.Page.Page - 1) * request.Page.PageSize)
-            .Take(request.Page.PageSize)
-            .ToListAsync(cancellationToken);
-        Dictionary<Guid, string> siteNames = await BuildSiteNamesAsync(pageRows.Select(rule => rule.SiteId), cancellationToken);
-
-        return new PagedResult<ReportRuleListModel>
-        {
-            Results = [.. pageRows.Select(rule => BuildRuleItem(rule, siteNames))],
-            Total = total,
-            Page = request.Page.Page,
-            PageSize = request.Page.PageSize,
-            SearchText = request.Page.SearchText ?? "",
-            Sort = request.Page.Sort,
-            SortDir = request.Page.SortDir
-        };
     }
 
     // Function summary: Builds report-rule detail data and option lists.
@@ -715,21 +661,6 @@ public sealed class ReportRuleApplicationService : IReportRuleApplicationService
             "sitename" => descending ? rules.OrderByDescending(rule => rule.SiteName) : rules.OrderBy(rule => rule.SiteName),
             "dayofweek" => descending ? rules.OrderByDescending(rule => rule.DayOfWeek) : rules.OrderBy(rule => rule.DayOfWeek),
             "dayofmonth" => descending ? rules.OrderByDescending(rule => rule.DayOfMonth) : rules.OrderBy(rule => rule.DayOfMonth),
-            _ => descending ? rules.OrderByDescending(rule => rule.LastGenerated) : rules.OrderBy(rule => rule.LastGenerated)
-        };
-    }
-
-    // Function summary: Applies database-side sorting for persisted report rules.
-    private static IOrderedQueryable<ReportRule> ApplySort(IQueryable<ReportRule> rules, string sort, string direction)
-    {
-        bool descending = string.Equals(direction, PageSortDirections.Descending, StringComparison.OrdinalIgnoreCase);
-        return sort.ToLowerInvariant() switch
-        {
-            "reportname" => descending ? rules.OrderByDescending(rule => rule.ReportName) : rules.OrderBy(rule => rule.ReportName),
-            "frequency" => descending ? rules.OrderByDescending(rule => rule.Frequency) : rules.OrderBy(rule => rule.Frequency),
-            "dayofweek" => descending ? rules.OrderByDescending(rule => rule.DayOfWeek) : rules.OrderBy(rule => rule.DayOfWeek),
-            "dayofmonth" => descending ? rules.OrderByDescending(rule => rule.DayOfMonth) : rules.OrderBy(rule => rule.DayOfMonth),
-            "sitename" => descending ? rules.OrderByDescending(rule => rule.SiteId) : rules.OrderBy(rule => rule.SiteId),
             _ => descending ? rules.OrderByDescending(rule => rule.LastGenerated) : rules.OrderBy(rule => rule.LastGenerated)
         };
     }

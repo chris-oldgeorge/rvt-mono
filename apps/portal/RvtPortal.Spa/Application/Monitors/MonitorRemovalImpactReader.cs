@@ -120,17 +120,6 @@ public sealed class MonitorRemovalImpactReader : IMonitorRemovalImpactReader
             return counts;
         }
 
-        if (IsInMemoryProvider())
-        {
-            // The EF test provider cannot query the physical view; fall back to the per-serial entity-set counts.
-            foreach (string serialId in serialIds)
-            {
-                counts[serialId] = await CountMeasurementRowsFromEntitySetsAsync(serialId, cancellationToken);
-            }
-
-            return counts;
-        }
-
         var impacts = await searchContext.MonitorMeasurementRemovalImpacts
             .AsNoTracking()
             .Where(item => serialIds.Contains(item.SerialId))
@@ -157,11 +146,6 @@ public sealed class MonitorRemovalImpactReader : IMonitorRemovalImpactReader
             return (0, 0);
         }
 
-        if (IsInMemoryProvider())
-        {
-            return await CountMeasurementRowsFromEntitySetsAsync(serialId, cancellationToken);
-        }
-
         var impact = await searchContext.MonitorMeasurementRemovalImpacts
             .AsNoTracking()
             .Where(item => item.SerialId == serialId)
@@ -175,48 +159,6 @@ public sealed class MonitorRemovalImpactReader : IMonitorRemovalImpactReader
         return impact is null
             ? (0, 0)
             : (ClampCount(impact.MeasurementTableCount), ClampCount(impact.MeasurementRowCount));
-    }
-
-    // Function summary: Counts measurement rows through entity sets when the EF test provider cannot query a physical view.
-    private async Task<(int TableCount, int RowCount)> CountMeasurementRowsFromEntitySetsAsync(
-        string serialId,
-        CancellationToken cancellationToken)
-    {
-        int tableCount = 0;
-        int rowCount = 0;
-
-        async Task AddCountAsync(Task<int> countTask)
-        {
-            int count = await countTask;
-            if (count > 0)
-            {
-                tableCount++;
-                rowCount = checked(rowCount + count);
-            }
-        }
-
-        await AddCountAsync(searchContext.MyAtmDustLevels.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.MyAtmDustLevel8hourAvgs.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.NoiseLevel15minAvgs.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.NoiseLevel1hourAvgs.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.NoiseLevel1dayAvgs.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.OmnidotsPeakLevels.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.OmnidotsPeakLevel1mins.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.OmnidotsPeakLevel15mins.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.OmnidotsPeakLevel20mins.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.OmnidotsPeakLevel5mins.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.OmnidotsPeakLevel1dayPeaks.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.OmnidotsTracesIndices.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.OmnidotsMonitorStatuses.CountAsync(item => item.SerialId == serialId, cancellationToken));
-        await AddCountAsync(searchContext.SvantekMonitorStatuses.CountAsync(item => item.SerialId == serialId, cancellationToken));
-
-        return (tableCount, rowCount);
-    }
-
-    // Function summary: Detects the EF InMemory provider that cannot query the physical SQL view.
-    private bool IsInMemoryProvider()
-    {
-        return searchContext.Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     // Function summary: Converts SQL bigint counts to API DTO integer counts without overflowing.

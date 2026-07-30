@@ -93,104 +93,6 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             .SingleOrDefaultAsync(cancellationToken);
     }
 
-    [SuppressMessage("Globalization", "CA1304:Specify CultureInfo", Justification = "EF query predicate; ToLower() is the only case-insensitive form that translates on Npgsql and runs on the InMemory test provider. See docs/development/portal/sonar/globalization-suppressions.md")]
-    [SuppressMessage("Globalization", "CA1311:Specify a culture or use an invariant version", Justification = "EF query predicate; see docs/development/portal/sonar/globalization-suppressions.md")]
-    [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]
-    public async Task<PagedResult<SiteMonitorModel>> QueryMonitorsAsync(
-        Guid siteId,
-        PageRequest page,
-        CancellationToken cancellationToken)
-    {
-        // Search, sort, and paging all run in SQL now; only the requested page is materialized. Previously the
-        // site's entire monitor set was loaded and then filtered, sorted, and paged in memory.
-        IQueryable<Deployment> query = ActiveSiteDeployments(siteId);
-        if (!string.IsNullOrWhiteSpace(page.SearchText))
-        {
-            string search = page.SearchText.Trim().ToLower();
-            query = query.Where(deployment =>
-                (deployment.Monitor.FleetNr != null && deployment.Monitor.FleetNr.ToLower().Contains(search)) ||
-                (deployment.Monitor.SerialId != null && deployment.Monitor.SerialId.ToLower().Contains(search)) ||
-                (deployment.Contract.ContractNumber != null && deployment.Contract.ContractNumber.ToLower().Contains(search)));
-        }
-
-        int total = await query.CountAsync(cancellationToken);
-        IOrderedQueryable<Deployment> ordered = page.SortDir == PageSortDirections.Descending
-            ? query.OrderByDescending(deployment => deployment.Monitor.FleetNr ?? deployment.Monitor.SerialId)
-            : query.OrderBy(deployment => deployment.Monitor.FleetNr ?? deployment.Monitor.SerialId);
-        List<SiteMonitorModel> monitors = await ProjectSiteMonitors(
-                ordered
-                    .Skip((page.Page - 1) * page.PageSize)
-                    .Take(page.PageSize))
-            .ToListAsync(cancellationToken);
-
-        return BuildPagedResult(monitors, total, page, "fleetNumber");
-    }
-
-    [SuppressMessage("Globalization", "CA1304:Specify CultureInfo", Justification = "EF query predicate; ToLower() is the only case-insensitive form that translates on Npgsql and runs on the InMemory test provider. See docs/development/portal/sonar/globalization-suppressions.md")]
-    [SuppressMessage("Globalization", "CA1311:Specify a culture or use an invariant version", Justification = "EF query predicate; see docs/development/portal/sonar/globalization-suppressions.md")]
-    [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]
-    public async Task<PagedResult<SiteNotificationModel>> QueryOpenNotificationsAsync(
-        Guid siteId,
-        PageRequest page,
-        CancellationToken cancellationToken)
-    {
-        PageRequest pageRequest = page with
-        {
-            PageSize = Math.Min(page.PageSize, 20),
-            SortDir = PageSortDirections.Descending
-        };
-
-        // The site's active deployments are the display source for each row (fleet number, contract). There is
-        // at most one per monitor on a site, so this set is small and stays in memory; the notifications
-        // themselves - the unbounded side - are filtered, counted, sorted, and paged in SQL.
-        Dictionary<Guid, Deployment> deploymentByMonitor = await LoadActiveDeploymentsByMonitorAsync(siteId, cancellationToken);
-        if (deploymentByMonitor.Count == 0)
-        {
-            return BuildPagedResult<SiteNotificationModel>(
-                [],
-                0,
-                pageRequest,
-                "notificationTime");
-        }
-
-        List<Guid> monitorIds = [.. deploymentByMonitor.Keys];
-        IQueryable<Notification> query = domainContext.Notifications
-            .AsNoTracking()
-            .Where(notification => monitorIds.Contains(notification.MonitorId)
-                && notification.ClosedTime == null
-                && notification.AlertType == AlertTypeEnum.Alert);
-
-        if (!string.IsNullOrWhiteSpace(pageRequest.SearchText))
-        {
-            string search = pageRequest.SearchText.Trim();
-
-            // Fleet number and contract number live on the deployment, not the notification. Resolve which
-            // monitors match those fields from the small deployment map, then let SQL match either that monitor
-            // set or the notification's own AlertField - the same OR the in-memory filter applied.
-            List<Guid> matchingMonitorIds = [.. deploymentByMonitor
-                .Where(entry => Contains(entry.Value.Monitor.FleetNr, search)
-                    || Contains(entry.Value.Contract.ContractNumber, search))
-                .Select(entry => entry.Key)];
-            string loweredSearch = search.ToLower();
-            query = query.Where(notification =>
-                matchingMonitorIds.Contains(notification.MonitorId)
-                || (notification.AlertField != null && notification.AlertField.ToLower().Contains(loweredSearch)));
-        }
-
-        int total = await query.CountAsync(cancellationToken);
-        List<Notification> rows = await query
-            .OrderByDescending(notification => notification.NotificationTime)
-            .Skip((pageRequest.Page - 1) * pageRequest.PageSize)
-            .Take(pageRequest.PageSize)
-            .ToListAsync(cancellationToken);
-
-        List<SiteNotificationModel> notifications = [.. rows
-            .Select(notification => BuildSiteNotification(
-                notification,
-                deploymentByMonitor[notification.MonitorId]))];
-        return BuildPagedResult(notifications, total, pageRequest, "notificationTime");
-    }
-
     public async Task<SiteNotificationSettingsData?> GetNotificationSettingsAsync(
         Guid siteId,
         CancellationToken cancellationToken)
@@ -651,24 +553,6 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             deployment.Contract.ContractNumber);
     }
 
-    private static PagedResult<T> BuildPagedResult<T>(
-        IReadOnlyList<T> pageItems,
-        int total,
-        PageRequest page,
-        string responseSort)
-    {
-        return new PagedResult<T>
-        {
-            Results = [.. pageItems],
-            Total = total,
-            Page = page.Page,
-            PageSize = page.PageSize,
-            SearchText = page.SearchText ?? "",
-            Sort = responseSort,
-            SortDir = page.SortDir
-        };
-    }
-
     private static SiteListModel BuildSiteListItem(Site site)
     {
         List<Contract> contracts = site.Contracts ?? [];
@@ -766,11 +650,6 @@ public sealed class EfSiteReadAdapter(RVTDbContext domainContext) : ISiteReadPor
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(5)];
         return list.Count == 0 ? null : string.Join(", ", list);
-    }
-
-    private static bool Contains(string? value, string search)
-    {
-        return value?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false;
     }
 
     private static string? FormatTime(TimeSpan? value)

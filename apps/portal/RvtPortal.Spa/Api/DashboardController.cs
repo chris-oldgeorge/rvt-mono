@@ -28,16 +28,19 @@ public class DashboardController : ControllerBase
     private readonly IDashboardApplicationService dashboard;
     private readonly IDashboardBreachApplicationService dashboardBreaches;
     private readonly ICurrentUserContextFactory currentUsers;
+    private readonly TimeProvider timeProvider;
 
     // Function summary: Initializes this HTTP adapter with dashboard query use cases and current-user context creation.
     public DashboardController(
         IDashboardApplicationService dashboard,
         IDashboardBreachApplicationService dashboardBreaches,
-        ICurrentUserContextFactory currentUsers)
+        ICurrentUserContextFactory currentUsers,
+        TimeProvider timeProvider)
     {
         this.dashboard = dashboard;
         this.dashboardBreaches = dashboardBreaches;
         this.currentUsers = currentUsers;
+        this.timeProvider = timeProvider;
     }
 
     [HttpGet("summary")]
@@ -176,7 +179,9 @@ public class DashboardController : ControllerBase
     // Function summary: Attempts select calendar month and reports whether it succeeded.
     private bool TrySelectCalendarMonth(int? year, int? month, out DateTime selectedMonth)
     {
-        DateTime now = DateTime.Today;
+        // Missing month parts fall back to the injected clock's UTC business day; DateTime.Today read
+        // the server-local zone and could not be faked in tests.
+        DateTime now = timeProvider.GetUtcNow().UtcDateTime.Date;
         if (year is < 1 or > 9999)
         {
             ModelState.AddModelError(nameof(CalendarMonthRequest.Year), "A valid year is required.");

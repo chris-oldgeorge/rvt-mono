@@ -100,19 +100,9 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
 
         if (!contentType.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            if (IsInMemory)
-            {
-                articleQuery = articleQuery.Where(article =>
-                    article.ContentType.Equals(
-                        contentType,
-                        StringComparison.OrdinalIgnoreCase));
-            }
-            else
-            {
-                string pattern = EscapeLikePattern(contentType);
-                articleQuery = articleQuery.Where(article =>
-                    EF.Functions.ILike(article.ContentType, pattern, "\\"));
-            }
+            string pattern = EscapeLikePattern(contentType);
+            articleQuery = articleQuery.Where(article =>
+                EF.Functions.ILike(article.ContentType, pattern, "\\"));
         }
 
         List<HelpArticleModel> articles = await articleQuery
@@ -192,7 +182,7 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
             assetIds);
     }
 
-    private IQueryable<HelpArticle> ApplySearch(
+    private static IQueryable<HelpArticle> ApplySearch(
         IQueryable<HelpArticle> query,
         string? search,
         bool includeSectionTitle)
@@ -200,25 +190,6 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
         if (search is null)
         {
             return query;
-        }
-
-        if (IsInMemory)
-        {
-            return includeSectionTitle
-                ? query.Where(article =>
-                    article.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    (article.Summary != null &&
-                        article.Summary.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                    article.Body.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    article.ContentType.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    (article.Section != null &&
-                        article.Section.Title.Contains(search, StringComparison.OrdinalIgnoreCase)))
-                : query.Where(article =>
-                    article.Title.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    (article.Summary != null &&
-                        article.Summary.Contains(search, StringComparison.OrdinalIgnoreCase)) ||
-                    article.Body.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    article.ContentType.Contains(search, StringComparison.OrdinalIgnoreCase));
         }
 
         string pattern = $"%{EscapeLikePattern(search)}%";
@@ -238,12 +209,6 @@ public sealed class EfHelpReadAdapter(RVTDbContext domainContext) : IHelpReadPor
                 EF.Functions.ILike(article.Body, pattern, "\\") ||
                 EF.Functions.ILike(article.ContentType, pattern, "\\"));
     }
-
-    private bool IsInMemory =>
-        string.Equals(
-            domainContext.Database.ProviderName,
-            "Microsoft.EntityFrameworkCore.InMemory",
-            StringComparison.Ordinal);
 
     private static string EscapeLikePattern(string value)
     {

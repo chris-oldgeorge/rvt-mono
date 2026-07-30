@@ -49,8 +49,6 @@ public class ApiContractStabilityTests
         AssertRoute(routes, "POST", "api/sites");
         AssertRoute(routes, "PUT", "api/sites/{id:guid}");
         AssertRoute(routes, "POST", "api/sites/{id:guid}/archive");
-        AssertRoute(routes, "GET", "api/sites/{id:guid}/monitors");
-        AssertRoute(routes, "GET", "api/sites/{id:guid}/notifications/open");
         AssertRoute(routes, "GET", "api/sites/{id:guid}/notification-settings");
         AssertRoute(routes, "PUT", "api/sites/{siteId:guid}/notification-settings/{siteUserId:guid}");
     }

@@ -7,8 +7,6 @@ namespace RvtPortal.Application.Sites;
 public sealed class SiteApplicationService : ISiteApplicationService
 {
     public const string DefaultSort = "createDate";
-    public const string MonitorSort = "fleetNumber";
-    public const string NotificationSort = "notificationTime";
 
     public static readonly IReadOnlySet<string> SortFields =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -18,18 +16,6 @@ public sealed class SiteApplicationService : ISiteApplicationService
             "contracts",
             "createDate",
             "siteAddress"
-        };
-
-    public static readonly IReadOnlySet<string> MonitorSortFields =
-        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            MonitorSort
-        };
-
-    public static readonly IReadOnlySet<string> NotificationSortFields =
-        new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
-            NotificationSort
         };
 
     private readonly ISiteReadPort reads;
@@ -98,42 +84,6 @@ public sealed class SiteApplicationService : ISiteApplicationService
         }
 
         return UseCaseResult<SiteDetailModel>.Success(site);
-    }
-
-    public async Task<UseCaseResult<PagedResult<SiteMonitorModel>>> QueryMonitorsAsync(
-        PortalUserContext user,
-        Guid siteId,
-        PageRequest page,
-        CancellationToken cancellationToken)
-    {
-        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
-            user,
-            timeProvider.GetUtcNow().UtcDateTime);
-        if (!await reads.ExistsAsync(siteId, scope, cancellationToken))
-        {
-            return SiteNotFound<PagedResult<SiteMonitorModel>>(siteId);
-        }
-
-        PagedResult<SiteMonitorModel> result = await reads.QueryMonitorsAsync(siteId, page, cancellationToken);
-        return UseCaseResult<PagedResult<SiteMonitorModel>>.Success(result);
-    }
-
-    public async Task<UseCaseResult<PagedResult<SiteNotificationModel>>> QueryOpenNotificationsAsync(
-        PortalUserContext user,
-        Guid siteId,
-        PageRequest page,
-        CancellationToken cancellationToken)
-    {
-        SiteAccessScope scope = SiteAuthorizationPolicy.ReadScope(
-            user,
-            timeProvider.GetUtcNow().UtcDateTime);
-        if (!await reads.ExistsAsync(siteId, scope, cancellationToken))
-        {
-            return SiteNotFound<PagedResult<SiteNotificationModel>>(siteId);
-        }
-
-        PagedResult<SiteNotificationModel> result = await reads.QueryOpenNotificationsAsync(siteId, page, cancellationToken);
-        return UseCaseResult<PagedResult<SiteNotificationModel>>.Success(result);
     }
 
     public async Task<bool> CanReadSiteAsync(

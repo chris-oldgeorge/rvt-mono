@@ -216,26 +216,6 @@ public class SitesController : ControllerBase
             HttpContext.RequestAborted);
         return _resultMapper.ToActionResult(this, result, ToSiteDetailEntity);
     }
-    [HttpGet("{id:guid}/monitors")]
-    [ProducesResponseType(typeof(QuerySiteMonitorsResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    // Function summary: Returns the paged monitor panel for one authorized site.
-    public async Task<ActionResult<QuerySiteMonitorsResponse>> Monitors(Guid id, [FromQuery] PagedQueryRequest request)
-    {
-        PageRequest page = BuildFixedSortPageRequest(request, SiteApplicationService.MonitorSort);
-        UseCaseResult<PagedResult<SiteMonitorModel>> result = await _sites.QueryMonitorsAsync(await CreateUserContextAsync(), id, page, HttpContext.RequestAborted);
-        return _resultMapper.ToActionResult(this, result, SiteApiMapper.ToMonitorQueryResponse);
-    }
-    [HttpGet("{id:guid}/notifications/open")]
-    [ProducesResponseType(typeof(QuerySiteNotificationsResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    // Function summary: Returns the paged open-notification panel for one authorized site.
-    public async Task<ActionResult<QuerySiteNotificationsResponse>> OpenNotifications(Guid id, [FromQuery] PagedQueryRequest request)
-    {
-        PageRequest page = BuildFixedSortPageRequest(request, SiteApplicationService.NotificationSort);
-        UseCaseResult<PagedResult<SiteNotificationModel>> result = await _sites.QueryOpenNotificationsAsync(await CreateUserContextAsync(), id, page, HttpContext.RequestAborted);
-        return _resultMapper.ToActionResult(this, result, SiteApiMapper.ToNotificationQueryResponse);
-    }
     [HttpGet("{id:guid}/notification-settings")]
     [ProducesResponseType(typeof(SiteNotificationSettingsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -278,17 +258,6 @@ public class SitesController : ControllerBase
             request.SortDir,
             SiteApplicationService.DefaultSort,
             SiteApplicationService.SortFields);
-    }
-
-    // Function summary: Normalizes fixed-sort site panel paging while preserving legacy sort-field behavior.
-    private static PageRequest BuildFixedSortPageRequest(PagedQueryRequest request, string sort)
-    {
-        return new PageRequest(
-            request.SearchText,
-            request.GetNormalizedPage(),
-            request.GetNormalizedPageSize(),
-            sort,
-            request.GetNormalizedSortDir());
     }
 
     // Function summary: Creates a transport-neutral current-user context from the authenticated HTTP user.

@@ -3,6 +3,7 @@ set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 client_release_policy="$root_dir/docs/release/client-release-exclusions.txt"
+client_release_policy_boundary_verifier="$root_dir/scripts/verify-client-release-policy-boundary.sh"
 temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/rvt-engineering-configuration.XXXXXX")"
 temp_dir="$(cd "$temp_dir" && pwd -P)"
 nuget_config="$temp_dir/NuGet.Config"
@@ -395,6 +396,8 @@ assert_property "$msbuild_root/apps/monitors/probe/ConfigurationProbe.csproj" Nu
 sed -i.bak '/<Import Project="\.\.\/\.\.\/Directory\.Build\.props" \/>/d' "$msbuild_root/apps/monitors/Directory.Build.props"
 assert_property "$msbuild_root/apps/monitors/probe/ConfigurationProbe.csproj" Nullable ''
 
+"$client_release_policy_boundary_verifier" "$client_release_policy" "$root_dir"
+
 if [[ -f "$client_release_policy" ]]; then
   # The monitor Dockerfiles COPY the whole context, so anything the build context
   # carries lands in a build layer and in the BuildKit cache even though only
@@ -430,8 +433,6 @@ if [[ -f "$client_release_policy" ]]; then
   assert_dockerignore_withholds_secrets "$root_dir/.dockerignore"
   assert_dockerignore_withholds_secrets "$root_dir/apps/monitors/.dockerignore"
   assert_dockerignore_withholds_secrets "$root_dir/apps/portal/.dockerignore"
-else
-  printf 'Client-release policy is intentionally absent; skipped source-only Dockerignore correlation.\n'
 fi
 
 printf 'Engineering configuration hierarchy verified.\n'

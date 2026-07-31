@@ -106,6 +106,24 @@ superseded narratives to the archive.
   secret scans and the client release verifier. The merged source-fix and
   client-review branches were deleted.
 
+#### Release-tooling contract
+
+- `scripts/export-client-release.sh --source-ref REF --export-dir DIR` exports
+  committed source only; it defaults to `origin/main` when available (otherwise
+  `HEAD`) and `/private/tmp/rvt-monorepo-client-release`.
+- `scripts/publish-client-release.sh` is the publication control plane. Its
+  `--target-repo`, `--branch`, `--source-ref`, `--export-dir`, `--work-dir`,
+  `--verify-dir`, and `--prepare-only` interface defaults to the RVT monitors
+  repository, `release-candidate`, the exporter source default, and the three
+  `/private/tmp/rvt-monorepo-client-*` directories; it guards publication with
+  an explicit force-with-lease against the observed remote SHA.
+- `scripts/verify-client-release.sh --payload-dir DIR` verifies a prepared
+  payload boundary. `RVT_CLIENT_RELEASE_POLICY` overrides its policy path;
+  absent an override it uses `docs/release/client-release-exclusions.txt` at
+  the source repository root. `RVT_CLIENT_RELEASE_BEFORE_PUSH_HOOK`, when
+  nonempty, is the shell command the publisher runs immediately before pushing;
+  an unset or empty value runs no hook.
+
 - The consolidated report of work since the monorepo source import is
   [docs/reviews/2026-07-29-monorepo-work-report.md](docs/reviews/2026-07-29-monorepo-work-report.md).
   It covers the `31d168fd..d1fe8282` range, current structure, delivery

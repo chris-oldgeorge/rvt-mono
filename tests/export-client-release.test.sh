@@ -6,6 +6,7 @@ control_exporter="${control_root}/scripts/export-client-release.sh"
 control_verifier="${control_root}/scripts/verify-client-release.sh"
 control_policy="${control_root}/docs/release/client-release-exclusions.txt"
 temp_dir="$(mktemp -d)"
+readonly test_fixture_value="test"
 
 cleanup() {
   local status=$?
@@ -74,17 +75,17 @@ create_source_repo() {
   printf 'committed\n' > "${fixture}/apps/portal/value.txt"
   printf 'shared\n' > "${fixture}/libs/rvt-monitor-common/value.txt"
   printf 'engineering\n' > "${fixture}/eng/policy.txt"
-  printf 'test\n' > "${fixture}/tests/example.test"
+  printf '%s\n' "${test_fixture_value}" > "${fixture}/tests/example.test"
   printf '# Operations\n' > "${fixture}/docs/operations/runbook.md"
   printf '# Sonar SQL policy\n' \
     > "${fixture}/docs/development/portal/sonar/SQL_SCRIPT_ANALYSIS_POLICY.md"
   printf '# Sonar runner\n' \
     > "${fixture}/docs/operations/github-actions/self-hosted-sonar-runner.md"
-  printf 'test\n' \
+  printf '%s\n' "${test_fixture_value}" \
     > "${fixture}/tests/verify-manual-sonarqube-workflow.test.sh"
-  printf 'test\n' \
+  printf '%s\n' "${test_fixture_value}" \
     > "${fixture}/tests/verify-sonar-runner-stack.test.sh"
-  printf 'test\n' \
+  printf '%s\n' "${test_fixture_value}" \
     > "${fixture}/tests/verify-engineering-standards-integration.test.sh"
 
   printf 'internal\n' > "${fixture}/AGENTS.md"

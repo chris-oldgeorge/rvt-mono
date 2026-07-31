@@ -2,6 +2,7 @@
 set -euo pipefail
 
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+client_release_policy="$root_dir/docs/release/client-release-exclusions.txt"
 temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/rvt-engineering-configuration.XXXXXX")"
 temp_dir="$(cd "$temp_dir" && pwd -P)"
 nuget_config="$temp_dir/NuGet.Config"
@@ -394,39 +395,43 @@ assert_property "$msbuild_root/apps/monitors/probe/ConfigurationProbe.csproj" Nu
 sed -i.bak '/<Import Project="\.\.\/\.\.\/Directory\.Build\.props" \/>/d' "$msbuild_root/apps/monitors/Directory.Build.props"
 assert_property "$msbuild_root/apps/monitors/probe/ConfigurationProbe.csproj" Nullable ''
 
-# The monitor Dockerfiles COPY the whole context, so anything the build context
-# carries lands in a build layer and in the BuildKit cache even though only
-# /app/publish is copied into the final image. The classes the client-release
-# policy treats as secret are therefore withheld from the build context too, and
-# the list is read from the policy so the two cannot drift.
-policy_secret_patterns() {
-  awk '
-    /^# Local environment and settings$/ { section = 1; next }
-    /^# Secret-bearing key and certificate material$/ { section = 1; next }
-    /^$/ { section = 0; next }
-    /^#/ { section = 0; next }
-    section { print }
-  ' "$root_dir/docs/release/client-release-exclusions.txt"
-}
+if [[ -f "$client_release_policy" ]]; then
+  # The monitor Dockerfiles COPY the whole context, so anything the build context
+  # carries lands in a build layer and in the BuildKit cache even though only
+  # /app/publish is copied into the final image. The classes the client-release
+  # policy treats as secret are therefore withheld from the build context too, and
+  # the list is read from the policy so the two cannot drift.
+  policy_secret_patterns() {
+    awk '
+      /^# Local environment and settings$/ { section = 1; next }
+      /^# Secret-bearing key and certificate material$/ { section = 1; next }
+      /^$/ { section = 0; next }
+      /^#/ { section = 0; next }
+      section { print }
+    ' "$client_release_policy"
+  }
 
-assert_dockerignore_withholds_secrets() {
-  local dockerignore="$1"
-  local pattern
+  assert_dockerignore_withholds_secrets() {
+    local dockerignore="$1"
+    local pattern
 
-  require_file "$dockerignore"
-  while IFS= read -r pattern; do
-    [[ -n "$pattern" ]] || continue
-    grep -Fqx -- "$pattern" "$dockerignore" ||
-      fail "${dockerignore#$root_dir/} does not withhold the secret-bearing pattern '$pattern' that docs/release/client-release-exclusions.txt classifies as secret"
-  done < <(policy_secret_patterns)
-}
+    require_file "$dockerignore"
+    while IFS= read -r pattern; do
+      [[ -n "$pattern" ]] || continue
+      grep -Fqx -- "$pattern" "$dockerignore" ||
+        fail "${dockerignore#$root_dir/} does not withhold the secret-bearing pattern '$pattern' that docs/release/client-release-exclusions.txt classifies as secret"
+    done < <(policy_secret_patterns)
+  }
 
-secret_pattern_count="$(policy_secret_patterns | grep -c .)"
-[[ "$secret_pattern_count" -ge 20 ]] ||
-  fail "expected the client-release policy to classify at least 20 secret-bearing patterns, found $secret_pattern_count"
+  secret_pattern_count="$(policy_secret_patterns | grep -c .)"
+  [[ "$secret_pattern_count" -ge 20 ]] ||
+    fail "expected the client-release policy to classify at least 20 secret-bearing patterns, found $secret_pattern_count"
 
-assert_dockerignore_withholds_secrets "$root_dir/.dockerignore"
-assert_dockerignore_withholds_secrets "$root_dir/apps/monitors/.dockerignore"
-assert_dockerignore_withholds_secrets "$root_dir/apps/portal/.dockerignore"
+  assert_dockerignore_withholds_secrets "$root_dir/.dockerignore"
+  assert_dockerignore_withholds_secrets "$root_dir/apps/monitors/.dockerignore"
+  assert_dockerignore_withholds_secrets "$root_dir/apps/portal/.dockerignore"
+else
+  printf 'Client-release policy is intentionally absent; skipped source-only Dockerignore correlation.\n'
+fi
 
 printf 'Engineering configuration hierarchy verified.\n'

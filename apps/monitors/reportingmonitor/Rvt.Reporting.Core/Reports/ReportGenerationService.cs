@@ -40,7 +40,13 @@ public sealed class ReportGenerationService(
 
     public async Task<IReadOnlyList<GeneratedReport>> GenerateScheduledReportsAsync(DateTimeOffset triggerUtc, CancellationToken cancellationToken)
     {
-        IReadOnlyList<ReportRule> dueRules = await _ruleQueries.GetDueReportRulesAsync(triggerUtc.Date, cancellationToken).ConfigureAwait(false);
+        // triggerUtc.Date is a DateTime with an unspecified kind, and widening it to the
+        // DateTimeOffset this port takes stamps it with the host's local offset. On a host
+        // that is not on UTC the query then throws - PostgreSQL timestamptz parameters
+        // only accept offset zero - so the whole scheduled run fails. The cutoff is a UTC
+        // day, like every other date ReportPeriodCalculator derives from the trigger.
+        DateTimeOffset dueCutoffUtc = new(triggerUtc.UtcDateTime.Date, TimeSpan.Zero);
+        IReadOnlyList<ReportRule> dueRules = await _ruleQueries.GetDueReportRulesAsync(dueCutoffUtc, cancellationToken).ConfigureAwait(false);
         List<GeneratedReport> generatedReports = [];
         // Per-rule failures used to be logged only, so the Quartz job completed
         // successfully and nobody was told a report had not been produced.

@@ -327,6 +327,86 @@ public sealed class ReportGenerationServiceTests
             [.. commands.SaveRequests.Select(request => request.PeriodStartUtc)]);
     }
 
+    /// <summary>
+    /// The interleaving backfill made reachable: two containers fetch the same due rules,
+    /// both snapshot "nothing generated", the other run finishes a later period and drops
+    /// its lock while this one is still rendering an earlier one, and this one then takes
+    /// that lock cleanly with a snapshot that predates the other run's report. Only a read
+    /// taken inside the lock can see it, and the recipients of a second copy of the same
+    /// report are who pays if it is not taken.
+    /// </summary>
+    [Fact]
+    public async Task GenerateScheduledReportsAsync_SkipsAPeriodACompetingRunCommittedAfterTheSnapshot()
+    {
+        DateTimeOffset competingPeriodStartUtc = new(2026, 6, 28, 0, 0, 0, TimeSpan.Zero);
+        ReportRule rule = DailyRule(Guid.NewGuid()) with
+        {
+            LastGenerated = new DateTimeOffset(2026, 6, 27, 8, 0, 0, TimeSpan.Zero)
+        };
+        FakeRuleQueries rules = new() { DueRules = [rule] };
+        FakeGenerationCommands commands = new();
+        FakeGenerationLocks locks = new()
+        {
+            OnAcquired = period =>
+            {
+                if (period.StartUtc == competingPeriodStartUtc)
+                {
+                    rules.GeneratedPeriods.Add(new GeneratedReportPeriod(period.Frequency, period.StartUtc));
+                }
+            }
+        };
+        ReportGenerationService service = CreateService(rules, new FakeDataQueries(), locks, commands);
+
+        IReadOnlyList<GeneratedReport> reports = await service.GenerateScheduledReportsAsync(
+            new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        Assert.Equal(3, reports.Count);
+        Assert.Equal(
+            [
+                new DateTimeOffset(2026, 6, 26, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 27, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero)
+            ],
+            [.. commands.SaveRequests.Select(request => request.PeriodStartUtc)]);
+        // The lock was taken for the competing period - the pre-loop snapshot could not
+        // know about it - so the skip is the in-lock check's doing and nothing else's.
+        Assert.Contains(competingPeriodStartUtc, locks.Requests.Select(request => request.Period.StartUtc));
+        Assert.Contains((FrequencyType.Daily, competingPeriodStartUtc), rules.InLockChecks);
+    }
+
+    /// <summary>
+    /// The pre-loop snapshot stays a fast path and must keep sparing the lock round trip
+    /// for periods it already knows are done, so it is the only thing that can skip one
+    /// without the in-lock check being asked.
+    /// </summary>
+    [Fact]
+    public async Task GenerateScheduledReportsAsync_ChecksInsideTheLockOnlyForPeriodsTheSnapshotDidNotSkip()
+    {
+        DateTimeOffset snapshotPeriodStartUtc = new(2026, 6, 26, 0, 0, 0, TimeSpan.Zero);
+        ReportRule rule = DailyRule(Guid.NewGuid()) with
+        {
+            LastGenerated = new DateTimeOffset(2026, 6, 27, 8, 0, 0, TimeSpan.Zero)
+        };
+        FakeRuleQueries rules = new() { DueRules = [rule] };
+        rules.GeneratedPeriods.Add(new GeneratedReportPeriod(FrequencyType.Daily, snapshotPeriodStartUtc));
+        FakeGenerationLocks locks = new();
+        ReportGenerationService service = CreateService(rules, new FakeDataQueries(), locks, new FakeGenerationCommands());
+
+        await service.GenerateScheduledReportsAsync(
+            new DateTimeOffset(2026, 6, 30, 8, 0, 0, TimeSpan.Zero),
+            CancellationToken.None);
+
+        Assert.DoesNotContain(snapshotPeriodStartUtc, locks.Requests.Select(request => request.Period.StartUtc));
+        Assert.Equal(
+            [
+                (FrequencyType.Daily, new DateTimeOffset(2026, 6, 27, 0, 0, 0, TimeSpan.Zero)),
+                (FrequencyType.Daily, new DateTimeOffset(2026, 6, 28, 0, 0, 0, TimeSpan.Zero)),
+                (FrequencyType.Daily, new DateTimeOffset(2026, 6, 29, 0, 0, 0, TimeSpan.Zero))
+            ],
+            rules.InLockChecks);
+    }
+
     [Fact]
     public async Task GenerateScheduledReportsAsync_BoundsTheBackfillSoALongOutageCannotSpam()
     {
@@ -414,12 +494,25 @@ public sealed class ReportGenerationServiceTests
 
         public List<GeneratedReportPeriod> GeneratedPeriods { get; } = [];
 
+        public List<(FrequencyType Frequency, DateTimeOffset PeriodStartUtc)> InLockChecks { get; } = [];
+
         public Task<IReadOnlyList<GeneratedReportPeriod>> GetGeneratedPeriodsAsync(
             Guid reportRuleId,
             DateTimeOffset fromUtc,
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<GeneratedReportPeriod>>(
                 [.. GeneratedPeriods.Where(period => period.PeriodStartUtc >= fromUtc)]);
+
+        public Task<bool> HasGeneratedPeriodAsync(
+            Guid reportRuleId,
+            FrequencyType frequency,
+            DateTimeOffset periodStartUtc,
+            CancellationToken cancellationToken)
+        {
+            InLockChecks.Add((frequency, periodStartUtc));
+            return Task.FromResult(GeneratedPeriods.Exists(
+                period => period.Frequency == frequency && period.PeriodStartUtc == periodStartUtc));
+        }
     }
 
     private sealed class FakeDataQueries : IReportingDataQueries
@@ -459,9 +552,16 @@ public sealed class ReportGenerationServiceTests
     {
         public List<(Guid ReportRuleId, ReportPeriod Period)> Requests { get; } = [];
 
+        /// <summary>
+        /// Runs at the moment the lock is handed over, which is where a competing run's
+        /// already-committed-and-released report becomes observable to this one.
+        /// </summary>
+        public Action<ReportPeriod>? OnAcquired { get; init; }
+
         public Task<RuleGenerationLock?> TryAcquireAsync(Guid reportRuleId, ReportPeriod period, CancellationToken cancellationToken)
         {
             Requests.Add((reportRuleId, period));
+            OnAcquired?.Invoke(period);
             return Task.FromResult<RuleGenerationLock?>(new RuleGenerationLock(() => ValueTask.CompletedTask));
         }
     }

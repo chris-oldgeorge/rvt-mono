@@ -177,6 +177,29 @@ public sealed class ReportingDbClient(ReportingMonitorContext context) :
             .ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Runs on the same connection the caller's generation lock is held on, and
+    /// outside any transaction: <see cref="SaveGeneratedReportAttemptAsync"/> opens and
+    /// closes the only transaction on this path, so nothing here is inside a snapshot
+    /// that could hide the row a competing run committed before it released the lock.
+    /// Under PostgreSQL's default read-committed isolation this statement takes its own
+    /// snapshot, so it observes every report committed before it began.
+    /// </summary>
+    public Task<bool> HasGeneratedPeriodAsync(
+        Guid reportRuleId,
+        FrequencyType frequency,
+        DateTimeOffset periodStartUtc,
+        CancellationToken cancellationToken)
+    {
+        return context.Reports
+            .AsNoTracking()
+            .AnyAsync(
+                report => report.ReportRuleId == reportRuleId &&
+                          report.Frequency == (int)frequency &&
+                          report.ReportFrom == periodStartUtc,
+                cancellationToken);
+    }
+
     public async Task<ReportRule?> GetReportRuleAsync(Guid reportRuleId, CancellationToken cancellationToken)
     {
         ReportRuleEntity? rule = await (

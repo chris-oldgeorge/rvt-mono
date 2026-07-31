@@ -87,24 +87,21 @@ superseded narratives to the archive.
 
 ### Sonar-free client-release boundary
 
-- Source PR #92 merged the reviewable client-release source as
-  `99453f723c41184ef301ae4d0f220d13c6b88f1a`. Source CI-fix PR #93 then merged
-  as `47f9bdba21156cfaf9c917369c7e0220666228ab`, fixing the Linux client-policy
-  absence issue without weakening the source policy-to-Dockerignore correlation.
-- Client PR #2's corrected review head was
-  `4da7fd7515fc46d067bc4ffcd8b5aece07d45cb9`; it merged into
-  `release-candidate` as `b945b6cfdd06f8a0774419322cbd231ac5ad8947`. The
-  independently verified payload and merged clone tree is
-  `a4f07cc822151799296106fdcc95cea43b5ed3dc`, and `RELEASE_SOURCE.json` names
-  exact source commit `47f9bdba21156cfaf9c917369c7e0220666228ab`.
+- Source PR #95 merged the hardened client-policy boundary as
+  `bb5f30010737c5b8d5b80b589990423f4ce335d2`. Client PR #3's review head was
+  `b9e6ca559201c33da875ea85fdc7c53f5af40ca1`; it merged into
+  `release-candidate` as `4c53f8579d90963a6d21d2ea2d5367823d9fda3b`.
+- The final independently verified client tree is
+  `7f92aceb0ca384df6e47fe24c94c7a7e4b88d2a7`, and `RELEASE_SOURCE.json` names
+  exact source commit `bb5f30010737c5b8d5b80b589990423f4ce335d2`.
 - The curated client release retains the ordinary `Tests` and `Engineering
   standards` workflows. It excludes the Sonar workflow, `.github/runner`, the
   three dedicated Sonar tests, the self-hosted-runner operator guide, and the
   SQL analysis policy; its workflow YAML has no forbidden Sonar signatures.
-- Corrected source and client CI runs passed. The complete corrected payload
-  and an independent merged `release-candidate` clone both passed recursive
-  secret scans and the client release verifier. The merged source-fix and
-  client-review branches were deleted.
+- Client CI runs `30614430862` and `30614430875` both passed. An independent
+  final clone passed recursive secret scanning, the boundary verifier and
+  tests, retained `Tests` and `Engineering standards` workflows, and Sonar
+  exclusions. The remote client review branch was deleted.
 
 #### Release-tooling contract
 

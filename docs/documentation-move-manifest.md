@@ -68,7 +68,7 @@ are intentionally absent from this table.
 | `apps/portal/docs/release/PARITY_MATRIX.md` | `docs/release/portal/PARITY_MATRIX.md` |
 | `apps/portal/docs/release/rvt-common-refactor-mirror-application-2026-07-17.md` | `docs/release/portal/rvt-common-refactor-mirror-application-2026-07-17.md` |
 | `apps/portal/docs/sonar/SQL_SCRIPT_ANALYSIS_POLICY.md` | `docs/development/portal/sonar/SQL_SCRIPT_ANALYSIS_POLICY.md` |
-| `apps/portal/docs/sonar/globalization-suppressions.md` | `docs/development/portal/sonar/globalization-suppressions.md` |
+| `apps/portal/docs/sonar/globalization-suppressions.md` | `docs/development/portal/globalization-suppressions.md` |
 | `apps/portal/docs/superpowers/plans/2026-06-10-client-release-export-plan.md` | `docs/history/portal/plans/2026-06-10-client-release-export-plan.md` |
 | `apps/portal/docs/superpowers/plans/2026-06-24-id18-customer-logo-reporting-plan.md` | `docs/history/portal/plans/2026-06-24-id18-customer-logo-reporting-plan.md` |
 | `apps/portal/docs/superpowers/plans/2026-06-24-reporting-upgrades-implementation-plan.md` | `docs/history/portal/plans/2026-06-24-reporting-upgrades-implementation-plan.md` |

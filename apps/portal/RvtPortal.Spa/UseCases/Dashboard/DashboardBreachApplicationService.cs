@@ -63,9 +63,9 @@ public sealed class DashboardBreachApplicationService : IDashboardBreachApplicat
     }
 
     // Function summary: Returns vibration breach and alert rows after applying date, sort, and page in EF.
-    [SuppressMessage("Globalization", "CA1304:Specify CultureInfo", Justification = "EF query predicate; ToLower() is the only case-insensitive form Npgsql translates - the StringComparison and ToLowerInvariant overloads throw on translation, and this one never executes in .NET. See docs/development/portal/sonar/globalization-suppressions.md")]
-    [SuppressMessage("Globalization", "CA1311:Specify a culture or use an invariant version", Justification = "EF query predicate; see docs/development/portal/sonar/globalization-suppressions.md")]
-    [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/sonar/globalization-suppressions.md")]
+    [SuppressMessage("Globalization", "CA1304:Specify CultureInfo", Justification = "EF query predicate; ToLower() is the only case-insensitive form Npgsql translates - the StringComparison and ToLowerInvariant overloads throw on translation, and this one never executes in .NET. See docs/development/portal/globalization-suppressions.md")]
+    [SuppressMessage("Globalization", "CA1311:Specify a culture or use an invariant version", Justification = "EF query predicate; see docs/development/portal/globalization-suppressions.md")]
+    [SuppressMessage("Globalization", "CA1862:Use the 'StringComparison' method overloads to perform case-insensitive string comparisons", Justification = "EF query predicate; StringComparison does not translate on Npgsql. See docs/development/portal/globalization-suppressions.md")]
     public async Task<DashboardBreachResult> QueryAsync(DashboardBreachQuery request, CancellationToken cancellationToken)
     {
         // NotificationTime is timestamptz, so its query bounds must be Kind=Utc or Npgsql rejects them. The

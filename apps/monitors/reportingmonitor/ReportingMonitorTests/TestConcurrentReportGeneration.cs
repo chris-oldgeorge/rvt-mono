@@ -71,7 +71,7 @@ public sealed class TestConcurrentReportGeneration(ReportingDbFixture fixture) :
         ReportingDbClient client,
         RecordingSender sender,
         StartGate gate,
-        TimeSpan renderDuration) => new ReportGenerationService(
+        TimeSpan renderDuration) => new(
         client,
         client,
         client,

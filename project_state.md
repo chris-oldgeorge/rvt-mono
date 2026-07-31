@@ -87,24 +87,24 @@ superseded narratives to the archive.
 
 ### Sonar-free client-release boundary
 
-- Task 4 verified committed source `4961d011a6c50c7c2e166688efa5df31aea6edee`.
-  A fresh Git-object export produced a 1,491-file client payload with
-  `RELEASE_MANIFEST.txt`; the client verifier confirmed the source metadata,
-  manifest, required paths, and exclusion boundary.
-- The prepared client payload retains ordinary CI through the `Tests` and
-  `Engineering standards` workflows, while deliberately excluding the
-  SonarQube workflow, runner stack, Sonar operation tests, and Sonar-related
-  workflow references. The source repository retains its internal Sonar
-  workflow and runner-stack contracts.
-- All focused release contracts passed: export, payload verification,
-  publication, documentation layout, engineering-standards workflow, manual
-  Sonar workflow, and Sonar runner stack. All repository and engineering
-  guards passed, including `git diff --check origin/main...HEAD`; a separate
-  full Step 4 reproduction also passed every payload-boundary assertion.
-- Task 3's locked restore and zero-warning, zero-error Release build passed.
-  The fresh export verification also passed `scripts/verify-client-release.sh`.
-- Central secret scans found no issues in every changed Task 1–3 file, the
-  exported evidence files, or this post-edit `project_state.md`.
+- Source PR #92 merged the reviewable client-release source as
+  `99453f723c41184ef301ae4d0f220d13c6b88f1a`. Source CI-fix PR #93 then merged
+  as `47f9bdba21156cfaf9c917369c7e0220666228ab`, fixing the Linux client-policy
+  absence issue without weakening the source policy-to-Dockerignore correlation.
+- Client PR #2's corrected review head was
+  `4da7fd7515fc46d067bc4ffcd8b5aece07d45cb9`; it merged into
+  `release-candidate` as `b945b6cfdd06f8a0774419322cbd231ac5ad8947`. The
+  independently verified payload and merged clone tree is
+  `a4f07cc822151799296106fdcc95cea43b5ed3dc`, and `RELEASE_SOURCE.json` names
+  exact source commit `47f9bdba21156cfaf9c917369c7e0220666228ab`.
+- The curated client release retains the ordinary `Tests` and `Engineering
+  standards` workflows. It excludes the Sonar workflow, `.github/runner`, the
+  three dedicated Sonar tests, the self-hosted-runner operator guide, and the
+  SQL analysis policy; its workflow YAML has no forbidden Sonar signatures.
+- Corrected source and client CI runs passed. The complete corrected payload
+  and an independent merged `release-candidate` clone both passed recursive
+  secret scans and the client release verifier. The merged source-fix and
+  client-review branches were deleted.
 
 - The consolidated report of work since the monorepo source import is
   [docs/reviews/2026-07-29-monorepo-work-report.md](docs/reviews/2026-07-29-monorepo-work-report.md).

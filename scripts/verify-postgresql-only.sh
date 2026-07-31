@@ -13,6 +13,7 @@ allowlisted_paths=(
   "docs/superpowers/plans/2026-07-25-postgresql-only.md"
   "docs/history/project-state/2026-07-checkpoint-log.md"
   "docs/reviews/2026-07-28-duplication-legacy-consistency-review.md"
+  "docs/reviews/2026-07-30-post-remediation-defect-review.md"
   "project_state.md"
   "scripts/verify-postgresql-only.sh"
 )

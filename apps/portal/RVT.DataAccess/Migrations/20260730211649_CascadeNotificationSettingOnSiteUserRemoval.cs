@@ -17,7 +17,7 @@ namespace RVT.DataAccess.Migrations;
 /// </para>
 /// <para>
 /// The constraint is dropped first under both names it could already carry. A database built from these
-/// migrations has no such constraint, but one imported from the SQL Server source snapshot carries
+/// migrations has no such constraint, but one imported from the retired vendor source snapshot carries
 /// <c>FK_NotificationSettings_SiteUsers</c>, renamed to <c>fk_notification_setting_site_user_id</c> by
 /// <c>canonical_constraint_index_naming.sql</c> - in both cases without <c>ON DELETE CASCADE</c>. Dropping
 /// first makes this migration correct against every shape that can exist rather than only the EF-built one.

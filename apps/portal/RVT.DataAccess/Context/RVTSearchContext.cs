@@ -103,7 +103,7 @@ public partial class RVTSearchContext : DbContext
         // Removing the branch would mean moving those four suites onto PostgreSQL and losing that fast local
         // coverage; that trade was weighed and declined.
         //
-        // `(newid())` is a leftover of the original SQL Server import and is inert under SQLite (every test
+        // `(newid())` is a leftover of the original vendor database import and is inert under SQLite (every test
         // supplies its own key). It is left as-is rather than replaced by something that would look executable
         // on SQLite and is not.
         string dateTimeColumnType = IsPostgres() ? "timestamp without time zone" : "datetime";

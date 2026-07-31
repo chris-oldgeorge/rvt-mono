@@ -56,6 +56,15 @@ public sealed class ReportingMonitorContext(DbContextOptions<ReportingMonitorCon
             entity.Property(row => row.ReportFrom).HasColumnName("report_from");
             entity.Property(row => row.ReportTo).HasColumnName("report_to");
             entity.Property(row => row.ReportLink).HasColumnName("report_link");
+            // Declared here so the model and the database agree about the backstop
+            // 2026-07-31-add-unique-scheduled-report-period.sql creates. The portal
+            // owns this table's names but maps no entity to it (only the report_search
+            // view), so the monitor adding a writer-owned index is the sanctioned
+            // pattern - the same one ux_report_rule_hidden_one_time_per_site follows.
+            entity.HasIndex(row => new { row.ReportRuleId, row.Frequency, row.ReportFrom })
+                .HasDatabaseName("ux_report_scheduled_period")
+                .IsUnique()
+                .HasFilter("report_rule_id is not null and frequency <> 5");
         });
 
         modelBuilder.Entity<ReportSentEntity>(entity =>

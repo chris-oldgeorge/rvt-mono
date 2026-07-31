@@ -64,6 +64,34 @@ assert_rejected_path() {
   fi
 }
 
+assert_rejected_workflow() {
+  local name="$1"
+  local workflow_content="$2"
+  local fixture="${temp_dir}/${name}"
+  local relative_path=".github/workflows/quality-analysis.yml"
+  local output
+
+  create_payload "${fixture}"
+  printf '%s\n' "${workflow_content}" > "${fixture}/${relative_path}"
+
+  if output="$("${verifier}" --payload-dir "${fixture}" 2>&1)"; then
+    printf 'FAIL: %s Sonar workflow fixture must be rejected.\n' "${name}" >&2
+    exit 1
+  fi
+
+  if [[ "${output}" != *"${relative_path}"* \
+    || "${output}" != *"[rule: Sonar client automation]"* ]]; then
+    printf 'FAIL: %s must report only its path and Sonar rule, got:\n%s\n' \
+      "${name}" "${output}" >&2
+    exit 1
+  fi
+
+  if [[ "${output}" == *"${workflow_content}"* ]]; then
+    printf 'FAIL: %s diagnostic exposed workflow contents.\n' "${name}" >&2
+    exit 1
+  fi
+}
+
 assert_rejected_secret() {
   local name="$1"
   local relative_path="$2"
@@ -117,6 +145,13 @@ assert_rejected_path private-key deploy/client.key
 assert_rejected_path pem-key deploy/client.pem
 assert_rejected_path pkcs12 deploy/client.p12
 assert_rejected_path certificate-bundle deploy/client.pfx
+
+assert_rejected_workflow sonar-token 'env: { SONAR_TOKEN: placeholder }'
+assert_rejected_workflow sonar-cloud 'run: curl https://sonarcloud.io'
+assert_rejected_workflow dotnet-sonar-scanner 'run: dotnet-sonarscanner begin'
+assert_rejected_workflow generic-sonar-scanner 'run: sonar-scanner'
+assert_rejected_workflow sonar-runner-label 'runs-on: rvt-sonar'
+assert_rejected_workflow sonarqube-name 'name: SonarQube'
 
 unsafe_symlink="${temp_dir}/unsafe-symlink"
 create_payload "${unsafe_symlink}"

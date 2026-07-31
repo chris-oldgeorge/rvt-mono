@@ -83,7 +83,7 @@ jobs:
       # with the monitor fixtures (which isolate themselves in throwaway
       # schemas, leaving the public schema free). The portal schema comes from
       # the three EF migration chains plus the idempotent SQL deploy, exactly
-      # as in the SonarQube workflow.
+      # as in the trusted full-analysis workflow.
       - name: Prepare portal schema on the integration database
         env:
           RVT_EF_CONNECTION: Host=localhost;Port=55432;Database=rvt_integration;Username=postgres;Password=postgres

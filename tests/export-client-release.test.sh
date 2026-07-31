@@ -35,6 +35,7 @@ create_source_repo() {
   git -C "${fixture}" config user.email "release-test@example.invalid"
 
   mkdir -p \
+    "${fixture}/.github/runner" \
     "${fixture}/.github/workflows" \
     "${fixture}/apps/portal" \
     "${fixture}/libs/rvt-monitor-common" \
@@ -42,6 +43,8 @@ create_source_repo() {
     "${fixture}/scripts" \
     "${fixture}/tests" \
     "${fixture}/docs/operations" \
+    "${fixture}/docs/operations/github-actions" \
+    "${fixture}/docs/development/portal/sonar" \
     "${fixture}/docs/release" \
     "${fixture}/docs/superpowers/plans" \
     "${fixture}/docs/history/portal" \
@@ -60,11 +63,29 @@ create_source_repo() {
   printf '<Project />\n' > "${fixture}/Directory.Build.props"
   printf '{"sdk":{"version":"10.0.302"}}\n' > "${fixture}/global.json"
   printf 'name: verify\n' > "${fixture}/.github/workflows/verify.yml"
+  printf 'name: SonarQube\n' \
+    > "${fixture}/.github/workflows/sonarqube.yml"
+  printf 'FROM example.invalid/runner\n' \
+    > "${fixture}/.github/runner/Dockerfile"
+  printf '#!/usr/bin/env bash\n' \
+    > "${fixture}/.github/runner/entrypoint.sh"
+  printf 'services: {}\n' \
+    > "${fixture}/.github/runner/docker-compose.yml"
   printf 'committed\n' > "${fixture}/apps/portal/value.txt"
   printf 'shared\n' > "${fixture}/libs/rvt-monitor-common/value.txt"
   printf 'engineering\n' > "${fixture}/eng/policy.txt"
   printf 'test\n' > "${fixture}/tests/example.test"
   printf '# Operations\n' > "${fixture}/docs/operations/runbook.md"
+  printf '# Sonar SQL policy\n' \
+    > "${fixture}/docs/development/portal/sonar/SQL_SCRIPT_ANALYSIS_POLICY.md"
+  printf '# Sonar runner\n' \
+    > "${fixture}/docs/operations/github-actions/self-hosted-sonar-runner.md"
+  printf 'test\n' \
+    > "${fixture}/tests/verify-manual-sonarqube-workflow.test.sh"
+  printf 'test\n' \
+    > "${fixture}/tests/verify-sonar-runner-stack.test.sh"
+  printf 'test\n' \
+    > "${fixture}/tests/verify-engineering-standards-integration.test.sh"
 
   printf 'internal\n' > "${fixture}/AGENTS.md"
   printf 'internal\n' > "${fixture}/project_state.md"
@@ -126,6 +147,15 @@ blocked_paths=(
   docs/release/client-release-exclusions.txt
   scripts/export-client-release.sh
   scripts/verify-client-release.sh
+  .github/workflows/sonarqube.yml
+  .github/runner/Dockerfile
+  .github/runner/entrypoint.sh
+  .github/runner/docker-compose.yml
+  docs/development/portal/sonar/SQL_SCRIPT_ANALYSIS_POLICY.md
+  docs/operations/github-actions/self-hosted-sonar-runner.md
+  tests/verify-manual-sonarqube-workflow.test.sh
+  tests/verify-sonar-runner-stack.test.sh
+  tests/verify-engineering-standards-integration.test.sh
 )
 for blocked_path in "${blocked_paths[@]}"; do
   if [[ -e "${export_one}/${blocked_path}" ]]; then

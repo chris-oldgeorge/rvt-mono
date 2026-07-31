@@ -229,10 +229,9 @@ in `SecurityHardeningTests`.
   distinct, and check the policy rather than assuming.
 - The exclusion format has **no negation**: you cannot exclude a folder and
   re-include one file. If one file in a folder must ship, list the excluded files
-  individually rather than excluding the folder — for example
-  `docs/development/portal/sonar/` must keep shipping
-  `globalization-suppressions.md`, which code `[SuppressMessage]` justifications
-  point at.
+  individually rather than excluding the folder — for example the
+  vendor-neutral `docs/development/portal/globalization-suppressions.md` must
+  continue shipping because code `[SuppressMessage]` justifications point at it.
 - **Record deliberate non-changes.** When something looks like a bug but is a
   product decision, mark it as a design decision at the code, with what changing
   it would take — see the calendar time-zone note in

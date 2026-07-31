@@ -33,6 +33,15 @@ apps/monitors/scripts/export-client-release.sh
 apps/monitors/scripts/publish-client-release.sh
 apps/monitors/docs/release/**
 
+# Internal Sonar analysis, runner, checks, and operator documentation
+.github/workflows/sonarqube.yml
+.github/runner/**
+docs/operations/github-actions/self-hosted-sonar-runner.md
+docs/development/portal/sonar/SQL_SCRIPT_ANALYSIS_POLICY.md
+tests/verify-manual-sonarqube-workflow.test.sh
+tests/verify-sonar-runner-stack.test.sh
+tests/verify-engineering-standards-integration.test.sh
+
 # Local environment and settings
 .env
 **/.env

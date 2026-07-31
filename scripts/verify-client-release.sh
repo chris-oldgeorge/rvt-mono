@@ -195,6 +195,25 @@ report_pattern_matches() {
     -exec grep -IlE -- "${pattern}" {} + 2>/dev/null)
 }
 
+report_workflow_pattern_matches() {
+  local rule="$1"
+  local pattern="$2"
+  local workflow_root="${payload_dir}/.github/workflows"
+  local path
+  local relative_path
+
+  if [[ ! -d "${workflow_root}" ]]; then
+    return 0
+  fi
+
+  while IFS= read -r path; do
+    relative_path="${path#"${payload_dir}/"}"
+    report_finding "${rule}" "${relative_path}"
+  done < <(find "${workflow_root}" -type f \
+    \( -name '*.yml' -o -name '*.yaml' \) \
+    -exec grep -IlEi -- "${pattern}" {} + 2>/dev/null)
+}
+
 required_files=(
   README.md
   Rvt.Mono.slnx
@@ -246,6 +265,10 @@ while IFS= read -r -d '' path; do
     report_finding "special file" "${relative_path}"
   fi
 done < <(find "${payload_dir}" -mindepth 1 -print0)
+
+report_workflow_pattern_matches \
+  "Sonar client automation" \
+  'sonar_token|sonarcloud\.io|dotnet-sonarscanner|sonar-scanner|rvt-sonar|sonarqube'
 
 report_pattern_matches \
   "PEM private key" \

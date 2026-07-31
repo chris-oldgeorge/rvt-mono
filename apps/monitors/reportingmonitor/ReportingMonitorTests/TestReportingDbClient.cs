@@ -293,6 +293,46 @@ public sealed class ReportingDbFixture : IAsyncLifetime
     public ReportingDbClient Client => new(context ?? throw new InvalidOperationException("Fixture has not been initialized."));
     public ReportingDbClient SecondClient => new(secondContext ?? throw new InvalidOperationException("Fixture has not been initialized."));
 
+    /// <summary>
+    /// A rule three days behind, so a single run backfills the maximum four periods
+    /// and each one takes long enough for a competing run to overtake it.
+    /// </summary>
+    public async Task<Guid> SeedBackfillDueDailyRuleAsync(DateTimeOffset lastGeneratedUtc)
+    {
+        Guid ruleId = Guid.Parse("40000000-0000-0000-0000-000000000001");
+        const string sql = """
+            insert into site_search (id, site_name, create_date, postcode)
+            values (@site_id, 'Backfill race site', @created_at, 'AB1 2CD');
+            insert into "AspNetUsers" ("Id", "Email") values (@user_id::text, 'backfill@example.test');
+            insert into report_rule (id, site_id, user_id, frequency, last_generated, deleted, is_hidden_system_rule)
+            values (@rule_id, @site_id, @user_id, 1, @last_generated, false, false);
+            insert into report_user (id, report_rule_id, user_id) values (@recipient_id, @rule_id, @user_id);
+            """;
+
+        await ExecuteAsync(sql, command =>
+        {
+            command.Parameters.AddWithValue("site_id", Guid.Parse("40000000-0000-0000-0000-000000000002"));
+            command.Parameters.AddWithValue("user_id", Guid.Parse("40000000-0000-0000-0000-000000000003"));
+            command.Parameters.AddWithValue("recipient_id", Guid.Parse("40000000-0000-0000-0000-000000000004"));
+            command.Parameters.AddWithValue("rule_id", ruleId);
+            command.Parameters.AddWithValue("created_at", lastGeneratedUtc.AddYears(-1));
+            command.Parameters.AddWithValue("last_generated", lastGeneratedUtc);
+        });
+
+        return ruleId;
+    }
+
+    public async Task<IReadOnlyList<(int Frequency, DateTimeOffset PeriodStartUtc)>> GetReportPeriodsAsync()
+    {
+        ReportingMonitorContext reportingContext = context ?? throw new InvalidOperationException("Fixture has not been initialized.");
+        List<ReportEntity> reports = await reportingContext.Reports
+            .AsNoTracking()
+            .OrderBy(row => row.ReportFrom)
+            .ToListAsync();
+
+        return [.. reports.Select(row => (row.Frequency, row.ReportFrom))];
+    }
+
     public async Task InitializeAsync()
     {
         database = await PostgreSqlIntegrationDatabase.CreateAsync(ReadTestData(CreateScript), ReadTestData(ResetScript));

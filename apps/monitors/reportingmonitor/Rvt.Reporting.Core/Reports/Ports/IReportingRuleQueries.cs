@@ -14,9 +14,26 @@ public interface IReportingRuleQueries
     /// regenerate one that already exists: the advisory generation lock only
     /// serialises concurrent runs, it does not record that a period is done.
     /// </summary>
+    /// <remarks>
+    /// This is a snapshot, so it is only a fast path that skips locking periods
+    /// already known to be done. <see cref="HasGeneratedPeriodAsync"/> is the
+    /// authoritative check.
+    /// </remarks>
     Task<IReadOnlyList<GeneratedReportPeriod>> GetGeneratedPeriodsAsync(
         Guid reportRuleId,
         DateTimeOffset fromUtc,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Whether this exact rule, frequency and period start already has a report.
+    /// Asked once the generation lock for the period is held, so a run that
+    /// waited behind - or arrived after - a competing run observes the report
+    /// that run committed instead of acting on a snapshot taken before it.
+    /// </summary>
+    Task<bool> HasGeneratedPeriodAsync(
+        Guid reportRuleId,
+        FrequencyType frequency,
+        DateTimeOffset periodStartUtc,
         CancellationToken cancellationToken);
 }
 

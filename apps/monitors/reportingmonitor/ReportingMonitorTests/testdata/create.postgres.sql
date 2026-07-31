@@ -34,6 +34,13 @@ create table report (
     id uuid primary key, site_id uuid not null, report_rule_id uuid null, frequency integer not null,
     report_date timestamptz not null, report_from timestamptz not null, report_to timestamptz not null, report_link text not null
 );
+-- Mirrors 2026-07-31-add-unique-scheduled-report-period.sql: scheduled reports
+-- only, so the one-time path (frequency 5, hidden system rule) keeps producing
+-- a row per request.
+create unique index ux_report_scheduled_period
+on report (report_rule_id, frequency, report_from)
+where report_rule_id is not null and frequency <> 5;
+
 create table report_sent (
     id uuid primary key, report_id uuid not null, send_time timestamptz not null, address text not null, error_message text null
 );

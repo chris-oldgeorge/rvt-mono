@@ -44,6 +44,26 @@ public sealed class ReportingModelMappingTests
             .FindProperty(nameof(ReportingAlertRuleRow.LimitOn))!.ClrType);
     }
 
+    /// <summary>
+    /// The model and 2026-07-31-add-unique-scheduled-report-period.sql have to describe
+    /// the same index, filter included: the filter is what keeps one-time reports - which
+    /// legitimately repeat over a site and period - out of the uniqueness guard.
+    /// </summary>
+    [Fact]
+    public void Model_DeclaresTheScheduledReportPeriodUniquenessBackstop()
+    {
+        using ReportingMonitorContext context = ReportingContextFactory.CreatePostgreSqlContext();
+
+        IIndex index = Assert.Single(context.Model.FindEntityType(typeof(ReportEntity))!.GetIndexes());
+
+        Assert.Equal("ux_report_scheduled_period", index.GetDatabaseName());
+        Assert.True(index.IsUnique);
+        Assert.Equal("report_rule_id is not null and frequency <> 5", index.GetFilter());
+        Assert.Equal(
+            ["report_rule_id", "frequency", "report_from"],
+            index.Properties.Select(property => property.GetColumnName()));
+    }
+
     [Fact]
     public void Model_UsesCanonicalDeploymentAndContractOwnershipRelations()
     {
